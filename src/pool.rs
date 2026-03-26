@@ -118,9 +118,7 @@ impl PoolManager {
         }
 
         if pools.is_empty() {
-            return Err(NofsError::Config(
-                "No shares defined in config".to_string(),
-            ));
+            return Err(NofsError::Config("No shares defined in config".to_string()));
         }
 
         Ok(PoolManager { pools })

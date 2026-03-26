@@ -36,7 +36,9 @@ pub enum FolderConflictMode {
 }
 
 /// File-over-file strategy with optional conditions
+#[non_exhaustive]
 #[derive(Debug, Clone)]
+#[allow(clippy::struct_excessive_bools)]
 pub struct FileOverFileStrategy {
     pub skip_hash: bool,
     pub skip_size: bool,
@@ -74,7 +76,12 @@ impl Default for FileOverFileStrategy {
 }
 
 /// Parse file-over-file strategy string
+///
 /// Format: "skip-hash rename-dest" or "delete-src-smaller skip"
+///
+/// # Errors
+///
+/// Returns an error if an unknown mode or option is provided.
 pub fn parse_file_over_file(spec: &str) -> Result<FileOverFileStrategy> {
     let mut strategy = FileOverFileStrategy::default();
     let parts: Vec<&str> = spec.split_whitespace().collect();
@@ -84,7 +91,7 @@ pub fn parse_file_over_file(spec: &str) -> Result<FileOverFileStrategy> {
     }
 
     // Last part is the required mode
-    let required_str = parts[parts.len() - 1];
+    let required_str = parts.last().copied().unwrap_or("skip");
     strategy.required = match required_str {
         "skip" => FileOverFileMode::Skip,
         "rename-src" => FileOverFileMode::RenameSrc,
@@ -93,14 +100,13 @@ pub fn parse_file_over_file(spec: &str) -> Result<FileOverFileStrategy> {
         "delete-dest" => FileOverFileMode::DeleteDest,
         _ => {
             return Err(NofsError::Parse(format!(
-                "Unknown file-over-file mode: {}",
-                required_str
+                "Unknown file-over-file mode: {required_str}"
             )))
         }
     };
 
     // Previous parts are optional conditions
-    for opt in &parts[..parts.len() - 1] {
+    for opt in parts.iter().take(parts.len().saturating_sub(1)) {
         match *opt {
             "skip-hash" => strategy.skip_hash = true,
             "skip-size" => strategy.skip_size = true,
@@ -116,8 +122,7 @@ pub fn parse_file_over_file(spec: &str) -> Result<FileOverFileStrategy> {
             "delete-src-smaller" => strategy.delete_src_smaller = true,
             _ => {
                 return Err(NofsError::Parse(format!(
-                    "Unknown file-over-file option: {}",
-                    opt
+                    "Unknown file-over-file option: {opt}"
                 )))
             }
         }
@@ -127,6 +132,7 @@ pub fn parse_file_over_file(spec: &str) -> Result<FileOverFileStrategy> {
 }
 
 /// Statistics for copy/move operations
+#[non_exhaustive]
 #[derive(Debug, Default)]
 pub struct CopyStats {
     pub files_copied: AtomicU64,
@@ -140,12 +146,13 @@ pub struct CopyStats {
 }
 
 /// Copy operation configuration
+#[non_exhaustive]
 #[derive(Debug, Clone)]
 pub struct CopyConfig {
-    pub copy: bool,              // true = copy, false = move
-    pub simulate: bool,          // dry-run mode
-    pub workers: usize,          // number of parallel workers
-    pub verbose: bool,           // verbose output
+    pub copy: bool,     // true = copy, false = move
+    pub simulate: bool, // dry-run mode
+    pub workers: usize, // number of parallel workers
+    pub verbose: bool,  // verbose output
     pub file_over_file: FileOverFileStrategy,
     pub file_over_folder: FolderConflictMode,
     pub folder_over_file: FolderConflictMode,
@@ -176,13 +183,17 @@ impl Default for CopyConfig {
 }
 
 /// Execute the copy command
+///
+/// # Errors
+///
+/// Returns an error if sources are empty or if destination is invalid.
 #[allow(clippy::too_many_lines)]
 pub fn execute(
     sources: &[String],
     destination: &str,
-    config: CopyConfig,
+    config: &CopyConfig,
     pool: Option<&Pool>,
-) -> Result<CopyStats> {
+) -> Result<Arc<CopyStats>> {
     let stats = Arc::new(CopyStats::default());
     let start_time = Instant::now();
 
@@ -224,9 +235,7 @@ pub fn execute(
         // Determine final destination for this source
         let final_dest = if sources.len() > 1 || (dest_exists && dest_is_dir) {
             // Merge into destination directory
-            let source_name = source_path
-                .file_name()
-                .unwrap_or(source_path.as_os_str());
+            let source_name = source_path.file_name().unwrap_or(source_path.as_os_str());
             dest_path.join(source_name)
         } else {
             dest_path.clone()
@@ -236,7 +245,7 @@ pub fn execute(
         if let Err(e) = process_source(
             &source_path,
             &final_dest,
-            &config,
+            config,
             &stats,
             pool,
             &Arc::new(Mutex::new(0u64)),
@@ -249,11 +258,11 @@ pub fn execute(
 
     if config.verbose {
         let elapsed = start_time.elapsed();
-        eprintln!("\nCompleted in {:.2?}", elapsed);
+        eprintln!("\nCompleted in {elapsed:.2?}");
         print_stats(&stats);
     }
 
-    Ok(CopyStats::default())
+    Ok(stats)
 }
 
 #[allow(clippy::too_many_lines)]
@@ -271,9 +280,9 @@ fn process_source(
 
     // Check limits
     {
-        let count = *file_count.lock().map_err(|e| {
-            NofsError::CopyMove(format!("Lock poisoning: {}", e))
-        })?;
+        let count = *file_count
+            .lock()
+            .map_err(|e| NofsError::CopyMove(format!("Lock poisoning: {e}")))?;
         if let Some(limit) = config.limit {
             if count >= limit {
                 return Ok(());
@@ -301,8 +310,8 @@ fn process_source(
 
         // Recursively process directory contents
         let entries = fs::read_dir(source)?;
-        for entry in entries {
-            let entry = entry?;
+        for entry_result in entries {
+            let entry = entry_result?;
             let entry_path = entry.path();
             let entry_name = entry.file_name();
             let entry_dest = dest.join(&entry_name);
@@ -316,17 +325,18 @@ fn process_source(
                 file_count,
                 byte_count,
             ) {
-                eprintln!("Error processing {}: {}", shell_quote(entry_path.to_string_lossy().as_ref()), e);
+                eprintln!(
+                    "Error processing {}: {}",
+                    shell_quote(entry_path.to_string_lossy().as_ref()),
+                    e
+                );
             }
         }
     } else {
         // Handle file
         // Check extension filter
         if !config.extensions.is_empty() {
-            let ext = source
-                .extension()
-                .and_then(|s| s.to_str())
-                .unwrap_or("");
+            let ext = source.extension().and_then(|s| s.to_str()).unwrap_or("");
             let matches = config
                 .extensions
                 .iter()
@@ -342,7 +352,9 @@ fn process_source(
             if dest_is_dir {
                 // File over folder - apply strategy
                 stats.conflicts_resolved.fetch_add(1, Ordering::Relaxed);
-                return handle_file_over_folder(source, dest, config, stats, file_count, byte_count);
+                return handle_file_over_folder(
+                    source, dest, config, stats, file_count, byte_count,
+                );
             }
             // File over file conflict
             stats.conflicts_resolved.fetch_add(1, Ordering::Relaxed);
@@ -369,27 +381,27 @@ fn process_file(
 
     // Check size limit
     {
-        let mut bytes = byte_count.lock().map_err(|e| {
-            NofsError::CopyMove(format!("Lock poisoning: {}", e))
-        })?;
+        let mut bytes = byte_count
+            .lock()
+            .map_err(|e| NofsError::CopyMove(format!("Lock poisoning: {e}")))?;
         if let Some(limit) = config.size_limit {
-            if *bytes + file_size > limit {
+            if bytes.checked_add(file_size).is_some_and(|sum| sum > limit) {
                 return Ok(());
             }
-            *bytes += file_size;
+            *bytes = bytes.saturating_add(file_size);
         }
     }
 
     // Check file count limit
     {
-        let mut count = file_count.lock().map_err(|e| {
-            NofsError::CopyMove(format!("Lock poisoning: {}", e))
-        })?;
+        let mut count = file_count
+            .lock()
+            .map_err(|e| NofsError::CopyMove(format!("Lock poisoning: {e}")))?;
         if let Some(limit) = config.limit {
             if *count >= limit {
                 return Ok(());
             }
-            *count += 1;
+            *count = count.saturating_add(1);
         }
     }
 
@@ -468,16 +480,69 @@ fn handle_file_over_file(
     let dest_size = fs::metadata(dest)?.len();
 
     // Check hash-based conditions if needed
-    let hashes_match = if strategy.skip_hash
-        || strategy.delete_dest_hash
-        || strategy.delete_src_hash
-    {
-        files_match_by_hash(source, dest, stats)?
-    } else {
-        false
-    };
+    let hashes_match =
+        if strategy.skip_hash || strategy.delete_dest_hash || strategy.delete_src_hash {
+            files_match_by_hash(source, dest, stats)?
+        } else {
+            false
+        };
 
     // Evaluate optional conditions
+    if check_skip_conditions(
+        strategy, hashes_match, src_size, dest_size, config, source, stats,
+    ) {
+        return Ok(());
+    }
+
+    if check_delete_dest_conditions(
+        strategy,
+        hashes_match,
+        src_size,
+        dest_size,
+        config,
+        dest,
+        source,
+        stats,
+        file_count,
+        byte_count,
+    )? {
+        return Ok(());
+    }
+
+    if check_delete_src_conditions(
+        strategy,
+        hashes_match,
+        src_size,
+        dest_size,
+        config,
+        source,
+        dest,
+        stats,
+    )? {
+        return Ok(());
+    }
+
+    // Apply required fallback
+    apply_required_strategy(
+        strategy,
+        source,
+        dest,
+        config,
+        stats,
+        file_count,
+        byte_count,
+    )
+}
+
+fn check_skip_conditions(
+    strategy: &FileOverFileStrategy,
+    hashes_match: bool,
+    src_size: u64,
+    dest_size: u64,
+    config: &CopyConfig,
+    source: &Path,
+    stats: &Arc<CopyStats>,
+) -> bool {
     if strategy.skip_hash && hashes_match {
         if config.verbose {
             eprintln!(
@@ -486,7 +551,7 @@ fn handle_file_over_file(
             );
         }
         stats.files_skipped.fetch_add(1, Ordering::Relaxed);
-        return Ok(());
+        return true;
     }
 
     if strategy.skip_size && src_size == dest_size {
@@ -497,7 +562,7 @@ fn handle_file_over_file(
             );
         }
         stats.files_skipped.fetch_add(1, Ordering::Relaxed);
-        return Ok(());
+        return true;
     }
 
     if strategy.skip_larger && src_size > dest_size {
@@ -508,7 +573,7 @@ fn handle_file_over_file(
             );
         }
         stats.files_skipped.fetch_add(1, Ordering::Relaxed);
-        return Ok(());
+        return true;
     }
 
     if strategy.skip_smaller && src_size < dest_size {
@@ -519,9 +584,24 @@ fn handle_file_over_file(
             );
         }
         stats.files_skipped.fetch_add(1, Ordering::Relaxed);
-        return Ok(());
+        return true;
     }
 
+    false
+}
+
+fn check_delete_dest_conditions(
+    strategy: &FileOverFileStrategy,
+    hashes_match: bool,
+    src_size: u64,
+    dest_size: u64,
+    config: &CopyConfig,
+    dest: &Path,
+    source: &Path,
+    stats: &Arc<CopyStats>,
+    file_count: &Arc<Mutex<u64>>,
+    byte_count: &Arc<Mutex<u64>>,
+) -> Result<bool> {
     if strategy.delete_dest_hash && hashes_match {
         if config.verbose {
             eprintln!(
@@ -532,7 +612,8 @@ fn handle_file_over_file(
         if !config.simulate {
             fs::remove_file(dest)?;
         }
-        return process_file(source, dest, config, stats, file_count, byte_count);
+        return process_file(source, dest, config, stats, file_count, byte_count)
+            .map(|()| true);
     }
 
     if strategy.delete_dest_size && src_size == dest_size {
@@ -545,7 +626,8 @@ fn handle_file_over_file(
         if !config.simulate {
             fs::remove_file(dest)?;
         }
-        return process_file(source, dest, config, stats, file_count, byte_count);
+        return process_file(source, dest, config, stats, file_count, byte_count)
+            .map(|()| true);
     }
 
     if strategy.delete_dest_larger && src_size > dest_size {
@@ -558,7 +640,8 @@ fn handle_file_over_file(
         if !config.simulate {
             fs::remove_file(dest)?;
         }
-        return process_file(source, dest, config, stats, file_count, byte_count);
+        return process_file(source, dest, config, stats, file_count, byte_count)
+            .map(|()| true);
     }
 
     if strategy.delete_dest_smaller && src_size < dest_size {
@@ -571,9 +654,23 @@ fn handle_file_over_file(
         if !config.simulate {
             fs::remove_file(dest)?;
         }
-        return process_file(source, dest, config, stats, file_count, byte_count);
+        return process_file(source, dest, config, stats, file_count, byte_count)
+            .map(|()| true);
     }
 
+    Ok(false)
+}
+
+fn check_delete_src_conditions(
+    strategy: &FileOverFileStrategy,
+    hashes_match: bool,
+    src_size: u64,
+    dest_size: u64,
+    config: &CopyConfig,
+    source: &Path,
+    _dest: &Path,
+    stats: &Arc<CopyStats>,
+) -> Result<bool> {
     if strategy.delete_src_hash && hashes_match {
         if config.verbose {
             eprintln!(
@@ -585,7 +682,7 @@ fn handle_file_over_file(
             fs::remove_file(source)?;
         }
         stats.files_skipped.fetch_add(1, Ordering::Relaxed);
-        return Ok(());
+        return Ok(true);
     }
 
     if strategy.delete_src_size && src_size == dest_size {
@@ -599,7 +696,7 @@ fn handle_file_over_file(
             fs::remove_file(source)?;
         }
         stats.files_skipped.fetch_add(1, Ordering::Relaxed);
-        return Ok(());
+        return Ok(true);
     }
 
     if strategy.delete_src_larger && src_size > dest_size {
@@ -613,7 +710,7 @@ fn handle_file_over_file(
             fs::remove_file(source)?;
         }
         stats.files_skipped.fetch_add(1, Ordering::Relaxed);
-        return Ok(());
+        return Ok(true);
     }
 
     if strategy.delete_src_smaller && src_size < dest_size {
@@ -627,10 +724,21 @@ fn handle_file_over_file(
             fs::remove_file(source)?;
         }
         stats.files_skipped.fetch_add(1, Ordering::Relaxed);
-        return Ok(());
+        return Ok(true);
     }
 
-    // Apply required fallback
+    Ok(false)
+}
+
+fn apply_required_strategy(
+    strategy: &FileOverFileStrategy,
+    source: &Path,
+    dest: &Path,
+    config: &CopyConfig,
+    stats: &Arc<CopyStats>,
+    file_count: &Arc<Mutex<u64>>,
+    byte_count: &Arc<Mutex<u64>>,
+) -> Result<()> {
     match strategy.required {
         FileOverFileMode::Skip => {
             if config.verbose {
@@ -666,7 +774,7 @@ fn handle_file_over_file(
             return process_file(source, dest, config, stats, file_count, byte_count);
         }
         FileOverFileMode::RenameSrc => {
-            let new_dest = get_unique_filename(dest)?;
+            let new_dest = get_unique_filename(dest);
             if config.verbose {
                 eprintln!(
                     "Renaming source {} -> {} (strategy: rename-src)",
@@ -677,7 +785,7 @@ fn handle_file_over_file(
             return process_file(source, &new_dest, config, stats, file_count, byte_count);
         }
         FileOverFileMode::RenameDest => {
-            let renamed_dest = get_unique_filename(dest)?;
+            let renamed_dest = get_unique_filename(dest);
             if config.verbose {
                 eprintln!(
                     "Renaming destination {} -> {} (strategy: rename-dest)",
@@ -740,7 +848,7 @@ fn handle_file_over_folder(
             return process_file(source, dest, config, stats, file_count, byte_count);
         }
         FolderConflictMode::RenameSrc => {
-            let new_dest = get_unique_filename(dest)?;
+            let new_dest = get_unique_filename(dest);
             if config.verbose {
                 eprintln!(
                     "Renaming source file {} -> {} (strategy: rename-src)",
@@ -752,7 +860,7 @@ fn handle_file_over_folder(
             return process_file(source, &new_dest, config, stats, file_count, byte_count);
         }
         FolderConflictMode::RenameDest => {
-            let renamed_dest = get_unique_folder_name(dest)?;
+            let renamed_dest = get_unique_folder_name(dest);
             if config.verbose {
                 eprintln!(
                     "Renaming destination folder {} -> {} (strategy: rename-dest)",
@@ -768,9 +876,7 @@ fn handle_file_over_folder(
         }
         FolderConflictMode::Merge => {
             // Move file into folder as folder/filename
-            let file_name = source
-                .file_name()
-                .unwrap_or(source.as_os_str());
+            let file_name = source.file_name().unwrap_or(source.as_os_str());
             let new_dest = dest.join(file_name);
             if config.verbose {
                 eprintln!(
@@ -831,7 +937,7 @@ fn handle_folder_over_file(
         }
         FolderConflictMode::RenameSrc => {
             // Rename the source folder conceptually by copying to renamed path
-            let new_dest = get_unique_folder_name(dest)?;
+            let new_dest = get_unique_folder_name(dest);
             if config.verbose {
                 eprintln!(
                     "Using renamed folder path {} (strategy: rename-src)",
@@ -846,7 +952,7 @@ fn handle_folder_over_file(
             return process_source_contents(source, &new_dest, config, stats);
         }
         FolderConflictMode::RenameDest => {
-            let renamed_dest = get_unique_folder_name(dest)?;
+            let renamed_dest = get_unique_folder_name(dest);
             if config.verbose {
                 eprintln!(
                     "Renaming destination file {} -> {} (strategy: rename-dest)",
@@ -864,7 +970,7 @@ fn handle_folder_over_file(
         FolderConflictMode::Merge => {
             // This case shouldn't happen (folder over file merge doesn't make sense)
             // Fall back to rename-dest behavior
-            let renamed_dest = get_unique_folder_name(dest)?;
+            let renamed_dest = get_unique_folder_name(dest);
             if config.verbose {
                 eprintln!(
                     "Renaming destination file {} -> {} (strategy: merge fallback)",
@@ -891,8 +997,8 @@ fn process_source_contents(
     stats: &Arc<CopyStats>,
 ) -> Result<()> {
     let entries = fs::read_dir(source)?;
-    for entry in entries {
-        let entry = entry?;
+    for entry_result in entries {
+        let entry = entry_result?;
         let entry_path = entry.path();
         let entry_name = entry.file_name();
         let entry_dest = dest.join(&entry_name);
@@ -906,59 +1012,59 @@ fn process_source_contents(
             &Arc::new(Mutex::new(0u64)),
             &Arc::new(Mutex::new(0u64)),
         ) {
-            eprintln!("Error processing {}: {}", shell_quote(entry_path.to_string_lossy().as_ref()), e);
+            eprintln!(
+                "Error processing {}: {}",
+                shell_quote(entry_path.to_string_lossy().as_ref()),
+                e
+            );
         }
     }
     Ok(())
 }
 
-fn get_unique_filename(base: &Path) -> Result<PathBuf> {
+fn get_unique_filename(base: &Path) -> PathBuf {
     if !base.exists() {
-        return Ok(base.to_path_buf());
+        return base.to_path_buf();
     }
 
     let dir = base.parent().unwrap_or(Path::new("."));
-    let file_stem = base
-        .file_stem()
-        .and_then(|s| s.to_str())
-        .unwrap_or("");
+    let file_stem = base.file_stem().and_then(|s| s.to_str()).unwrap_or("");
     let extension = base.extension().and_then(|s| s.to_str()).unwrap_or("");
 
     // Check if file already has a _N suffix
-    let (base_name, start_idx) = if let Some(idx) = file_stem.rfind('_') {
-        let suffix = &file_stem[idx + 1..];
-        if let Ok(num) = suffix.parse::<u32>() {
-            (&file_stem[..idx], num + 1)
-        } else {
-            (file_stem, 1)
-        }
-    } else {
-        (file_stem, 1)
-    };
+    let (base_name, start_idx) = file_stem.rfind('_').map_or(
+        (file_stem, 1),
+        |idx| {
+            let suffix = &file_stem[idx + 1..];
+            suffix
+                .parse::<u32>()
+                .map_or((file_stem, 1), |num| (&file_stem[..idx], num + 1))
+        },
+    );
 
     for i in start_idx.. {
         let new_name = if extension.is_empty() {
-            format!("{}_{}", base_name, i)
+            format!("{base_name}_{i}")
         } else {
-            format!("{}_{}.{}", base_name, i, extension)
+            format!("{base_name}_{i}.{extension}")
         };
         let new_path = dir.join(&new_name);
         if !new_path.exists() {
-            return Ok(new_path);
+            return new_path;
         }
     }
 
     // Fallback (shouldn't reach here)
-    Ok(base.to_path_buf().with_extension(format!(
+    base.to_path_buf().with_extension(format!(
         "{}.{}",
         base.extension().unwrap_or_default().to_string_lossy(),
         "conflict"
-    )))
+    ))
 }
 
-fn get_unique_folder_name(base: &Path) -> Result<PathBuf> {
+fn get_unique_folder_name(base: &Path) -> PathBuf {
     if !base.exists() {
-        return Ok(base.to_path_buf());
+        return base.to_path_buf();
     }
 
     let dir = base.parent().unwrap_or(Path::new("."));
@@ -968,26 +1074,25 @@ fn get_unique_folder_name(base: &Path) -> Result<PathBuf> {
         .unwrap_or("folder");
 
     // Check if folder already has a _N suffix
-    let (base_name, start_idx) = if let Some(idx) = folder_name.rfind('_') {
-        let suffix = &folder_name[idx + 1..];
-        if let Ok(num) = suffix.parse::<u32>() {
-            (&folder_name[..idx], num + 1)
-        } else {
-            (folder_name, 1)
-        }
-    } else {
-        (folder_name, 1)
-    };
+    let (base_name, start_idx) = folder_name.rfind('_').map_or(
+        (folder_name, 1),
+        |idx| {
+            let suffix = &folder_name[idx + 1..];
+            suffix
+                .parse::<u32>()
+                .map_or((folder_name, 1), |num| (&folder_name[..idx], num + 1))
+        },
+    );
 
     for i in start_idx.. {
-        let new_name = format!("{}_{}", base_name, i);
+        let new_name = format!("{base_name}_{i}");
         let new_path = dir.join(&new_name);
         if !new_path.exists() {
-            return Ok(new_path);
+            return new_path;
         }
     }
 
-    Ok(base.to_path_buf().with_extension("conflict"))
+    base.to_path_buf().with_extension("conflict")
 }
 
 fn files_match_by_hash(source: &Path, dest: &Path, stats: &CopyStats) -> Result<bool> {
@@ -1016,13 +1121,13 @@ fn sample_hash(path: &Path, stats: &CopyStats) -> Result<String> {
     // For larger files, sample at multiple positions
     let mut file = fs::File::open(path)?;
     let mut hasher = DefaultHasher::new();
-    let chunk_size = 64 * 1024;
-    let num_samples = 10;
+    let chunk_size: u64 = 64 * 1024;
+    let num_samples: u64 = 10;
 
     stats.sample_hashes.fetch_add(1, Ordering::Relaxed);
 
     for i in 0..num_samples {
-        let pos = (size * i as u64) / num_samples as u64;
+        let pos = size.saturating_mul(i) / num_samples;
         file.seek(io::SeekFrom::Start(pos))?;
         let mut buf = vec![0u8; chunk_size as usize];
         let bytes_read = file.read(&mut buf).unwrap_or(0);
@@ -1032,6 +1137,8 @@ fn sample_hash(path: &Path, stats: &CopyStats) -> Result<String> {
     Ok(format!("{:x}", hasher.finish()))
 }
 
+#[must_use]
+#[allow(clippy::cast_precision_loss)]
 pub fn format_size(bytes: u64) -> String {
     const KB: u64 = 1000;
     const MB: u64 = KB * 1000;
@@ -1044,24 +1151,30 @@ pub fn format_size(bytes: u64) -> String {
     } else if bytes >= KB {
         format!("{:.1} KB", bytes as f64 / KB as f64)
     } else {
-        format!("{} B", bytes)
+        format!("{bytes} B")
     }
 }
 
 fn shell_quote<S: AsRef<str>>(s: S) -> String {
-    let s = s.as_ref();
-    if s.is_empty() {
+    let s_ref = s.as_ref();
+    if s_ref.is_empty() {
         return "''".to_string();
     }
-    if s.chars().all(|c| c.is_alphanumeric() || "!@%_+=:,./-".contains(c)) {
-        return format!("'{}'", s);
+    if s_ref
+        .chars()
+        .all(|c| c.is_alphanumeric() || "!@%_+=:,./-".contains(c))
+    {
+        return format!("'{s_ref}'");
     }
-    format!("'{}'", s.replace('\'', "'\\''"))
+    format!("'{}'", s_ref.replace('\'', "'\\''"))
 }
 
 fn print_stats(stats: &CopyStats) {
     eprintln!("\nSummary:");
-    eprintln!("  {} files copied", stats.files_copied.load(Ordering::Relaxed));
+    eprintln!(
+        "  {} files copied",
+        stats.files_copied.load(Ordering::Relaxed)
+    );
     eprintln!(
         "  {} folders created",
         stats.folders_created.load(Ordering::Relaxed)
@@ -1080,6 +1193,6 @@ fn print_stats(stats: &CopyStats) {
     );
     let errors = stats.errors.load(Ordering::Relaxed);
     if errors > 0 {
-        eprintln!("  {} errors", errors);
+        eprintln!("  {errors} errors");
     }
 }

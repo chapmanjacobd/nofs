@@ -315,16 +315,13 @@ fn main() -> Result<()> {
                     "At least one source and one destination are required"
                 ));
             }
-            let sources: Vec<String> = paths[..paths.len() - 1].to_vec();
-            let destination = &paths[paths.len() - 1];
+            let (destination, sources) = paths.split_last().unwrap();
 
             // Parse size limit
-            let parsed_size_limit = size_limit
-                .as_ref()
-                .and_then(|s| parse_size(s).ok());
+            let parsed_size_limit = size_limit.as_ref().and_then(|s| parse_size(s).ok());
 
             // Get share for context-aware paths
-            let pool = extract_pool_from_paths(&pool_mgr, &sources, destination)?;
+            let pool = extract_pool_from_paths(&pool_mgr, sources, destination)?;
 
             let config = commands::cp::CopyConfig {
                 copy: true,
@@ -341,7 +338,7 @@ fn main() -> Result<()> {
                 size_limit: parsed_size_limit,
             };
 
-            commands::cp::execute(&sources, destination, config, pool)?;
+            commands::cp::execute(sources, destination, &config, pool)?;
         }
         Commands::Mv {
             paths,
@@ -363,19 +360,16 @@ fn main() -> Result<()> {
                     "At least one source and one destination are required"
                 ));
             }
-            let sources: Vec<String> = paths[..paths.len() - 1].to_vec();
-            let destination = &paths[paths.len() - 1];
+            let (destination, sources) = paths.split_last().unwrap();
 
             // Parse size limit
-            let parsed_size_limit = size_limit
-                .as_ref()
-                .and_then(|s| parse_size(s).ok());
+            let parsed_size_limit = size_limit.as_ref().and_then(|s| parse_size(s).ok());
 
             // Get share for context-aware paths
-            let pool = extract_pool_from_paths(&pool_mgr, &sources, destination)?;
+            let pool = extract_pool_from_paths(&pool_mgr, sources, destination)?;
 
             commands::mv::execute(
-                &sources,
+                sources,
                 destination,
                 &file_over_file,
                 &file_over_folder,
@@ -405,13 +399,13 @@ fn parse_folder_conflict_mode(s: &str) -> Result<commands::cp::FolderConflictMod
         "delete-src" => Ok(FolderConflictMode::DeleteSrc),
         "delete-dest" => Ok(FolderConflictMode::DeleteDest),
         "merge" => Ok(FolderConflictMode::Merge),
-        _ => Err(anyhow::anyhow!("Unknown folder conflict mode: {}", s)),
+        _ => Err(anyhow::anyhow!("Unknown folder conflict mode: {s}")),
     }
 }
 
 fn parse_size(s: &str) -> Result<u64> {
     use crate::policy::parse_size as policy_parse_size;
-    policy_parse_size(s).map_err(|e| anyhow::anyhow!("Parse error: {}", e))
+    policy_parse_size(s).map_err(|e| anyhow::anyhow!("Parse error: {e}"))
 }
 
 /// Try to extract a share from paths that contain context prefixes
@@ -421,7 +415,10 @@ fn extract_pool_from_paths<'a>(
     destination: &str,
 ) -> Result<Option<&'a pool::Pool>> {
     // Check if any path has a context prefix
-    for path in sources.iter().chain(std::iter::once(&destination.to_string())) {
+    for path in sources
+        .iter()
+        .chain(std::iter::once(&destination.to_string()))
+    {
         if let Some((ctx, _)) = path.split_once(':') {
             if !ctx.contains('/') {
                 // This looks like a context prefix

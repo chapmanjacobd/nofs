@@ -7,12 +7,17 @@ use crate::commands::cp::{
 };
 use crate::error::{NofsError, Result};
 use crate::pool::Pool;
+use std::sync::Arc;
 
 /// Execute the move command
 ///
 /// This is essentially a copy operation with `copy=false`, meaning files are
 /// moved (renamed) instead of copied. If rename fails, falls back to copy+delete.
-#[allow(clippy::too_many_lines)]
+///
+/// # Errors
+///
+/// Returns an error if parsing of conflict modes fails or if the copy operation fails.
+#[allow(clippy::too_many_arguments)]
 pub fn execute(
     sources: &[String],
     destination: &str,
@@ -28,7 +33,7 @@ pub fn execute(
     limit: Option<u64>,
     size_limit: Option<u64>,
     pool: Option<&Pool>,
-) -> Result<CopyStats> {
+) -> Result<Arc<CopyStats>> {
     // Parse conflict resolution strategies
     let file_over_file_strategy = parse_file_over_file(file_over_file)?;
     let file_over_folder_mode = parse_folder_conflict_mode(file_over_folder)?;
@@ -49,7 +54,7 @@ pub fn execute(
         size_limit,
     };
 
-    copy_execute(sources, destination, config, pool)
+    copy_execute(sources, destination, &config, pool)
 }
 
 fn parse_folder_conflict_mode(s: &str) -> Result<FolderConflictMode> {
@@ -61,8 +66,7 @@ fn parse_folder_conflict_mode(s: &str) -> Result<FolderConflictMode> {
         "delete-dest" => Ok(FolderConflictMode::DeleteDest),
         "merge" => Ok(FolderConflictMode::Merge),
         _ => Err(NofsError::Parse(format!(
-            "Unknown folder conflict mode: {}",
-            s
+            "Unknown folder conflict mode: {s}"
         ))),
     }
 }

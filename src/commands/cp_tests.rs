@@ -5,10 +5,10 @@ use crate::commands::cp::{
 };
 use crate::commands::mv::execute as mv_execute;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 fn setup_test_dir(name: &str) -> PathBuf {
-    let test_dir = std::env::temp_dir().join(format!("nofs_test_{}", name));
+    let test_dir = std::env::temp_dir().join(format!("nofs_test_{name}"));
     let _ = fs::remove_dir_all(&test_dir);
     fs::create_dir_all(&test_dir).unwrap();
     test_dir
@@ -29,7 +29,7 @@ fn read_file(path: &PathBuf) -> String {
     fs::read_to_string(path).unwrap()
 }
 
-fn file_exists(path: &PathBuf) -> bool {
+fn file_exists(path: &Path) -> bool {
     path.exists()
 }
 
@@ -55,7 +55,7 @@ fn test_simple_copy() {
     let result = cp_execute(
         &[src.to_string_lossy().to_string()],
         &dest.to_string_lossy(),
-        config,
+        &config,
         None,
     );
 
@@ -135,7 +135,7 @@ fn test_copy_with_conflict_skip() {
     let result = cp_execute(
         &[src.to_string_lossy().to_string()],
         &dest.to_string_lossy(),
-        config,
+        &config,
         None,
     );
 
@@ -160,7 +160,7 @@ fn test_copy_with_conflict_delete_dest() {
     let dest_src = dest.join("src");
     fs::create_dir_all(&dest_src).unwrap();
     let dest_file = dest_src.join("file.txt");
-    
+
     create_file(&src_file, "new content");
     create_file(&dest_file, "old content");
 
@@ -178,7 +178,7 @@ fn test_copy_with_conflict_delete_dest() {
     let result = cp_execute(
         &[src.to_string_lossy().to_string()],
         &dest.to_string_lossy(),
-        config,
+        &config,
         None,
     );
 
@@ -201,7 +201,7 @@ fn test_copy_with_conflict_rename_dest() {
     let dest_src = dest.join("src");
     fs::create_dir_all(&dest_src).unwrap();
     let dest_file = dest_src.join("file.txt");
-    
+
     create_file(&src_file, "new content");
     create_file(&dest_file, "old content");
 
@@ -219,7 +219,7 @@ fn test_copy_with_conflict_rename_dest() {
     let result = cp_execute(
         &[src.to_string_lossy().to_string()],
         &dest.to_string_lossy(),
-        config,
+        &config,
         None,
     );
 
@@ -245,7 +245,7 @@ fn test_copy_with_conflict_rename_src() {
     let dest_src = dest.join("src");
     fs::create_dir_all(&dest_src).unwrap();
     let dest_file = dest_src.join("file.txt");
-    
+
     create_file(&src_file, "new content");
     create_file(&dest_file, "old content");
 
@@ -263,7 +263,7 @@ fn test_copy_with_conflict_rename_src() {
     let result = cp_execute(
         &[src.to_string_lossy().to_string()],
         &dest.to_string_lossy(),
-        config,
+        &config,
         None,
     );
 
@@ -303,7 +303,7 @@ fn test_copy_with_hash_skip() {
     let result = cp_execute(
         &[src.to_string_lossy().to_string()],
         &dest.to_string_lossy(),
-        config,
+        &config,
         None,
     );
 
@@ -340,7 +340,7 @@ fn test_copy_with_size_skip() {
     let result = cp_execute(
         &[src.to_string_lossy().to_string()],
         &dest.to_string_lossy(),
-        config,
+        &config,
         None,
     );
 
@@ -377,7 +377,7 @@ fn test_copy_with_skip_larger() {
     let result = cp_execute(
         &[src.to_string_lossy().to_string()],
         &dest.to_string_lossy(),
-        config,
+        &config,
         None,
     );
 
@@ -400,7 +400,7 @@ fn test_copy_with_delete_dest_larger() {
     let dest_src = dest.join("src");
     fs::create_dir_all(&dest_src).unwrap();
     let dest_file = dest_src.join("file.txt");
-    
+
     create_file(&src_file, "small");
     create_file(&dest_file, "larger content here");
 
@@ -418,7 +418,7 @@ fn test_copy_with_delete_dest_larger() {
     let result = cp_execute(
         &[src.to_string_lossy().to_string()],
         &dest.to_string_lossy(),
-        config,
+        &config,
         None,
     );
 
@@ -439,7 +439,10 @@ fn test_copy_directory_recursive() {
     // Create nested structure
     create_file(&src.join("file1.txt"), "content1");
     create_file(&src.join("subdir").join("file2.txt"), "content2");
-    create_file(&src.join("subdir").join("deep").join("file3.txt"), "content3");
+    create_file(
+        &src.join("subdir").join("deep").join("file3.txt"),
+        "content3",
+    );
 
     let config = CopyConfig {
         copy: true,
@@ -452,7 +455,7 @@ fn test_copy_directory_recursive() {
     let result = cp_execute(
         &[src.to_string_lossy().to_string()],
         &dest.to_string_lossy(),
-        config,
+        &config,
         None,
     );
 
@@ -460,7 +463,11 @@ fn test_copy_directory_recursive() {
 
     let dest_file1 = dest.join("src").join("file1.txt");
     let dest_file2 = dest.join("src").join("subdir").join("file2.txt");
-    let dest_file3 = dest.join("src").join("subdir").join("deep").join("file3.txt");
+    let dest_file3 = dest
+        .join("src")
+        .join("subdir")
+        .join("deep")
+        .join("file3.txt");
 
     assert!(file_exists(&dest_file1));
     assert!(file_exists(&dest_file2));
@@ -494,7 +501,7 @@ fn test_copy_simulation() {
     let result = cp_execute(
         &[src.to_string_lossy().to_string()],
         &dest.to_string_lossy(),
-        config,
+        &config,
         None,
     );
 
@@ -532,7 +539,7 @@ fn test_copy_with_extension_filter() {
     let result = cp_execute(
         &[src.to_string_lossy().to_string()],
         &dest.to_string_lossy(),
-        config,
+        &config,
         None,
     );
 
@@ -569,7 +576,7 @@ fn test_copy_with_file_limit() {
     let result = cp_execute(
         &[src.to_string_lossy().to_string()],
         &dest.to_string_lossy(),
-        config,
+        &config,
         None,
     );
 
@@ -616,7 +623,7 @@ fn test_folder_over_file_conflict() {
     let result = cp_execute(
         &[src.to_string_lossy().to_string()],
         &dest.to_string_lossy(),
-        config,
+        &config,
         None,
     );
 
@@ -660,7 +667,7 @@ fn test_file_over_folder_conflict() {
     let result = cp_execute(
         &[src.to_string_lossy().to_string()],
         &dest.to_string_lossy(),
-        config,
+        &config,
         None,
     );
 
@@ -699,7 +706,7 @@ fn test_multiple_sources() {
         src2.to_string_lossy().to_string(),
     ];
 
-    let result = cp_execute(&sources, &dest.to_string_lossy(), config, None);
+    let result = cp_execute(&sources, &dest.to_string_lossy(), &config, None);
 
     assert!(result.is_ok());
 
@@ -716,16 +723,17 @@ fn test_parse_file_over_file() {
     assert_eq!(strategy.required, FileOverFileMode::Skip);
 
     // Test strategy with optional
-    let strategy = parse_file_over_file("skip-hash rename-dest").unwrap();
-    assert!(strategy.skip_hash);
-    assert_eq!(strategy.required, FileOverFileMode::RenameDest);
+    let strategy2 = parse_file_over_file("skip-hash rename-dest").unwrap();
+    assert!(strategy2.skip_hash);
+    assert_eq!(strategy2.required, FileOverFileMode::RenameDest);
 
     // Test multiple optionals
-    let strategy = parse_file_over_file("skip-hash skip-size delete-dest-larger delete-dest").unwrap();
-    assert!(strategy.skip_hash);
-    assert!(strategy.skip_size);
-    assert!(strategy.delete_dest_larger);
-    assert_eq!(strategy.required, FileOverFileMode::DeleteDest);
+    let strategy3 =
+        parse_file_over_file("skip-hash skip-size delete-dest-larger delete-dest").unwrap();
+    assert!(strategy3.skip_hash);
+    assert!(strategy3.skip_size);
+    assert!(strategy3.delete_dest_larger);
+    assert_eq!(strategy3.required, FileOverFileMode::DeleteDest);
 }
 
 #[test]
@@ -754,7 +762,7 @@ fn test_copy_with_conflict_delete_src() {
     let dest_src = dest.join("src");
     fs::create_dir_all(&dest_src).unwrap();
     let dest_file = dest_src.join("file.txt");
-    
+
     create_file(&src_file, "new content");
     create_file(&dest_file, "old content");
 
@@ -772,7 +780,7 @@ fn test_copy_with_conflict_delete_src() {
     let result = cp_execute(
         &[src.to_string_lossy().to_string()],
         &dest.to_string_lossy(),
-        config,
+        &config,
         None,
     );
 
@@ -795,7 +803,7 @@ fn test_copy_with_skip_smaller() {
     let dest_src = dest.join("src");
     fs::create_dir_all(&dest_src).unwrap();
     let dest_file = dest_src.join("file.txt");
-    
+
     create_file(&src_file, "small");
     create_file(&dest_file, "larger content here");
 
@@ -813,7 +821,7 @@ fn test_copy_with_skip_smaller() {
     let result = cp_execute(
         &[src.to_string_lossy().to_string()],
         &dest.to_string_lossy(),
-        config,
+        &config,
         None,
     );
 
@@ -835,7 +843,7 @@ fn test_copy_with_delete_dest_smaller() {
     let dest_src = dest.join("src");
     fs::create_dir_all(&dest_src).unwrap();
     let dest_file = dest_src.join("file.txt");
-    
+
     create_file(&src_file, "larger content here");
     create_file(&dest_file, "small");
 
@@ -853,7 +861,7 @@ fn test_copy_with_delete_dest_smaller() {
     let result = cp_execute(
         &[src.to_string_lossy().to_string()],
         &dest.to_string_lossy(),
-        config,
+        &config,
         None,
     );
 
@@ -875,7 +883,7 @@ fn test_copy_with_delete_src_smaller() {
     let dest_src = dest.join("src");
     fs::create_dir_all(&dest_src).unwrap();
     let dest_file = dest_src.join("file.txt");
-    
+
     create_file(&src_file, "small");
     create_file(&dest_file, "larger content here");
 
@@ -893,7 +901,7 @@ fn test_copy_with_delete_src_smaller() {
     let result = cp_execute(
         &[src.to_string_lossy().to_string()],
         &dest.to_string_lossy(),
-        config,
+        &config,
         None,
     );
 
@@ -916,7 +924,7 @@ fn test_copy_with_delete_src_larger() {
     let dest_src = dest.join("src");
     fs::create_dir_all(&dest_src).unwrap();
     let dest_file = dest_src.join("file.txt");
-    
+
     create_file(&src_file, "larger content here");
     create_file(&dest_file, "small");
 
@@ -934,7 +942,7 @@ fn test_copy_with_delete_src_larger() {
     let result = cp_execute(
         &[src.to_string_lossy().to_string()],
         &dest.to_string_lossy(),
-        config,
+        &config,
         None,
     );
 
@@ -972,7 +980,7 @@ fn test_file_over_folder_skip() {
     let result = cp_execute(
         &[src.to_string_lossy().to_string()],
         &dest.to_string_lossy(),
-        config,
+        &config,
         None,
     );
 
@@ -1011,7 +1019,7 @@ fn test_file_over_folder_delete_dest() {
     let result = cp_execute(
         &[src.to_string_lossy().to_string()],
         &dest.to_string_lossy(),
-        config,
+        &config,
         None,
     );
 
@@ -1050,7 +1058,7 @@ fn test_folder_over_file_skip() {
     let result = cp_execute(
         &[src.to_string_lossy().to_string()],
         &dest.to_string_lossy(),
-        config,
+        &config,
         None,
     );
 
@@ -1090,7 +1098,7 @@ fn test_folder_over_file_delete_src() {
     let result = cp_execute(
         &[src.to_string_lossy().to_string()],
         &dest.to_string_lossy(),
-        config,
+        &config,
         None,
     );
 
@@ -1130,7 +1138,7 @@ fn test_folder_over_file_delete_dest() {
     let result = cp_execute(
         &[src.to_string_lossy().to_string()],
         &dest.to_string_lossy(),
-        config,
+        &config,
         None,
     );
 
@@ -1169,7 +1177,7 @@ fn test_folder_over_file_rename_src() {
     let result = cp_execute(
         &[src.to_string_lossy().to_string()],
         &dest.to_string_lossy(),
-        config,
+        &config,
         None,
     );
 
@@ -1195,7 +1203,10 @@ fn test_folder_over_folder_merge() {
 
     // Dest already has subdir with different file
     fs::create_dir_all(dest.join("src").join("subdir")).unwrap();
-    create_file(&dest.join("src").join("subdir").join("file2.txt"), "from dest");
+    create_file(
+        &dest.join("src").join("subdir").join("file2.txt"),
+        "from dest",
+    );
 
     let config = CopyConfig {
         copy: true,
@@ -1208,14 +1219,18 @@ fn test_folder_over_folder_merge() {
     let result = cp_execute(
         &[src.to_string_lossy().to_string()],
         &dest.to_string_lossy(),
-        config,
+        &config,
         None,
     );
 
     assert!(result.is_ok());
     // Both files should exist (merged)
-    assert!(file_exists(&dest.join("src").join("subdir").join("file1.txt")));
-    assert!(file_exists(&dest.join("src").join("subdir").join("file2.txt")));
+    assert!(file_exists(
+        &dest.join("src").join("subdir").join("file1.txt")
+    ));
+    assert!(file_exists(
+        &dest.join("src").join("subdir").join("file2.txt")
+    ));
 
     cleanup_test_dir(&test_dir);
 }
@@ -1232,7 +1247,7 @@ fn test_copy_with_delete_dest_hash() {
     let dest_src = dest.join("src");
     fs::create_dir_all(&dest_src).unwrap();
     let dest_file = dest_src.join("file.txt");
-    
+
     create_file(&src_file, "identical content");
     create_file(&dest_file, "identical content");
 
@@ -1250,7 +1265,7 @@ fn test_copy_with_delete_dest_hash() {
     let result = cp_execute(
         &[src.to_string_lossy().to_string()],
         &dest.to_string_lossy(),
-        config,
+        &config,
         None,
     );
 
@@ -1272,7 +1287,7 @@ fn test_copy_with_delete_dest_size() {
     let dest_src = dest.join("src");
     fs::create_dir_all(&dest_src).unwrap();
     let dest_file = dest_src.join("file.txt");
-    
+
     create_file(&src_file, "same size!");
     create_file(&dest_file, "same size?");
 
@@ -1290,7 +1305,7 @@ fn test_copy_with_delete_dest_size() {
     let result = cp_execute(
         &[src.to_string_lossy().to_string()],
         &dest.to_string_lossy(),
-        config,
+        &config,
         None,
     );
 
@@ -1312,7 +1327,7 @@ fn test_copy_with_delete_src_hash() {
     let dest_src = dest.join("src");
     fs::create_dir_all(&dest_src).unwrap();
     let dest_file = dest_src.join("file.txt");
-    
+
     create_file(&src_file, "identical content");
     create_file(&dest_file, "identical content");
 
@@ -1330,7 +1345,7 @@ fn test_copy_with_delete_src_hash() {
     let result = cp_execute(
         &[src.to_string_lossy().to_string()],
         &dest.to_string_lossy(),
-        config,
+        &config,
         None,
     );
 
@@ -1353,7 +1368,7 @@ fn test_copy_with_delete_src_size() {
     let dest_src = dest.join("src");
     fs::create_dir_all(&dest_src).unwrap();
     let dest_file = dest_src.join("file.txt");
-    
+
     create_file(&src_file, "same size!");
     create_file(&dest_file, "same size?");
 
@@ -1371,7 +1386,7 @@ fn test_copy_with_delete_src_size() {
     let result = cp_execute(
         &[src.to_string_lossy().to_string()],
         &dest.to_string_lossy(),
-        config,
+        &config,
         None,
     );
 
@@ -1409,7 +1424,7 @@ fn test_file_over_folder_rename_src() {
     let result = cp_execute(
         &[src.to_string_lossy().to_string()],
         &dest.to_string_lossy(),
-        config,
+        &config,
         None,
     );
 
@@ -1450,7 +1465,7 @@ fn test_file_over_folder_rename_dest() {
     let result = cp_execute(
         &[src.to_string_lossy().to_string()],
         &dest.to_string_lossy(),
-        config,
+        &config,
         None,
     );
 
@@ -1491,7 +1506,7 @@ fn test_folder_over_file_rename_dest() {
     let result = cp_execute(
         &[src.to_string_lossy().to_string()],
         &dest.to_string_lossy(),
-        config,
+        &config,
         None,
     );
 
