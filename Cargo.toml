@@ -48,13 +48,11 @@ integer_division = "warn"
 modulo_arithmetic = "warn"
 float_arithmetic = "warn"
 float_cmp_const = "warn"
-unchecked_duration_subtraction = "warn"
+unchecked_time_subtraction = "warn"
 
 # Warn on dangerous patterns
 mem_forget = "warn"
 get_unwrap = "warn"
-try_unwrap = "warn"
-cast_ref_to_mut = "warn"
 
 # === Code quality (restriction category) ===
 # Prefer explicit pattern matching
@@ -64,8 +62,6 @@ wildcard_enum_match_arm = "warn"
 match_bool = "warn"
 single_match = "warn"
 match_same_arms = "warn"
-match_on_vec = "warn"
-match_result_err = "warn"
 
 # Prefer explicit casts
 as_conversions = "warn"
@@ -80,7 +76,6 @@ cast_ptr_alignment = "warn"
 shadow_reuse = "warn"
 shadow_same = "warn"
 shadow_unrelated = "warn"
-non_ascii_idents = "warn"
 else_if_without_else = "warn"
 if_then_some_else_none = "warn"
 option_if_let_else = "warn"
@@ -93,8 +88,7 @@ manual_unwrap_or_default = "warn"
 
 # Redundancy
 redundant_clone = "warn"
-redundant_field_initialize = "warn"
 redundant_type_annotations = "warn"
-needless_bitwise_comparisons = "warn"
+redundant_field_names = "warn"
 needless_parens_on_range_literals = "warn"
 needless_raw_string_hashes = "warn"
