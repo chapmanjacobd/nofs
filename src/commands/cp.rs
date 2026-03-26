@@ -13,6 +13,7 @@ use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
 /// Conflict resolution mode for file-over-file conflicts
+#[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FileOverFileMode {
     Skip,
@@ -23,6 +24,7 @@ pub enum FileOverFileMode {
 }
 
 /// Conflict resolution mode for folder conflicts
+#[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FolderConflictMode {
     Skip,
@@ -338,24 +340,13 @@ fn process_source(
         if dest_exists {
             let dest_is_dir = dest.is_dir();
             if dest_is_dir {
-                // File over folder - move file into folder
-                let file_name = source
-                    .file_name()
-                    .unwrap_or(source.as_os_str());
-                let new_dest = dest.join(file_name);
-                return process_file(
-                    source,
-                    &new_dest,
-                    config,
-                    stats,
-                    file_count,
-                    byte_count,
-                );
-            } else {
-                // File over file conflict
+                // File over folder - apply strategy
                 stats.conflicts_resolved.fetch_add(1, Ordering::Relaxed);
-                return handle_file_over_file(source, dest, config, stats, file_count, byte_count);
+                return handle_file_over_folder(source, dest, config, stats, file_count, byte_count);
             }
+            // File over file conflict
+            stats.conflicts_resolved.fetch_add(1, Ordering::Relaxed);
+            return handle_file_over_file(source, dest, config, stats, file_count, byte_count);
         }
 
         // No conflict - just copy/move
@@ -706,6 +697,95 @@ fn handle_file_over_file(
     Ok(())
 }
 
+fn handle_file_over_folder(
+    source: &Path,
+    dest: &Path,
+    config: &CopyConfig,
+    stats: &Arc<CopyStats>,
+    file_count: &Arc<Mutex<u64>>,
+    byte_count: &Arc<Mutex<u64>>,
+) -> Result<()> {
+    match config.file_over_folder {
+        FolderConflictMode::Skip => {
+            if config.verbose {
+                eprintln!(
+                    "Skipping file {} (strategy: skip)",
+                    shell_quote(source.to_string_lossy().as_ref())
+                );
+            }
+            // File not copied, folder unchanged
+        }
+        FolderConflictMode::DeleteSrc => {
+            if config.verbose {
+                eprintln!(
+                    "Deleting source file {} (strategy: delete-src)",
+                    shell_quote(source.to_string_lossy().as_ref())
+                );
+            }
+            if !config.simulate {
+                fs::remove_file(source)?;
+            }
+        }
+        FolderConflictMode::DeleteDest => {
+            if config.verbose {
+                eprintln!(
+                    "Deleting destination folder {} (strategy: delete-dest)",
+                    shell_quote(dest.to_string_lossy().as_ref())
+                );
+            }
+            if !config.simulate {
+                fs::remove_dir_all(dest)?;
+            }
+            // Now copy file to original path
+            return process_file(source, dest, config, stats, file_count, byte_count);
+        }
+        FolderConflictMode::RenameSrc => {
+            let new_dest = get_unique_filename(dest)?;
+            if config.verbose {
+                eprintln!(
+                    "Renaming source file {} -> {} (strategy: rename-src)",
+                    shell_quote(source.to_string_lossy().as_ref()),
+                    shell_quote(new_dest.to_string_lossy().as_ref())
+                );
+            }
+            // Copy file with renamed path into the folder
+            return process_file(source, &new_dest, config, stats, file_count, byte_count);
+        }
+        FolderConflictMode::RenameDest => {
+            let renamed_dest = get_unique_folder_name(dest)?;
+            if config.verbose {
+                eprintln!(
+                    "Renaming destination folder {} -> {} (strategy: rename-dest)",
+                    shell_quote(dest.to_string_lossy().as_ref()),
+                    shell_quote(renamed_dest.to_string_lossy().as_ref())
+                );
+            }
+            if !config.simulate {
+                fs::rename(dest, &renamed_dest)?;
+            }
+            // Copy file to original path
+            return process_file(source, dest, config, stats, file_count, byte_count);
+        }
+        FolderConflictMode::Merge => {
+            // Move file into folder as folder/filename
+            let file_name = source
+                .file_name()
+                .unwrap_or(source.as_os_str());
+            let new_dest = dest.join(file_name);
+            if config.verbose {
+                eprintln!(
+                    "Merging file {} into folder {}",
+                    shell_quote(source.to_string_lossy().as_ref()),
+                    shell_quote(dest.to_string_lossy().as_ref())
+                );
+            }
+            return process_file(source, &new_dest, config, stats, file_count, byte_count);
+        }
+    }
+
+    Ok(())
+}
+
 fn handle_folder_over_file(
     dest: &Path,
     source: &Path,
@@ -742,11 +822,12 @@ fn handle_folder_over_file(
             if !config.simulate {
                 fs::remove_file(dest)?;
             }
-            // Now create the folder
+            // Now create the folder and copy contents
             if !config.simulate {
                 fs::create_dir_all(dest)?;
             }
             stats.folders_created.fetch_add(1, Ordering::Relaxed);
+            return process_source_contents(source, dest, config, stats);
         }
         FolderConflictMode::RenameSrc => {
             // Rename the source folder conceptually by copying to renamed path
@@ -951,17 +1032,17 @@ fn sample_hash(path: &Path, stats: &CopyStats) -> Result<String> {
     Ok(format!("{:x}", hasher.finish()))
 }
 
-fn format_size(bytes: u64) -> String {
-    const KB: u64 = 1024;
-    const MB: u64 = KB * 1024;
-    const GB: u64 = MB * 1024;
+pub fn format_size(bytes: u64) -> String {
+    const KB: u64 = 1000;
+    const MB: u64 = KB * 1000;
+    const GB: u64 = MB * 1000;
 
     if bytes >= GB {
-        format!("{:.1} GiB", bytes as f64 / GB as f64)
+        format!("{:.1} GB", bytes as f64 / GB as f64)
     } else if bytes >= MB {
-        format!("{:.1} MiB", bytes as f64 / MB as f64)
+        format!("{:.1} MB", bytes as f64 / MB as f64)
     } else if bytes >= KB {
-        format!("{:.1} KiB", bytes as f64 / KB as f64)
+        format!("{:.1} KB", bytes as f64 / KB as f64)
     } else {
         format!("{} B", bytes)
     }

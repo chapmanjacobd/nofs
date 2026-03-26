@@ -1,5 +1,8 @@
 //! Command implementations for nofs
 
+#[cfg(test)]
+mod cp_tests;
+
 pub mod cat;
 pub mod cp;
 pub mod create;

@@ -14,9 +14,15 @@ A lightweight union filesystem tool
 - Ad-hoc mode - Use directly from command line without config
 - Policy-based branch selection - Choose branches based on free space, randomness, or path preservation
 - Verbose mode - See decision steps with `-v` flag
-- POSIX-like commands - Familiar interface (`ls`, `find`, `where`, etc.)
+- POSIX-like commands - Familiar interface (`ls`, `find`, `which`, etc.)
 
 ## Installation
+
+```bash
+cargo install nofs
+```
+
+(or manually)
 
 ```bash
 cargo build --release
@@ -54,7 +60,7 @@ create_policy = "rand"       # random selection
 nofs ls media:/movies
 
 # Find which branch contains a file
-nofs -v where media:/movies/blade_runner.mkv
+nofs -v which media:/movies/blade_runner.mkv
 # Output (stderr):
 #   selected:
 #     /mnt/hdd1/media/movies/blade_runner.mkv (first-found policy)
@@ -116,10 +122,10 @@ OPTIONS:
     -v, --verbose        Show which branches are searched
 ```
 
-### `where` - Find File Location
+### `which` - Find File Location
 
 ```bash
-nofs [OPTIONS] where [context:]path
+nofs [OPTIONS] which [context:]path
 
 OPTIONS:
     -a, --all      Show all branches containing the file
@@ -232,7 +238,7 @@ create_policy = "mfs"
 nofs ls movies:/
 
 # Find specific movie
-nofs where movies:/scifi/blade_runner.mkv
+nofs which movies:/scifi/blade_runner.mkv
 
 # Add new movie (automatically selects best branch)
 nofs create movies:/new_release.mkv
@@ -247,36 +253,20 @@ modes = ["RW", "NC"]  # HDD can read/modify but not create
 create_policy = "lfs"  # Fill SSD first (least free space)
 ```
 
-### Verbose Debugging
-
-```bash
-$ nofs -v where media:/movie.mkv
-selected:
-  /mnt/hdd1/media/movie.mkv (first-found policy)
-/mnt/hdd1/media/movie.mkv
-
-$ nofs -v ls media:/movies
-found in:
-  /mnt/hdd1/media/movies
-  /mnt/hdd2/media/movies
-file1.mkv
-file2.mkv
-```
-
 ## Comparison with mergerfs
 
 | Feature | mergerfs | nofs |
 |---------|----------|------|
+| Requires root | Yes | No |
+| Mount required | Yes | No |
+| Mountpoint access | Yes | No |
 | FUSE-based | Yes | No |
-| Mount point | Yes | No |
-| Config file | Optional | Optional |
-| Named contexts | No | Yes |
-| Ad-hoc usage | Limited | Full |
-| Verbose mode | No | Yes |
-| File creation | Transparent | Via `create` command |
+| /etc/fstab support | Yes | No |
+| Config changes require remount | Yes | No |
+| Works in containers | Difficult | Yes |
+| File creation | Transparent | Via subcommands |
 | File access | Direct | Via subcommands |
 | Performance | Near-native | Subprocess overhead |
-| Complexity | Higher | Lower |
 
 ## When to Use nofs
 
@@ -292,11 +282,3 @@ file2.mkv
 - Need transparent filesystem access
 - Require POSIX filesystem semantics
 - Want applications to see unified pool automatically
-
-## License
-
-MIT License
-
-## Contributing
-
-Contributions welcome! Please feel free to submit issues and pull requests.
