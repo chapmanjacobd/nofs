@@ -1,19 +1,17 @@
-//! Common test utilities
+//! Common test utilities.
 
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-/// Test context for managing temporary test directories
-#[allow(dead_code)]
+/// Test context for managing temporary test directories.
 pub struct TestContext {
-    pub root: PathBuf,
     pub config_path: PathBuf,
+    pub root: PathBuf,
 }
 
-#[allow(dead_code)]
 impl TestContext {
-    /// Create a new test context with temporary directories
+    /// Create a new test context with temporary directories.
     pub fn new(test_name: &str) -> Self {
         let root =
             std::env::temp_dir().join(format!("nofs_test_{}_{}", test_name, std::process::id()));
@@ -30,7 +28,7 @@ impl TestContext {
         TestContext { root, config_path }
     }
 
-    /// Create a branch directory structure
+    /// Create a branch directory structure.
     pub fn create_branch(&self, name: &str, files: &[&str]) -> PathBuf {
         let branch_path = self.root.join(name);
         fs::create_dir_all(&branch_path).expect("Failed to create branch");
@@ -46,12 +44,12 @@ impl TestContext {
         branch_path
     }
 
-    /// Write a config file
+    /// Write a config file.
     pub fn write_config(&self, content: &str) {
         fs::write(&self.config_path, content).expect("Failed to write config");
     }
 
-    /// Run nofs command
+    /// Run nofs command.
     pub fn run_nofs(&self, args: &[&str]) -> CommandOutput {
         let mut cmd = Command::new(env!("CARGO_BIN_EXE_nofs"));
         for arg in args {
@@ -67,7 +65,7 @@ impl TestContext {
         }
     }
 
-    /// Get path within test root
+    /// Get path within test root.
     pub fn path(&self, path: &str) -> PathBuf {
         self.root.join(path)
     }
@@ -79,15 +77,13 @@ impl Drop for TestContext {
     }
 }
 
-/// Command output helper
-#[allow(dead_code)]
+/// Command output helper.
 pub struct CommandOutput {
     pub stdout: String,
     pub stderr: String,
     pub status: std::process::ExitStatus,
 }
 
-#[allow(dead_code)]
 impl CommandOutput {
     pub fn success(&self) -> bool {
         self.status.success()
@@ -102,7 +98,7 @@ impl CommandOutput {
     }
 }
 
-/// Create a temporary test file and return its path
+/// Create a temporary test file and return its path.
 #[allow(dead_code)]
 pub fn temp_file(path: &Path, content: &str) -> PathBuf {
     let file_path = path.join("testfile.txt");

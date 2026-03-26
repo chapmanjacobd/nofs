@@ -140,7 +140,10 @@ impl PoolManager {
     }
 
     /// Parse a context:path reference and return the appropriate pool
-    pub fn resolve_context_path<'a>(&'a self, input: &'a str) -> Result<(&'a Pool, &'a str)> {
+    pub fn resolve_context_path<'ctx>(
+        &'ctx self,
+        input: &'ctx str,
+    ) -> Result<(&'ctx Pool, &'ctx str)> {
         if let Some(colon_idx) = input.find(':') {
             let context = &input[..colon_idx];
             let path = &input[colon_idx + 1..];

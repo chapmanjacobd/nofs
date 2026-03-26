@@ -45,79 +45,79 @@ struct Cli {
 
 #[derive(clap::Subcommand, Debug)]
 enum Commands {
-    /// List directory contents (like ls)
+    /// List directory contents (like ls).
     Ls {
-        /// Path within the pool (format: [context:]path)
+        /// Path within the pool (format: [context:]path).
         path: String,
 
-        /// Show detailed information
+        /// Show detailed information.
         #[arg(short, long)]
         long: bool,
 
-        /// Show hidden files
+        /// Show hidden files.
         #[arg(short, long)]
         all: bool,
     },
 
-    /// Find files matching a pattern
+    /// Find files matching a pattern.
     Find {
-        /// Starting path within the pool (format: [context:]path)
+        /// Starting path within the pool (format: [context:]path).
         path: String,
 
-        /// Filename pattern (glob)
+        /// Filename pattern (glob).
         #[arg(long)]
         name: Option<String>,
 
-        /// File type: f=file, d=directory
+        /// File type: f=file, d=directory.
         #[arg(long)]
         type_: Option<String>,
 
-        /// Maximum depth
+        /// Maximum depth.
         #[arg(long)]
         maxdepth: Option<usize>,
     },
 
-    /// Find which branch contains a file
+    /// Find which branch contains a file.
     Where {
-        /// Path within the pool (format: [context:]path)
+        /// Path within the pool (format: [context:]path).
         path: String,
 
-        /// Show all branches containing the file
+        /// Show all branches containing the file.
         #[arg(short, long)]
         all: bool,
     },
 
-    /// Get the best branch path for creating a new file
+    /// Get the best branch path for creating a new file.
     Create {
-        /// Path within the pool (format: [context:]path)
+        /// Path within the pool (format: [context:]path).
         path: String,
     },
 
-    /// Show filesystem statistics
+    /// Show filesystem statistics.
     Stat {
-        /// Path within the pool (defaults to root)
+        /// Path within the pool (defaults to root).
         path: Option<String>,
 
-        /// Show human-readable sizes
+        /// Show human-readable sizes.
         #[arg(short = 'H', long)]
         human: bool,
     },
 
-    /// Show pool configuration and status
+    /// Show pool configuration and status.
     Info {
-        /// Context name (optional, shows all if not specified)
+        /// Context name (optional, shows all if not specified).
         context: Option<String>,
     },
 
-    /// Check if a file exists and return its location
+    /// Check if a file exists and return its location.
     Exists {
-        /// Path within the pool (format: [context:]path)
+        /// Path within the pool (format: [context:]path).
         path: String,
     },
 
-    /// Read file content (from first found branch)
+    /// Read file content (from first found branch).
     Cat {
-        /// Path within the pool (format: [context:]path)
+        /// Path within the pool (format: [context:]path).
         path: String,
     },
 }
