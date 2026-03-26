@@ -71,8 +71,9 @@ impl Branch {
     ///
     /// Returns an error if the path does not exist or if the mode cannot be parsed.
     pub fn parse(s: &str) -> Result<Self> {
-        let (path_str, options) =
-            s.find('=').map_or((s, None), |idx| (&s[..idx], Some(&s[idx + 1..])));
+        let (path_str, options) = s.find('=').map_or((s, None), |idx| {
+            (&s[..idx], Some(&s[idx.saturating_add(1)..]))
+        });
 
         let path = PathBuf::from(path_str);
 
@@ -107,13 +108,13 @@ impl Branch {
     }
 
     /// Check if branch is eligible for create operations
-    #[must_use] 
+    #[must_use]
     pub fn can_create(&self) -> bool {
         matches!(self.mode, BranchMode::RW)
     }
 
     /// Check if branch is eligible for action operations (chmod, chown, etc.)
-    #[must_use] 
+    #[must_use]
     pub fn can_action(&self) -> bool {
         matches!(self.mode, BranchMode::RW)
     }
@@ -128,9 +129,13 @@ impl Branch {
         let path_c = CString::new(self.path.to_string_lossy().as_bytes())
             .map_err(|e| NofsError::Branch(format!("Invalid path: {e}")))?;
 
-        // Safety: statvfs is called with a valid C string pointer and a valid statvfs pointer.
-        // The result is checked for success (0 return value).
+        // Safety: statvfs is called with a valid C string pointer (path_c is guaranteed
+        // to be null-terminated by CString) and a valid statvfs pointer (stat is properly
+        // zero-initialized). The result is checked for success (0 return value).
         let mut stat = unsafe { std::mem::zeroed() };
+        // Safety: `path_c` is a valid null-terminated C string from CString, and `stat`
+        // is a properly initialized statvfs struct. libc::statvfs will write to `stat`
+        // only on success (return value 0).
         let result = unsafe { libc::statvfs(path_c.as_ptr(), &raw mut stat) };
 
         if result == 0 {
@@ -151,9 +156,13 @@ impl Branch {
         let path_c = CString::new(self.path.to_string_lossy().as_bytes())
             .map_err(|e| NofsError::Branch(format!("Invalid path: {e}")))?;
 
-        // Safety: statvfs is called with a valid C string pointer and a valid statvfs pointer.
-        // The result is checked for success (0 return value).
+        // Safety: statvfs is called with a valid C string pointer (path_c is guaranteed
+        // to be null-terminated by CString) and a valid statvfs pointer (stat is properly
+        // zero-initialized). The result is checked for success (0 return value).
         let mut stat = unsafe { std::mem::zeroed() };
+        // Safety: `path_c` is a valid null-terminated C string from CString, and `stat`
+        // is a properly initialized statvfs struct. libc::statvfs will write to `stat`
+        // only on success (return value 0).
         let result = unsafe { libc::statvfs(path_c.as_ptr(), &raw mut stat) };
 
         if result == 0 {
@@ -179,7 +188,11 @@ impl Branch {
     /// # Errors
     ///
     /// Returns an error if statvfs fails.
-    #[allow(clippy::cast_precision_loss)]
+    #[allow(
+        clippy::cast_precision_loss,
+        clippy::as_conversions,
+        clippy::float_arithmetic
+    )]
     pub fn free_percentage(&self) -> Result<f64> {
         let total = self.total_space()?;
         if total == 0 {
@@ -194,6 +207,7 @@ impl Branch {
     /// # Errors
     ///
     /// Returns an error if statvfs fails.
+    #[allow(clippy::float_arithmetic)]
     pub fn used_percentage(&self) -> Result<f64> {
         Ok(100.0 - self.free_percentage()?)
     }

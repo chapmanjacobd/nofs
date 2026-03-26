@@ -1,5 +1,7 @@
 //! Common test utilities.
 
+#![allow(clippy::expect_used, dead_code)]
+
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -27,7 +29,7 @@ impl TestContext {
             let _ = fs::remove_dir_all(&root);
         }
 
-        fs::create_dir_all(&root).unwrap_or_else(|_| panic!("Failed to create test root"));
+        fs::create_dir_all(&root).expect("Failed to create test root");
 
         let config_path = root.join("config.toml");
 
@@ -42,15 +44,14 @@ impl TestContext {
     #[must_use]
     pub fn create_branch(&self, name: &str, files: &[&str]) -> PathBuf {
         let branch_path = self.root.join(name);
-        fs::create_dir_all(&branch_path).unwrap_or_else(|_| panic!("Failed to create branch"));
+        fs::create_dir_all(&branch_path).expect("Failed to create branch");
 
         for file in files {
             let file_path = branch_path.join(file);
             if let Some(parent) = file_path.parent() {
                 let _ = fs::create_dir_all(parent);
             }
-            fs::write(&file_path, format!("content of {file}"))
-                .unwrap_or_else(|_| panic!("Failed to create file"));
+            fs::write(&file_path, format!("content of {file}")).expect("Failed to create file");
         }
 
         branch_path
@@ -62,8 +63,7 @@ impl TestContext {
     ///
     /// Panics if the config file cannot be written.
     pub fn write_config(&self, content: &str) {
-        fs::write(&self.config_path, content)
-            .unwrap_or_else(|_| panic!("Failed to write config"));
+        fs::write(&self.config_path, content).expect("Failed to write config");
     }
 
     /// Run nofs command.
@@ -79,7 +79,7 @@ impl TestContext {
             cmd.arg(arg);
         }
 
-        let output = cmd.output().unwrap_or_else(|_| panic!("Failed to run nofs"));
+        let output = cmd.output().expect("Failed to run nofs");
 
         CommandOutput {
             stdout: String::from_utf8_lossy(&output.stdout).to_string(),
@@ -90,6 +90,7 @@ impl TestContext {
 
     /// Get path within test root.
     #[must_use]
+    #[allow(dead_code)]
     pub fn path(&self, path: &str) -> PathBuf {
         self.root.join(path)
     }
@@ -116,11 +117,13 @@ impl CommandOutput {
     }
 
     #[must_use]
+    #[allow(dead_code)]
     pub fn stdout_contains(&self, text: &str) -> bool {
         self.stdout.contains(text)
     }
 
     #[must_use]
+    #[allow(dead_code)]
     pub fn stderr_contains(&self, text: &str) -> bool {
         self.stderr.contains(text)
     }
@@ -135,6 +138,6 @@ impl CommandOutput {
 #[must_use]
 pub fn temp_file(path: &Path, content: &str) -> PathBuf {
     let file_path = path.join("testfile.txt");
-    fs::write(&file_path, content).unwrap_or_else(|_| panic!("Failed to write temp file"));
+    fs::write(&file_path, content).expect("Failed to write temp file");
     file_path
 }

@@ -39,16 +39,16 @@ pub fn execute(pool: &Pool, path: &str, all: bool, verbose: bool) -> Result<()> 
             let _ = writeln!(handle, "{}", full_path.display());
         }
     }
-        // Show first branch containing the file
-        else if let Some(full_path) = pool.resolve_path_first(pool_path) {
-            if verbose {
-                eprintln!("selected:");
-                eprintln!("  {} (first-found policy)", full_path.display());
-            }
-            println!("{}", full_path.display());
-        } else {
-            eprintln!("nofs: '{path}' not found in pool");
+    // Show first branch containing the file
+    else if let Some(full_path) = pool.resolve_path_first(pool_path) {
+        if verbose {
+            eprintln!("selected:");
+            eprintln!("  {} (first-found policy)", full_path.display());
         }
+        println!("{}", full_path.display());
+    } else {
+        eprintln!("nofs: '{path}' not found in pool");
+    }
 
     Ok(())
 }

@@ -92,13 +92,13 @@ pub fn execute(pool: &Pool, path: &str, long: bool, all: bool, verbose: bool) ->
                 );
             }
         }
-            // Short format: just the name
-            // Add trailing slash for directories
-            else if entry_path.is_dir() {
-                let _ = writeln!(handle, "{file_name}/");
-            } else {
-                let _ = writeln!(handle, "{file_name}");
-            }
+        // Short format: just the name
+        // Add trailing slash for directories
+        else if entry_path.is_dir() {
+            let _ = writeln!(handle, "{file_name}/");
+        } else {
+            let _ = writeln!(handle, "{file_name}");
+        }
     }
 
     Ok(())
@@ -131,7 +131,11 @@ fn human_size(size: u64) -> String {
     const GB: u64 = MB * 1024;
     const TB: u64 = GB * 1024;
 
-    #[allow(clippy::cast_precision_loss, clippy::as_conversions)]
+    #[allow(
+        clippy::cast_precision_loss,
+        clippy::as_conversions,
+        clippy::float_arithmetic
+    )]
     if size >= TB {
         format!("{:.1}T", size as f64 / TB as f64)
     } else if size >= GB {

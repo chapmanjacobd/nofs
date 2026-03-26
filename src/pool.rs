@@ -66,12 +66,12 @@ impl PoolManager {
     ///
     /// Returns an error if branches cannot be parsed or if no branches are provided.
     pub fn from_paths(paths_str: &str, policy: &str, minfreespace: &str) -> Result<Self> {
-        let branches: Result<Vec<Branch>> = paths_str
+        let branches_result: Result<Vec<Branch>> = paths_str
             .split(',')
             .map(|s| Branch::parse(s.trim()))
             .collect();
 
-        let branches = branches?;
+        let branches = branches_result?;
 
         if branches.is_empty() {
             return Err(NofsError::Config("No branches provided".to_string()));
@@ -143,17 +143,14 @@ impl PoolManager {
     ///
     /// Returns an error if no pools are available.
     pub fn default_pool(&self) -> Result<&Pool> {
-        if let Some(pool) = self.pools.get("default") {
-            Ok(pool)
-        } else if let Some((_, pool)) = self.pools.iter().next() {
-            Ok(pool)
-        } else {
-            Err(NofsError::Config("No pools available".to_string()))
-        }
+        self.pools
+            .get("default")
+            .or_else(|| self.pools.iter().next().map(|(_, pool)| pool))
+            .ok_or_else(|| NofsError::Config("No pools available".to_string()))
     }
 
     /// Get all pool names
-    #[must_use] 
+    #[must_use]
     pub fn pool_names(&self) -> Vec<&str> {
         let mut names: Vec<&str> = self.pools.keys().map(std::string::String::as_str).collect();
         names.sort_unstable();
@@ -185,7 +182,7 @@ impl PoolManager {
 
 impl Pool {
     /// Get total available space across all RW branches
-    #[must_use] 
+    #[must_use]
     pub fn total_available_space(&self) -> u64 {
         self.branches
             .iter()
@@ -195,7 +192,7 @@ impl Pool {
     }
 
     /// Get total space across all branches
-    #[must_use] 
+    #[must_use]
     pub fn total_space(&self) -> u64 {
         self.branches
             .iter()
@@ -211,26 +208,26 @@ impl Pool {
     }
 
     /// Get number of branches
-    #[must_use] 
+    #[must_use]
     pub fn branch_count(&self) -> usize {
         self.branches.len()
     }
 
     /// Get number of writable branches
-    #[must_use] 
+    #[must_use]
     pub fn writable_branch_count(&self) -> usize {
         self.branches.iter().filter(|b| b.can_create()).count()
     }
 
     /// Find a branch by path
-    #[must_use] 
+    #[must_use]
     pub fn find_branch(&self, path: &Path) -> Option<&Branch> {
         self.branches.iter().find(|b| b.path == path)
     }
 
     /// Resolve a pool path to actual branch paths
     /// Returns all branches where the path exists
-    #[must_use] 
+    #[must_use]
     pub fn resolve_path(&self, pool_path: &Path) -> Vec<PathBuf> {
         self.branches
             .iter()
@@ -240,7 +237,7 @@ impl Pool {
     }
 
     /// Find the first branch where a path exists
-    #[must_use] 
+    #[must_use]
     pub fn resolve_path_first(&self, pool_path: &Path) -> Option<PathBuf> {
         self.branches
             .iter()
@@ -261,7 +258,7 @@ impl Pool {
     }
 
     /// Get all branches containing a path
-    #[must_use] 
+    #[must_use]
     pub fn find_all_branches(&self, relative_path: &Path) -> Vec<&Branch> {
         use crate::policy::SearchPolicy;
 
@@ -270,7 +267,7 @@ impl Pool {
     }
 
     /// Check if a path exists in the pool
-    #[must_use] 
+    #[must_use]
     pub fn exists(&self, pool_path: &Path) -> bool {
         self.branches
             .iter()

@@ -23,7 +23,8 @@ pub fn execute_single(pool: &Pool, _verbose: bool) -> Result<()> {
     let _ = writeln!(
         handle,
         "  Read-only:  {}",
-        pool.branch_count() - pool.writable_branch_count()
+        pool.branch_count()
+            .saturating_sub(pool.writable_branch_count())
     );
     let _ = writeln!(handle);
 
@@ -47,7 +48,7 @@ pub fn execute_single(pool: &Pool, _verbose: bool) -> Result<()> {
         let _ = writeln!(
             handle,
             "  {}. {} [{}]{}",
-            i + 1,
+            i.saturating_add(1),
             branch.path.display(),
             mode,
             minfree

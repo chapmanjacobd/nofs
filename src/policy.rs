@@ -97,7 +97,7 @@ pub struct CreatePolicy<'ctx> {
 }
 
 impl<'ctx> CreatePolicy<'ctx> {
-    #[must_use] 
+    #[must_use]
     pub fn new(branches: &'ctx [Branch], minfreespace: u64) -> Self {
         CreatePolicy {
             branches,
@@ -122,12 +122,12 @@ impl<'ctx> CreatePolicy<'ctx> {
                 }
 
                 // Check minfreespace
-                let branch_minfree = b
-                    .minfreespace
-                    .as_ref()
-                    .map_or(self.minfreespace, |s| parse_size(s).unwrap_or(self.minfreespace));
+                let branch_minfree = b.minfreespace.as_ref().map_or(self.minfreespace, |s| {
+                    parse_size(s).unwrap_or(self.minfreespace)
+                });
 
-                b.available_space().map_or(false, |available| available >= branch_minfree)
+                b.available_space()
+                    .is_ok_and(|available| available >= branch_minfree)
             })
             .collect();
 
@@ -136,13 +136,15 @@ impl<'ctx> CreatePolicy<'ctx> {
         }
 
         match policy {
-            Policy::Pfrd => self.select_pfrd(&eligible),
-            Policy::Mfs => self.select_mfs(&eligible),
-            Policy::Ff => eligible.first().copied().ok_or(NofsError::NoSuitableBranch),
-            Policy::Rand => self.select_rand(&eligible),
-            Policy::Lfs => self.select_lfs(&eligible),
-            Policy::Lus => self.select_lus(&eligible),
-            Policy::Lup => self.select_lup(&eligible),
+            Policy::Pfrd => Self::select_pfrd(&eligible),
+            Policy::Mfs => Self::select_mfs(&eligible),
+            Policy::Ff | Policy::All => {
+                eligible.first().copied().ok_or(NofsError::NoSuitableBranch)
+            }
+            Policy::Rand => Ok(Self::select_rand(&eligible)),
+            Policy::Lfs => Self::select_lfs(&eligible),
+            Policy::Lus => Self::select_lus(&eligible),
+            Policy::Lup => Self::select_lup(&eligible),
             Policy::EpMfs | Policy::EpFf | Policy::EpRand | Policy::EpAll => {
                 // For existing path policies, check if path exists
                 if let Some(rel_path) = relative_path {
@@ -154,35 +156,52 @@ impl<'ctx> CreatePolicy<'ctx> {
 
                     if with_path.is_empty() {
                         // Fall back to non-path-preserving variant
-                        return self.select_fallback(policy, &eligible);
+                        return Self::select_fallback(policy, &eligible);
                     }
 
                     match policy {
-                        Policy::EpMfs => self.select_mfs(&with_path),
-                        Policy::EpFf => with_path.first().copied().ok_or(NofsError::NoSuitableBranch),
-                        Policy::EpRand => self.select_rand(&with_path),
-                        Policy::EpAll => eligible.first().copied().ok_or(NofsError::NoSuitableBranch),
-                        _ => eligible.first().copied().ok_or(NofsError::NoSuitableBranch),
+                        Policy::EpMfs => Self::select_mfs(&with_path),
+                        Policy::EpFf => with_path
+                            .first()
+                            .copied()
+                            .ok_or(NofsError::NoSuitableBranch),
+                        Policy::EpRand => Ok(Self::select_rand(&with_path)),
+                        Policy::EpAll
+                        | Policy::Pfrd
+                        | Policy::Mfs
+                        | Policy::Ff
+                        | Policy::Rand
+                        | Policy::Lfs
+                        | Policy::Lus
+                        | Policy::Lup
+                        | _ => eligible.first().copied().ok_or(NofsError::NoSuitableBranch),
                     }
                 } else {
-                    self.select_fallback(policy, &eligible)
+                    Self::select_fallback(policy, &eligible)
                 }
             }
-            Policy::All => eligible.first().copied().ok_or(NofsError::NoSuitableBranch),
         }
     }
 
-    fn select_fallback(&self, policy: Policy, eligible: &[&'ctx Branch]) -> Result<&'ctx Branch> {
+    #[allow(clippy::unnecessary_wraps)]
+    fn select_fallback(policy: Policy, eligible: &[&'ctx Branch]) -> Result<&'ctx Branch> {
         match policy {
-            Policy::EpMfs => self.select_mfs(eligible),
-            Policy::EpFf | Policy::EpAll => eligible.first().copied().ok_or(NofsError::NoSuitableBranch),
-            Policy::EpRand => self.select_rand(eligible),
-            _ => eligible.first().copied().ok_or(NofsError::NoSuitableBranch),
+            Policy::EpMfs => Self::select_mfs(eligible),
+            Policy::EpFf
+            | Policy::EpAll
+            | Policy::Pfrd
+            | Policy::Mfs
+            | Policy::Ff
+            | Policy::Rand
+            | Policy::Lfs
+            | Policy::Lus
+            | Policy::Lup
+            | _ => eligible.first().copied().ok_or(NofsError::NoSuitableBranch),
         }
     }
 
     #[allow(clippy::arithmetic_side_effects)]
-    fn select_pfrd(&self, branches: &[&'ctx Branch]) -> Result<&'ctx Branch> {
+    fn select_pfrd(branches: &[&'ctx Branch]) -> Result<&'ctx Branch> {
         // Calculate total available space
         let total: u64 = branches
             .iter()
@@ -210,7 +229,7 @@ impl<'ctx> CreatePolicy<'ctx> {
         branches.last().copied().ok_or(NofsError::NoSuitableBranch)
     }
 
-    fn select_mfs(&self, branches: &[&'ctx Branch]) -> Result<&'ctx Branch> {
+    fn select_mfs(branches: &[&'ctx Branch]) -> Result<&'ctx Branch> {
         branches
             .iter()
             .max_by_key(|b| b.available_space().unwrap_or(0))
@@ -218,7 +237,7 @@ impl<'ctx> CreatePolicy<'ctx> {
             .ok_or(NofsError::NoSuitableBranch)
     }
 
-    fn select_lfs(&self, branches: &[&'ctx Branch]) -> Result<&'ctx Branch> {
+    fn select_lfs(branches: &[&'ctx Branch]) -> Result<&'ctx Branch> {
         branches
             .iter()
             .min_by_key(|b| b.available_space().unwrap_or(u64::MAX))
@@ -226,7 +245,7 @@ impl<'ctx> CreatePolicy<'ctx> {
             .ok_or(NofsError::NoSuitableBranch)
     }
 
-    fn select_lus(&self, branches: &[&'ctx Branch]) -> Result<&'ctx Branch> {
+    fn select_lus(branches: &[&'ctx Branch]) -> Result<&'ctx Branch> {
         branches
             .iter()
             .min_by_key(|b| b.used_space().unwrap_or(0))
@@ -234,7 +253,8 @@ impl<'ctx> CreatePolicy<'ctx> {
             .ok_or(NofsError::NoSuitableBranch)
     }
 
-    fn select_lup(&self, branches: &[&'ctx Branch]) -> Result<&'ctx Branch> {
+    #[allow(clippy::cast_possible_truncation, clippy::as_conversions)]
+    fn select_lup(branches: &[&'ctx Branch]) -> Result<&'ctx Branch> {
         branches
             .iter()
             .min_by_key(|b| b.used_percentage().map(|p| p as i64).unwrap_or(i64::MAX))
@@ -243,10 +263,10 @@ impl<'ctx> CreatePolicy<'ctx> {
     }
 
     #[allow(clippy::indexing_slicing)]
-    fn select_rand(&self, branches: &[&'ctx Branch]) -> Result<&'ctx Branch> {
+    fn select_rand(branches: &[&'ctx Branch]) -> &'ctx Branch {
         let mut rng = rand::thread_rng();
         let idx = rng.gen_range(0..branches.len());
-        Ok(branches[idx])
+        branches[idx]
     }
 }
 
@@ -256,7 +276,7 @@ pub struct SearchPolicy<'ctx> {
 }
 
 impl<'ctx> SearchPolicy<'ctx> {
-    #[must_use] 
+    #[must_use]
     pub fn new(branches: &'ctx [Branch]) -> Self {
         SearchPolicy { branches }
     }
@@ -282,8 +302,7 @@ impl<'ctx> SearchPolicy<'ctx> {
                 // Return first branch (caller should iterate)
                 self.branches.first().ok_or(NofsError::NoSuitableBranch)
             }
-            _ => {
-                // For other policies, find all matching and apply policy
+            Policy::Mfs => {
                 let matching: Vec<&Branch> = self
                     .branches
                     .iter()
@@ -293,18 +312,43 @@ impl<'ctx> SearchPolicy<'ctx> {
                 if matching.is_empty() {
                     return Err(NofsError::PathNotFound(relative_path.display().to_string()));
                 }
+                Self::select_mfs(&matching)
+            }
+            Policy::Lfs => {
+                let matching: Vec<&Branch> = self
+                    .branches
+                    .iter()
+                    .filter(|b| b.path.join(relative_path).exists())
+                    .collect();
 
-                match policy {
-                    Policy::Mfs => self.select_mfs(&matching),
-                    Policy::Lfs => self.select_lfs(&matching),
-                    _ => matching.first().copied().ok_or(NofsError::NoSuitableBranch),
+                if matching.is_empty() {
+                    return Err(NofsError::PathNotFound(relative_path.display().to_string()));
                 }
+                Self::select_lfs(&matching)
+            }
+            Policy::Pfrd
+            | Policy::Rand
+            | Policy::Lus
+            | Policy::Lup
+            | Policy::EpMfs
+            | Policy::EpFf
+            | Policy::EpRand => {
+                let matching: Vec<&Branch> = self
+                    .branches
+                    .iter()
+                    .filter(|b| b.path.join(relative_path).exists())
+                    .collect();
+
+                if matching.is_empty() {
+                    return Err(NofsError::PathNotFound(relative_path.display().to_string()));
+                }
+                matching.first().copied().ok_or(NofsError::NoSuitableBranch)
             }
         }
     }
 
     /// Find all branches containing a path
-    #[must_use] 
+    #[must_use]
     pub fn find_all(&self, relative_path: &Path) -> Vec<&'ctx Branch> {
         self.branches
             .iter()
@@ -312,7 +356,7 @@ impl<'ctx> SearchPolicy<'ctx> {
             .collect()
     }
 
-    fn select_mfs(&self, branches: &[&'ctx Branch]) -> Result<&'ctx Branch> {
+    fn select_mfs(branches: &[&'ctx Branch]) -> Result<&'ctx Branch> {
         branches
             .iter()
             .max_by_key(|b| b.available_space().unwrap_or(0))
@@ -320,7 +364,7 @@ impl<'ctx> SearchPolicy<'ctx> {
             .ok_or(NofsError::NoSuitableBranch)
     }
 
-    fn select_lfs(&self, branches: &[&'ctx Branch]) -> Result<&'ctx Branch> {
+    fn select_lfs(branches: &[&'ctx Branch]) -> Result<&'ctx Branch> {
         branches
             .iter()
             .min_by_key(|b| b.available_space().unwrap_or(u64::MAX))
@@ -334,21 +378,25 @@ impl<'ctx> SearchPolicy<'ctx> {
 /// # Errors
 ///
 /// Returns an error if the size string cannot be parsed.
-#[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss, clippy::as_conversions)]
+#[allow(
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss,
+    clippy::as_conversions
+)]
 pub fn parse_size(s: &str) -> Result<u64> {
-    let s = s.trim();
+    let trimmed = s.trim();
 
     // Try to parse as plain number first
-    if let Ok(bytes) = s.parse::<u64>() {
+    if let Ok(bytes) = trimmed.parse::<u64>() {
         return Ok(bytes);
     }
 
     // Parse with suffix
-    let num_str: String = s
+    let num_str: String = trimmed
         .chars()
         .take_while(|c| c.is_numeric() || *c == '.')
         .collect();
-    let suffix = s
+    let suffix = trimmed
         .chars()
         .skip(num_str.len())
         .collect::<String>()
@@ -368,5 +416,10 @@ pub fn parse_size(s: &str) -> Result<u64> {
         _ => return Err(NofsError::Parse(format!("Invalid size suffix: {s}"))),
     };
 
+    #[allow(
+        clippy::cast_precision_loss,
+        clippy::as_conversions,
+        clippy::float_arithmetic
+    )]
     Ok((num * multiplier as f64) as u64)
 }

@@ -182,7 +182,7 @@ impl UnionConfig {
 }
 
 /// Try to find default config locations
-#[must_use] 
+#[must_use]
 pub fn find_default_config() -> Option<PathBuf> {
     // Check common locations
     let locations = [

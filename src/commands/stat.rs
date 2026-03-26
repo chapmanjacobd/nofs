@@ -38,7 +38,11 @@ pub fn execute(pool: &Pool, human: bool, _verbose: bool) -> Result<()> {
     }
 
     if total > 0 {
-        #[allow(clippy::cast_precision_loss, clippy::as_conversions)]
+        #[allow(
+            clippy::cast_precision_loss,
+            clippy::as_conversions,
+            clippy::float_arithmetic
+        )]
         let percent_used = (used as f64 / total as f64) * 100.0;
         let _ = writeln!(handle, "Use%:      {percent_used:.1}%");
     }
@@ -57,7 +61,11 @@ pub fn execute(pool: &Pool, human: bool, _verbose: bool) -> Result<()> {
         let branch_used = branch.used_space().unwrap_or(0);
         let branch_available = branch.available_space().unwrap_or(0);
 
-        #[allow(clippy::cast_precision_loss, clippy::as_conversions)]
+        #[allow(
+            clippy::cast_precision_loss,
+            clippy::as_conversions,
+            clippy::float_arithmetic
+        )]
         let percent = if branch_total > 0 {
             (branch_used as f64 / branch_total as f64) * 100.0
         } else {
@@ -99,7 +107,11 @@ fn format_size(size: u64) -> String {
     const GB: u64 = MB * 1024;
     const TB: u64 = GB * 1024;
 
-    #[allow(clippy::cast_precision_loss, clippy::as_conversions)]
+    #[allow(
+        clippy::cast_precision_loss,
+        clippy::as_conversions,
+        clippy::float_arithmetic
+    )]
     if size >= TB {
         format!("{:.1}T", size as f64 / TB as f64)
     } else if size >= GB {
