@@ -7,4 +7,4 @@ pub mod find;
 pub mod info;
 pub mod ls;
 pub mod stat;
-pub mod where_;
+pub mod which;

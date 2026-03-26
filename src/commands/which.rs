@@ -1,11 +1,11 @@
-//! where command - Find which branch contains a file
+//! which command - Find which branch contains a file
 
 use crate::error::Result;
 use crate::pool::Pool;
 use std::io::{self, Write};
 use std::path::Path;
 
-/// Execute the where command
+/// Execute the which command
 ///
 /// # Errors
 ///

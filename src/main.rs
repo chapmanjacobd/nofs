@@ -78,7 +78,8 @@ enum Commands {
     },
 
     /// Find which branch contains a file.
-    Where {
+    #[command(alias = "where")]
+    Which {
         /// Path within the pool (format: [context:]path).
         path: String,
 
@@ -157,9 +158,9 @@ fn main() -> Result<()> {
                 cli.verbose,
             )?;
         }
-        Commands::Where { path, all } => {
+        Commands::Which { path, all } => {
             let (pool, pool_path) = pool_mgr.resolve_context_path(&path)?;
-            commands::where_::execute(pool, pool_path, all, cli.verbose)?;
+            commands::which::execute(pool, pool_path, all, cli.verbose)?;
         }
         Commands::Create { path } => {
             let (pool, pool_path) = pool_mgr.resolve_context_path(&path)?;

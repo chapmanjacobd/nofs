@@ -1,4 +1,4 @@
-.PHONY: all fmt lint test build clean check clippy
+.PHONY: all fmt lint test build clean check clippy install
 
 all: fmt lint test build
 
@@ -24,3 +24,9 @@ check:
 
 clean:
 	cargo clean
+
+install:
+	cargo install --path .
+
+release:
+	cargo release
