@@ -7,6 +7,12 @@ use std::io::{self, Write};
 use std::os::linux::fs::MetadataExt;
 use std::path::Path;
 
+/// Execute the ls command
+///
+/// # Errors
+///
+/// Returns an error if there is an IO error during output.
+#[allow(clippy::fn_params_excessive_bools)]
 pub fn execute(pool: &Pool, path: &str, long: bool, all: bool, verbose: bool) -> Result<()> {
     let pool_path = Path::new(path);
 
@@ -14,16 +20,16 @@ pub fn execute(pool: &Pool, path: &str, long: bool, all: bool, verbose: bool) ->
     let branches = pool.find_all_branches(pool_path);
 
     if branches.is_empty() {
-        eprintln!("nofs: cannot access '{}': No such file or directory", path);
+        eprintln!("nofs: cannot access '{path}': No such file or directory");
         return Ok(());
     }
 
     if verbose {
         let stderr = io::stderr();
         let mut h = stderr.lock();
-        writeln!(h, "found in:").ok();
+        let _ = writeln!(h, "found in:");
         for branch in &branches {
-            writeln!(h, "  {}", branch.path.join(pool_path).display()).ok();
+            let _ = writeln!(h, "  {}", branch.path.join(pool_path).display());
         }
     }
 
@@ -76,25 +82,23 @@ pub fn execute(pool: &Pool, path: &str, long: bool, all: bool, verbose: bool) ->
                 let permissions = format_permissions(metadata.st_mode());
                 let size = metadata.len();
 
-                writeln!(
+                let _ = writeln!(
                     handle,
                     "{} {} {:>8} {}",
                     file_type,
                     permissions,
                     human_size(size),
                     file_name
-                )
-                .ok();
-            }
-        } else {
-            // Short format: just the name
-            // Add trailing slash for directories
-            if entry_path.is_dir() {
-                writeln!(handle, "{}/", file_name).ok();
-            } else {
-                writeln!(handle, "{}", file_name).ok();
+                );
             }
         }
+            // Short format: just the name
+            // Add trailing slash for directories
+            else if entry_path.is_dir() {
+                let _ = writeln!(handle, "{file_name}/");
+            } else {
+                let _ = writeln!(handle, "{file_name}");
+            }
     }
 
     Ok(())
@@ -127,6 +131,7 @@ fn human_size(size: u64) -> String {
     const GB: u64 = MB * 1024;
     const TB: u64 = GB * 1024;
 
+    #[allow(clippy::cast_precision_loss, clippy::as_conversions)]
     if size >= TB {
         format!("{:.1}T", size as f64 / TB as f64)
     } else if size >= GB {
@@ -136,6 +141,6 @@ fn human_size(size: u64) -> String {
     } else if size >= KB {
         format!("{:.1}K", size as f64 / KB as f64)
     } else {
-        format!("{}B", size)
+        format!("{size}B")
     }
 }

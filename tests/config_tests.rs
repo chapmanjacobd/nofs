@@ -11,8 +11,8 @@ mod tests {
     fn basic_config_parsing() {
         let ctx = TestContext::new("config_basic");
 
-        ctx.create_branch("disk1/media", &["file1.txt"]);
-        ctx.create_branch("disk2/media", &["file2.txt"]);
+        let _ = ctx.create_branch("disk1/media", &["file1.txt"]);
+        let _ = ctx.create_branch("disk2/media", &["file2.txt"]);
 
         let config = format!(
             r#"
@@ -42,8 +42,8 @@ search_policy = "ff"
     fn ro_paths_config() {
         let ctx = TestContext::new("config_ro");
 
-        ctx.create_branch("rw_branch", &["file1.txt"]);
-        ctx.create_branch("ro_branch", &["file2.txt"]);
+        let _ = ctx.create_branch("rw_branch", &["file1.txt"]);
+        let _ = ctx.create_branch("ro_branch", &["file2.txt"]);
 
         let config = format!(
             r#"
@@ -73,8 +73,8 @@ create_policy = "mfs"
     fn nc_paths_config() {
         let ctx = TestContext::new("config_nc");
 
-        ctx.create_branch("rw_branch", &["file1.txt"]);
-        ctx.create_branch("nc_branch", &["file2.txt"]);
+        let _ = ctx.create_branch("rw_branch", &["file1.txt"]);
+        let _ = ctx.create_branch("nc_branch", &["file2.txt"]);
 
         let config = format!(
             r#"
@@ -104,10 +104,10 @@ create_policy = "mfs"
     fn multiple_unions() {
         let ctx = TestContext::new("config_multi");
 
-        ctx.create_branch("media1", &["movie.mkv"]);
-        ctx.create_branch("media2", &["show.mkv"]);
-        ctx.create_branch("backup1", &["data.txt"]);
-        ctx.create_branch("backup2", &["archive.txt"]);
+        let _ = ctx.create_branch("media1", &["movie.mkv"]);
+        let _ = ctx.create_branch("media2", &["show.mkv"]);
+        let _ = ctx.create_branch("backup1", &["data.txt"]);
+        let _ = ctx.create_branch("backup2", &["archive.txt"]);
 
         let config = format!(
             r#"
@@ -135,10 +135,10 @@ create_policy = "mfs"
     fn all_path_types_combined() {
         let ctx = TestContext::new("config_combined");
 
-        ctx.create_branch("rw1", &["file1.txt"]);
-        ctx.create_branch("rw2", &["file2.txt"]);
-        ctx.create_branch("ro1", &["file3.txt"]);
-        ctx.create_branch("nc1", &["file4.txt"]);
+        let _ = ctx.create_branch("rw1", &["file1.txt"]);
+        let _ = ctx.create_branch("rw2", &["file2.txt"]);
+        let _ = ctx.create_branch("ro1", &["file3.txt"]);
+        let _ = ctx.create_branch("nc1", &["file4.txt"]);
 
         let config = format!(
             r#"
@@ -169,8 +169,8 @@ create_policy = "pfrd"
     fn context_path_syntax() {
         let ctx = TestContext::new("context_syntax");
 
-        ctx.create_branch("disk1/media/movies", &["blade_runner.mkv"]);
-        ctx.create_branch("disk2/media/movies", &["aliens.mkv"]);
+        let _ = ctx.create_branch("disk1/media/movies", &["blade_runner.mkv"]);
+        let _ = ctx.create_branch("disk2/media/movies", &["aliens.mkv"]);
 
         let config = format!(
             r#"
@@ -200,8 +200,8 @@ create_policy = "pfrd"
     fn minfreespace_config() {
         let ctx = TestContext::new("config_minfree");
 
-        ctx.create_branch("disk1", &["file1.txt"]);
-        ctx.create_branch("disk2", &["file2.txt"]);
+        let _ = ctx.create_branch("disk1", &["file1.txt"]);
+        let _ = ctx.create_branch("disk2", &["file2.txt"]);
 
         let config = format!(
             r#"

@@ -4,6 +4,11 @@ use crate::error::Result;
 use crate::pool::Pool;
 use std::path::Path;
 
+/// Execute the create command
+///
+/// # Errors
+///
+/// Returns an error if no suitable branch is found.
 pub fn execute(pool: &Pool, path: &str, verbose: bool) -> Result<()> {
     let pool_path = Path::new(path);
 

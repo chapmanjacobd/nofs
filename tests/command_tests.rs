@@ -11,8 +11,8 @@ mod tests {
     fn ls_command() {
         let ctx = TestContext::new("cmd_ls");
 
-        ctx.create_branch("disk1/dir", &["file1.txt", "file2.txt"]);
-        ctx.create_branch("disk2/dir", &["file3.txt", "file4.txt"]);
+        let _ = ctx.create_branch("disk1/dir", &["file1.txt", "file2.txt"]);
+        let _ = ctx.create_branch("disk2/dir", &["file3.txt", "file4.txt"]);
 
         let config = format!(
             r#"
@@ -42,7 +42,7 @@ paths = ["{0}/disk1", "{0}/disk2"]
     fn ls_long_format() {
         let ctx = TestContext::new("cmd_ls_long");
 
-        ctx.create_branch("disk1/dir", &["file1.txt"]);
+        let _ = ctx.create_branch("disk1/dir", &["file1.txt"]);
 
         let config = format!(
             r#"
@@ -71,7 +71,7 @@ paths = ["{0}/disk1"]
     fn ls_hidden_files() {
         let ctx = TestContext::new("cmd_ls_hidden");
 
-        ctx.create_branch("disk1/dir", &[".hidden", "visible.txt"]);
+        let _ = ctx.create_branch("disk1/dir", &[".hidden", "visible.txt"]);
 
         let config = format!(
             r#"
@@ -112,8 +112,8 @@ paths = ["{0}/disk1"]
     fn where_command() {
         let ctx = TestContext::new("cmd_where");
 
-        ctx.create_branch("disk1/dir", &["unique_file.txt"]);
-        ctx.create_branch("disk2/dir", &["other.txt"]);
+        let _ = ctx.create_branch("disk1/dir", &["unique_file.txt"]);
+        let _ = ctx.create_branch("disk2/dir", &["other.txt"]);
 
         let config = format!(
             r#"
@@ -141,8 +141,8 @@ paths = ["{0}/disk1", "{0}/disk2"]
         let ctx = TestContext::new("cmd_where_all");
 
         // Create same filename in multiple branches
-        ctx.create_branch("disk1/dir", &["shared.txt"]);
-        ctx.create_branch("disk2/dir", &["shared.txt"]);
+        let _ = ctx.create_branch("disk1/dir", &["shared.txt"]);
+        let _ = ctx.create_branch("disk2/dir", &["shared.txt"]);
 
         let config = format!(
             r#"
@@ -172,8 +172,8 @@ paths = ["{0}/disk1", "{0}/disk2"]
     fn find_command() {
         let ctx = TestContext::new("cmd_find");
 
-        ctx.create_branch("disk1", &["file1.txt", "file2.log", "subdir/file3.txt"]);
-        ctx.create_branch("disk2", &["file4.txt", "file5.log"]);
+        let _ = ctx.create_branch("disk1", &["file1.txt", "file2.log", "subdir/file3.txt"]);
+        let _ = ctx.create_branch("disk2", &["file4.txt", "file5.log"]);
 
         let config = format!(
             r#"
@@ -204,7 +204,7 @@ paths = ["{0}/disk1", "{0}/disk2"]
     fn find_type_filter() {
         let ctx = TestContext::new("cmd_find_type");
 
-        ctx.create_branch("disk1", &["file.txt", "subdir/nested.txt"]);
+        let _ = ctx.create_branch("disk1", &["file.txt", "subdir/nested.txt"]);
 
         let config = format!(
             r#"
@@ -247,8 +247,8 @@ paths = ["{0}/disk1"]
     fn create_command() {
         let ctx = TestContext::new("cmd_create");
 
-        ctx.create_branch("disk1", &[]);
-        ctx.create_branch("disk2", &[]);
+        let _ = ctx.create_branch("disk1", &[]);
+        let _ = ctx.create_branch("disk2", &[]);
 
         let config = format!(
             r#"
@@ -278,7 +278,7 @@ create_policy = "mfs"
     fn exists_command() {
         let ctx = TestContext::new("cmd_exists");
 
-        ctx.create_branch("disk1/dir", &["present.txt"]);
+        let _ = ctx.create_branch("disk1/dir", &["present.txt"]);
 
         let config = format!(
             r#"
@@ -319,8 +319,8 @@ paths = ["{0}/disk1"]
     fn stat_command() {
         let ctx = TestContext::new("cmd_stat");
 
-        ctx.create_branch("disk1", &[]);
-        ctx.create_branch("disk2", &[]);
+        let _ = ctx.create_branch("disk1", &[]);
+        let _ = ctx.create_branch("disk2", &[]);
 
         let config = format!(
             r#"
@@ -346,8 +346,8 @@ paths = ["{0}/disk1", "{0}/disk2"]
     fn info_command() {
         let ctx = TestContext::new("cmd_info");
 
-        ctx.create_branch("disk1", &[]);
-        ctx.create_branch("disk2", &[]);
+        let _ = ctx.create_branch("disk1", &[]);
+        let _ = ctx.create_branch("disk2", &[]);
 
         let config = format!(
             r#"
@@ -377,7 +377,7 @@ create_policy = "pfrd"
     fn cat_command() {
         let ctx = TestContext::new("cmd_cat");
 
-        ctx.create_branch("disk1/dir", &["file.txt"]);
+        let _ = ctx.create_branch("disk1/dir", &["file.txt"]);
 
         let config = format!(
             r#"
@@ -405,9 +405,9 @@ paths = ["{0}/disk1"]
         let ctx = TestContext::new("cmd_dedup");
 
         // Same filename in multiple branches
-        ctx.create_branch("disk1/dir", &["shared.txt"]);
-        ctx.create_branch("disk2/dir", &["shared.txt"]);
-        ctx.create_branch("disk3/dir", &["shared.txt"]);
+        let _ = ctx.create_branch("disk1/dir", &["shared.txt"]);
+        let _ = ctx.create_branch("disk2/dir", &["shared.txt"]);
+        let _ = ctx.create_branch("disk3/dir", &["shared.txt"]);
 
         let config = format!(
             r#"

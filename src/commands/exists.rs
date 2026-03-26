@@ -4,6 +4,11 @@ use crate::error::Result;
 use crate::pool::Pool;
 use std::path::Path;
 
+/// Execute the exists command
+///
+/// # Errors
+///
+/// Returns an error if there is an IO error (exits with status code otherwise).
 pub fn execute(pool: &Pool, path: &str, verbose: bool) -> Result<()> {
     let pool_path = Path::new(path);
 
@@ -20,7 +25,7 @@ pub fn execute(pool: &Pool, path: &str, verbose: bool) -> Result<()> {
         std::process::exit(0);
     } else {
         // File does not exist
-        eprintln!("nofs: '{}' not found in pool", path);
+        eprintln!("nofs: '{path}' not found in pool");
         // Exit with failure
         std::process::exit(1);
     }

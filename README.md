@@ -1,6 +1,6 @@
 # nofs
 
-A lightweight union filesystem tool - a mergerfs alternative without FUSE.
+A lightweight union filesystem tool
 
 ## Overview
 
@@ -8,13 +8,13 @@ A lightweight union filesystem tool - a mergerfs alternative without FUSE.
 
 ## Features
 
-- **No FUSE required** - Pure userspace tool, no kernel module needed
-- **Named union contexts** - Simple TOML config with `[union.name]` sections
-- **Context:path syntax** - `nofs ls media:/movies` selects the `media` context
-- **Ad-hoc mode** - Use directly from command line without config
-- **Policy-based branch selection** - Choose branches based on free space, randomness, or path preservation
-- **Verbose mode** - See decision steps with `-v` flag
-- **POSIX-like commands** - Familiar interface (`ls`, `find`, `where`, etc.)
+- No FUSE required - Pure userspace tool, no kernel module needed
+- Named union contexts - Simple TOML config with `[union.name]` sections
+- Context:path syntax - `nofs ls media:/movies` selects the `media` context
+- Ad-hoc mode - Use directly from command line without config
+- Policy-based branch selection - Choose branches based on free space, randomness, or path preservation
+- Verbose mode - See decision steps with `-v` flag
+- POSIX-like commands - Familiar interface (`ls`, `find`, `where`, etc.)
 
 ## Installation
 

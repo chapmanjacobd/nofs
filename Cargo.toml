@@ -2,7 +2,8 @@
 name = "nofs"
 version = "0.1.0"
 edition = "2021"
-description = "A lightweight union filesystem tool - mergerfs alternative without FUSE"
+description = "A lightweight union filesystem tool"
+repository = "https://github.com/chapmanjacobd/nofs"
 license = "MIT"
 
 [dependencies]

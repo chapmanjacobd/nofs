@@ -10,6 +10,7 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 /// Represents a union pool of branches
+#[non_exhaustive]
 pub struct Pool {
     /// Name of the pool/context
     pub name: String,
@@ -37,12 +38,20 @@ pub struct PoolManager {
 
 impl PoolManager {
     /// Create pool manager from a configuration file
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the config file cannot be read or parsed.
     pub fn from_config<P: AsRef<Path>>(config_path: P) -> Result<Self> {
         let config = Config::from_file(config_path)?;
         Self::from_config_inner(&config)
     }
 
     /// Try to load from default config locations
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if no default config is found.
     pub fn from_default_config() -> Result<Self> {
         let config_path = crate::config::find_default_config().ok_or_else(|| {
             NofsError::Config("No configuration file found. Use --config or --paths.".to_string())
@@ -52,6 +61,10 @@ impl PoolManager {
     }
 
     /// Create pool manager from ad-hoc paths string (uses "default" context)
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if branches cannot be parsed or if no branches are provided.
     pub fn from_paths(paths_str: &str, policy: &str, minfreespace: &str) -> Result<Self> {
         let branches: Result<Vec<Branch>> = paths_str
             .split(',')
@@ -88,8 +101,7 @@ impl PoolManager {
 
             if branches.is_empty() {
                 return Err(NofsError::Config(format!(
-                    "No branches defined in union '{}'",
-                    name
+                    "No branches defined in union '{name}'"
                 )));
             }
 
@@ -115,13 +127,21 @@ impl PoolManager {
     }
 
     /// Get a pool by name
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the pool is not found.
     pub fn get_pool(&self, name: &str) -> Result<&Pool> {
         self.pools
             .get(name)
-            .ok_or_else(|| NofsError::Config(format!("Union context '{}' not found", name)))
+            .ok_or_else(|| NofsError::Config(format!("Union context '{name}' not found")))
     }
 
     /// Get the first/default pool
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if no pools are available.
     pub fn default_pool(&self) -> Result<&Pool> {
         if let Some(pool) = self.pools.get("default") {
             Ok(pool)
@@ -133,13 +153,19 @@ impl PoolManager {
     }
 
     /// Get all pool names
+    #[must_use] 
     pub fn pool_names(&self) -> Vec<&str> {
-        let mut names: Vec<&str> = self.pools.keys().map(|s| s.as_str()).collect();
-        names.sort();
+        let mut names: Vec<&str> = self.pools.keys().map(std::string::String::as_str).collect();
+        names.sort_unstable();
         names
     }
 
     /// Parse a context:path reference and return the appropriate pool
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the context is not found.
+    #[allow(clippy::arithmetic_side_effects)]
     pub fn resolve_context_path<'ctx>(
         &'ctx self,
         input: &'ctx str,
@@ -159,6 +185,7 @@ impl PoolManager {
 
 impl Pool {
     /// Get total available space across all RW branches
+    #[must_use] 
     pub fn total_available_space(&self) -> u64 {
         self.branches
             .iter()
@@ -168,6 +195,7 @@ impl Pool {
     }
 
     /// Get total space across all branches
+    #[must_use] 
     pub fn total_space(&self) -> u64 {
         self.branches
             .iter()
@@ -176,27 +204,33 @@ impl Pool {
     }
 
     /// Get total used space across all branches
+    #[must_use]
+    #[allow(clippy::arithmetic_side_effects)]
     pub fn total_used_space(&self) -> u64 {
         self.total_space() - self.total_available_space()
     }
 
     /// Get number of branches
+    #[must_use] 
     pub fn branch_count(&self) -> usize {
         self.branches.len()
     }
 
     /// Get number of writable branches
+    #[must_use] 
     pub fn writable_branch_count(&self) -> usize {
         self.branches.iter().filter(|b| b.can_create()).count()
     }
 
     /// Find a branch by path
+    #[must_use] 
     pub fn find_branch(&self, path: &Path) -> Option<&Branch> {
         self.branches.iter().find(|b| b.path == path)
     }
 
     /// Resolve a pool path to actual branch paths
     /// Returns all branches where the path exists
+    #[must_use] 
     pub fn resolve_path(&self, pool_path: &Path) -> Vec<PathBuf> {
         self.branches
             .iter()
@@ -206,6 +240,7 @@ impl Pool {
     }
 
     /// Find the first branch where a path exists
+    #[must_use] 
     pub fn resolve_path_first(&self, pool_path: &Path) -> Option<PathBuf> {
         self.branches
             .iter()
@@ -214,6 +249,10 @@ impl Pool {
     }
 
     /// Get the best branch for creating a file at the given path
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if no suitable branch is found.
     pub fn select_create_branch(&self, relative_path: &Path) -> Result<&Branch> {
         use crate::policy::CreatePolicy;
 
@@ -222,6 +261,7 @@ impl Pool {
     }
 
     /// Get all branches containing a path
+    #[must_use] 
     pub fn find_all_branches(&self, relative_path: &Path) -> Vec<&Branch> {
         use crate::policy::SearchPolicy;
 
@@ -230,6 +270,7 @@ impl Pool {
     }
 
     /// Check if a path exists in the pool
+    #[must_use] 
     pub fn exists(&self, pool_path: &Path) -> bool {
         self.branches
             .iter()

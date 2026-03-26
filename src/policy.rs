@@ -9,6 +9,7 @@ use std::path::Path;
 use std::str::FromStr;
 
 /// Available policies for branch selection
+#[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Policy {
     /// Percentage free random distribution
@@ -54,13 +55,17 @@ impl FromStr for Policy {
             "eprand" => Ok(Policy::EpRand),
             "epall" => Ok(Policy::EpAll),
             "all" => Ok(Policy::All),
-            _ => Err(NofsError::Policy(format!("Unknown policy: {}", s))),
+            _ => Err(NofsError::Policy(format!("Unknown policy: {s}"))),
         }
     }
 }
 
 impl Policy {
     /// Parse policy from string
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the policy string is not recognized.
     pub fn parse(s: &str) -> Result<Self> {
         <Self as FromStr>::from_str(s)
     }
@@ -92,6 +97,7 @@ pub struct CreatePolicy<'ctx> {
 }
 
 impl<'ctx> CreatePolicy<'ctx> {
+    #[must_use] 
     pub fn new(branches: &'ctx [Branch], minfreespace: u64) -> Self {
         CreatePolicy {
             branches,
@@ -100,6 +106,11 @@ impl<'ctx> CreatePolicy<'ctx> {
     }
 
     /// Select a branch for file creation
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if no suitable branch is found.
+    #[allow(clippy::too_many_lines)]
     pub fn select(&self, policy: Policy, relative_path: Option<&Path>) -> Result<&'ctx Branch> {
         // Filter branches by create eligibility and minfreespace
         let eligible: Vec<&Branch> = self
@@ -114,13 +125,9 @@ impl<'ctx> CreatePolicy<'ctx> {
                 let branch_minfree = b
                     .minfreespace
                     .as_ref()
-                    .map(|s| parse_size(s).unwrap_or(self.minfreespace))
-                    .unwrap_or(self.minfreespace);
+                    .map_or(self.minfreespace, |s| parse_size(s).unwrap_or(self.minfreespace));
 
-                match b.available_space() {
-                    Ok(available) => available >= branch_minfree,
-                    Err(_) => false,
-                }
+                b.available_space().map_or(false, |available| available >= branch_minfree)
             })
             .collect();
 
@@ -131,7 +138,7 @@ impl<'ctx> CreatePolicy<'ctx> {
         match policy {
             Policy::Pfrd => self.select_pfrd(&eligible),
             Policy::Mfs => self.select_mfs(&eligible),
-            Policy::Ff => Ok(eligible[0]),
+            Policy::Ff => eligible.first().copied().ok_or(NofsError::NoSuitableBranch),
             Policy::Rand => self.select_rand(&eligible),
             Policy::Lfs => self.select_lfs(&eligible),
             Policy::Lus => self.select_lus(&eligible),
@@ -152,28 +159,29 @@ impl<'ctx> CreatePolicy<'ctx> {
 
                     match policy {
                         Policy::EpMfs => self.select_mfs(&with_path),
-                        Policy::EpFf => Ok(with_path[0]),
+                        Policy::EpFf => with_path.first().copied().ok_or(NofsError::NoSuitableBranch),
                         Policy::EpRand => self.select_rand(&with_path),
-                        Policy::EpAll => Ok(eligible[0]), // Return first for create
-                        _ => Ok(eligible[0]),
+                        Policy::EpAll => eligible.first().copied().ok_or(NofsError::NoSuitableBranch),
+                        _ => eligible.first().copied().ok_or(NofsError::NoSuitableBranch),
                     }
                 } else {
                     self.select_fallback(policy, &eligible)
                 }
             }
-            Policy::All => Ok(eligible[0]),
+            Policy::All => eligible.first().copied().ok_or(NofsError::NoSuitableBranch),
         }
     }
 
     fn select_fallback(&self, policy: Policy, eligible: &[&'ctx Branch]) -> Result<&'ctx Branch> {
         match policy {
             Policy::EpMfs => self.select_mfs(eligible),
-            Policy::EpFf | Policy::EpAll => Ok(eligible[0]),
+            Policy::EpFf | Policy::EpAll => eligible.first().copied().ok_or(NofsError::NoSuitableBranch),
             Policy::EpRand => self.select_rand(eligible),
-            _ => Ok(eligible[0]),
+            _ => eligible.first().copied().ok_or(NofsError::NoSuitableBranch),
         }
     }
 
+    #[allow(clippy::arithmetic_side_effects)]
     fn select_pfrd(&self, branches: &[&'ctx Branch]) -> Result<&'ctx Branch> {
         // Calculate total available space
         let total: u64 = branches
@@ -182,7 +190,7 @@ impl<'ctx> CreatePolicy<'ctx> {
             .sum();
 
         if total == 0 {
-            return Ok(branches[0]);
+            return branches.first().copied().ok_or(NofsError::NoSuitableBranch);
         }
 
         // Select based on weighted random
@@ -199,7 +207,7 @@ impl<'ctx> CreatePolicy<'ctx> {
             }
         }
 
-        Ok(branches[branches.len() - 1])
+        branches.last().copied().ok_or(NofsError::NoSuitableBranch)
     }
 
     fn select_mfs(&self, branches: &[&'ctx Branch]) -> Result<&'ctx Branch> {
@@ -234,6 +242,7 @@ impl<'ctx> CreatePolicy<'ctx> {
             .ok_or(NofsError::NoSuitableBranch)
     }
 
+    #[allow(clippy::indexing_slicing)]
     fn select_rand(&self, branches: &[&'ctx Branch]) -> Result<&'ctx Branch> {
         let mut rng = rand::thread_rng();
         let idx = rng.gen_range(0..branches.len());
@@ -247,11 +256,17 @@ pub struct SearchPolicy<'ctx> {
 }
 
 impl<'ctx> SearchPolicy<'ctx> {
+    #[must_use] 
     pub fn new(branches: &'ctx [Branch]) -> Self {
         SearchPolicy { branches }
     }
 
     /// Select a branch for search operations (getattr, open, etc.)
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if no suitable branch is found for the operation.
+    #[allow(clippy::too_many_lines)]
     pub fn select(&self, policy: Policy, relative_path: &Path) -> Result<&'ctx Branch> {
         match policy {
             Policy::Ff => {
@@ -282,13 +297,14 @@ impl<'ctx> SearchPolicy<'ctx> {
                 match policy {
                     Policy::Mfs => self.select_mfs(&matching),
                     Policy::Lfs => self.select_lfs(&matching),
-                    _ => Ok(matching[0]),
+                    _ => matching.first().copied().ok_or(NofsError::NoSuitableBranch),
                 }
             }
         }
     }
 
     /// Find all branches containing a path
+    #[must_use] 
     pub fn find_all(&self, relative_path: &Path) -> Vec<&'ctx Branch> {
         self.branches
             .iter()
@@ -314,6 +330,11 @@ impl<'ctx> SearchPolicy<'ctx> {
 }
 
 /// Parse human-readable size string to bytes
+///
+/// # Errors
+///
+/// Returns an error if the size string cannot be parsed.
+#[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss, clippy::as_conversions)]
 pub fn parse_size(s: &str) -> Result<u64> {
     let s = s.trim();
 
@@ -336,7 +357,7 @@ pub fn parse_size(s: &str) -> Result<u64> {
 
     let num: f64 = num_str
         .parse()
-        .map_err(|_| NofsError::Parse(format!("Invalid size number: {}", s)))?;
+        .map_err(|_| NofsError::Parse(format!("Invalid size number: {s}")))?;
 
     let multiplier = match suffix.as_str() {
         "" | "B" => 1_u64,
@@ -344,7 +365,7 @@ pub fn parse_size(s: &str) -> Result<u64> {
         "M" | "MB" | "MIB" => 1024 * 1024,
         "G" | "GB" | "GIB" => 1024 * 1024 * 1024,
         "T" | "TB" | "TIB" => 1024 * 1024 * 1024 * 1024,
-        _ => return Err(NofsError::Parse(format!("Invalid size suffix: {}", s))),
+        _ => return Err(NofsError::Parse(format!("Invalid size suffix: {s}"))),
     };
 
     Ok((num * multiplier as f64) as u64)

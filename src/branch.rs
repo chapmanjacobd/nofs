@@ -9,6 +9,7 @@ use std::path::PathBuf;
 use std::str::FromStr;
 
 /// Branch mode determines how a branch can be used
+#[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "UPPERCASE")]
 #[derive(Default)]
@@ -30,7 +31,7 @@ impl FromStr for BranchMode {
             "RW" => Ok(BranchMode::RW),
             "RO" => Ok(BranchMode::RO),
             "NC" => Ok(BranchMode::NC),
-            _ => Err(NofsError::Parse(format!("Unknown branch mode: {}", s))),
+            _ => Err(NofsError::Parse(format!("Unknown branch mode: {s}"))),
         }
     }
 }
@@ -46,7 +47,9 @@ impl std::fmt::Display for BranchMode {
 }
 
 /// Represents a single branch in the pool
+#[non_exhaustive]
 #[derive(Debug, Clone, Deserialize, Serialize)]
+#[allow(clippy::unsafe_derive_deserialize)]
 pub struct Branch {
     /// Path to the branch
     pub path: PathBuf,
@@ -63,12 +66,13 @@ pub struct Branch {
 impl Branch {
     /// Create a new branch from a path string
     /// Format: "/path" or "/path=MODE" or "/path=MODE,minfreespace"
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the path does not exist or if the mode cannot be parsed.
     pub fn parse(s: &str) -> Result<Self> {
-        let (path_str, options) = if let Some(idx) = s.find('=') {
-            (&s[..idx], Some(&s[idx + 1..]))
-        } else {
-            (s, None)
-        };
+        let (path_str, options) =
+            s.find('=').map_or((s, None), |idx| (&s[..idx], Some(&s[idx + 1..])));
 
         let path = PathBuf::from(path_str);
 
@@ -84,9 +88,9 @@ impl Branch {
         let mut minfreespace = None;
 
         if let Some(opts) = options {
-            for opt in opts.split(',') {
-                let opt = opt.trim();
-                if opt.chars().any(|c| c.is_numeric()) {
+            for opt_str in opts.split(',') {
+                let opt = opt_str.trim();
+                if opt.chars().any(char::is_numeric) {
                     // Treat as minfreespace value
                     minfreespace = Some(opt.to_string());
                 } else {
@@ -103,23 +107,31 @@ impl Branch {
     }
 
     /// Check if branch is eligible for create operations
+    #[must_use] 
     pub fn can_create(&self) -> bool {
         matches!(self.mode, BranchMode::RW)
     }
 
     /// Check if branch is eligible for action operations (chmod, chown, etc.)
+    #[must_use] 
     pub fn can_action(&self) -> bool {
         matches!(self.mode, BranchMode::RW)
     }
 
     /// Get available space on this branch in bytes
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the path cannot be converted to a C string or if statvfs fails.
+    #[allow(clippy::arithmetic_side_effects)]
     pub fn available_space(&self) -> Result<u64> {
         let path_c = CString::new(self.path.to_string_lossy().as_bytes())
-            .map_err(|e| NofsError::Branch(format!("Invalid path: {}", e)))?;
+            .map_err(|e| NofsError::Branch(format!("Invalid path: {e}")))?;
 
+        // Safety: statvfs is called with a valid C string pointer and a valid statvfs pointer.
+        // The result is checked for success (0 return value).
         let mut stat = unsafe { std::mem::zeroed() };
-
-        let result = unsafe { libc::statvfs(path_c.as_ptr(), &mut stat) };
+        let result = unsafe { libc::statvfs(path_c.as_ptr(), &raw mut stat) };
 
         if result == 0 {
             // f_bavail is free blocks for unprivileged users
@@ -130,13 +142,19 @@ impl Branch {
     }
 
     /// Get total space on this branch in bytes
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the path cannot be converted to a C string or if statvfs fails.
+    #[allow(clippy::arithmetic_side_effects)]
     pub fn total_space(&self) -> Result<u64> {
         let path_c = CString::new(self.path.to_string_lossy().as_bytes())
-            .map_err(|e| NofsError::Branch(format!("Invalid path: {}", e)))?;
+            .map_err(|e| NofsError::Branch(format!("Invalid path: {e}")))?;
 
+        // Safety: statvfs is called with a valid C string pointer and a valid statvfs pointer.
+        // The result is checked for success (0 return value).
         let mut stat = unsafe { std::mem::zeroed() };
-
-        let result = unsafe { libc::statvfs(path_c.as_ptr(), &mut stat) };
+        let result = unsafe { libc::statvfs(path_c.as_ptr(), &raw mut stat) };
 
         if result == 0 {
             Ok(stat.f_blocks * stat.f_frsize)
@@ -146,6 +164,10 @@ impl Branch {
     }
 
     /// Get used space on this branch in bytes
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if statvfs fails for total or available space.
     pub fn used_space(&self) -> Result<u64> {
         let total = self.total_space()?;
         let available = self.available_space()?;
@@ -153,6 +175,11 @@ impl Branch {
     }
 
     /// Get free space percentage (0-100)
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if statvfs fails.
+    #[allow(clippy::cast_precision_loss)]
     pub fn free_percentage(&self) -> Result<f64> {
         let total = self.total_space()?;
         if total == 0 {
@@ -163,6 +190,10 @@ impl Branch {
     }
 
     /// Get used space percentage (0-100)
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if statvfs fails.
     pub fn used_percentage(&self) -> Result<f64> {
         Ok(100.0 - self.free_percentage()?)
     }

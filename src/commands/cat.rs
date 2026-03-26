@@ -6,6 +6,11 @@ use std::fs::File;
 use std::io::{self, Read, Write};
 use std::path::Path;
 
+/// Execute the cat command
+///
+/// # Errors
+///
+/// Returns an error if the file cannot be read or written.
 pub fn execute(pool: &Pool, path: &str, verbose: bool) -> Result<()> {
     let pool_path = Path::new(path);
 
@@ -25,7 +30,7 @@ pub fn execute(pool: &Pool, path: &str, verbose: bool) -> Result<()> {
         file.read_to_end(&mut buffer)?;
         handle.write_all(&buffer)?;
     } else {
-        eprintln!("nofs: cannot open '{}' for reading: No such file", path);
+        eprintln!("nofs: cannot open '{path}' for reading: No such file");
         std::process::exit(1);
     }
 

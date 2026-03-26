@@ -2,6 +2,7 @@
 
 use thiserror::Error;
 
+#[non_exhaustive]
 #[derive(Error, Debug)]
 pub enum NofsError {
     #[error("Configuration error: {0}")]

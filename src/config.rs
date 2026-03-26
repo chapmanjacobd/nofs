@@ -11,6 +11,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 /// Union context configuration
+#[non_exhaustive]
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct UnionConfig {
     /// Branch paths with RW mode (default)
@@ -59,6 +60,7 @@ fn default_minfreespace() -> String {
 }
 
 /// Main configuration structure
+#[non_exhaustive]
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Config {
     /// Union contexts
@@ -68,30 +70,42 @@ pub struct Config {
 
 impl Config {
     /// Load configuration from a TOML file
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the file cannot be read or parsed.
     pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self> {
-        let path = path.as_ref();
-        let content = fs::read_to_string(path).map_err(|e| {
+        let path_ref = path.as_ref();
+        let content = fs::read_to_string(path_ref).map_err(|e| {
             NofsError::Config(format!(
                 "Failed to read config file {}: {}",
-                path.display(),
+                path_ref.display(),
                 e
             ))
         })?;
 
         let config: Config = toml::from_str(&content)
-            .map_err(|e| NofsError::Config(format!("Failed to parse config file: {}", e)))?;
+            .map_err(|e| NofsError::Config(format!("Failed to parse config file: {e}")))?;
 
         Ok(config)
     }
 
     /// Get a union context by name
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the union context is not found.
     pub fn get_union(&self, name: &str) -> Result<&UnionConfig> {
         self.union
             .get(name)
-            .ok_or_else(|| NofsError::Config(format!("Union context '{}' not found", name)))
+            .ok_or_else(|| NofsError::Config(format!("Union context '{name}' not found")))
     }
 
     /// Get the first union context (for single-context configs)
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if no union contexts are defined.
     pub fn first_union(&self) -> Result<(&str, &UnionConfig)> {
         self.union
             .iter()
@@ -103,6 +117,10 @@ impl Config {
 
 impl UnionConfig {
     /// Convert to Branch structs
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if any branch path cannot be parsed.
     pub fn get_branches(&self) -> Result<Vec<Branch>> {
         let mut branches = Vec::new();
 
@@ -113,13 +131,13 @@ impl UnionConfig {
 
         // Add RO paths
         for path_str in &self.ro_paths {
-            let branch_str = format!("{}=RO", path_str);
+            let branch_str = format!("{path_str}=RO");
             branches.push(Branch::parse(&branch_str)?);
         }
 
         // Add NC paths
         for path_str in &self.nc_paths {
-            let branch_str = format!("{}=NC", path_str);
+            let branch_str = format!("{path_str}=NC");
             branches.push(Branch::parse(&branch_str)?);
         }
 
@@ -127,27 +145,44 @@ impl UnionConfig {
     }
 
     /// Get create policy
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the policy string cannot be parsed.
     pub fn create_policy(&self) -> Result<Policy> {
         Policy::parse(&self.create_policy)
     }
 
     /// Get search policy
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the policy string cannot be parsed.
     pub fn search_policy(&self) -> Result<Policy> {
         Policy::parse(&self.search_policy)
     }
 
     /// Get action policy
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the policy string cannot be parsed.
     pub fn action_policy(&self) -> Result<Policy> {
         Policy::parse(&self.action_policy)
     }
 
     /// Get minfreespace in bytes
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the minfreespace string cannot be parsed.
     pub fn minfreespace_bytes(&self) -> Result<u64> {
         crate::policy::parse_size(&self.minfreespace)
     }
 }
 
 /// Try to find default config locations
+#[must_use] 
 pub fn find_default_config() -> Option<PathBuf> {
     // Check common locations
     let locations = [

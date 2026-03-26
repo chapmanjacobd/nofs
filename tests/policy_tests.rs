@@ -11,8 +11,8 @@ mod tests {
     fn pfrd_policy() {
         let ctx = TestContext::new("policy_pfrd");
 
-        ctx.create_branch("disk1", &["file1.txt"]);
-        ctx.create_branch("disk2", &["file2.txt"]);
+        let _ = ctx.create_branch("disk1", &["file1.txt"]);
+        let _ = ctx.create_branch("disk2", &["file2.txt"]);
 
         let config = format!(
             r#"
@@ -40,8 +40,8 @@ create_policy = "pfrd"
     fn mfs_policy() {
         let ctx = TestContext::new("policy_mfs");
 
-        ctx.create_branch("disk1", &["file1.txt"]);
-        ctx.create_branch("disk2", &["file2.txt"]);
+        let _ = ctx.create_branch("disk1", &["file1.txt"]);
+        let _ = ctx.create_branch("disk2", &["file2.txt"]);
 
         let config = format!(
             r#"
@@ -70,8 +70,8 @@ create_policy = "mfs"
     fn rand_policy() {
         let ctx = TestContext::new("policy_rand");
 
-        ctx.create_branch("disk1", &["file1.txt"]);
-        ctx.create_branch("disk2", &["file2.txt"]);
+        let _ = ctx.create_branch("disk1", &["file1.txt"]);
+        let _ = ctx.create_branch("disk2", &["file2.txt"]);
 
         let config = format!(
             r#"
@@ -102,8 +102,8 @@ create_policy = "rand"
     fn ff_search_policy() {
         let ctx = TestContext::new("policy_ff");
 
-        ctx.create_branch("disk1/subdir", &["file1.txt"]);
-        ctx.create_branch("disk2/subdir", &["file2.txt"]);
+        let _ = ctx.create_branch("disk1/subdir", &["file1.txt"]);
+        let _ = ctx.create_branch("disk2/subdir", &["file2.txt"]);
 
         let config = format!(
             r#"
@@ -132,8 +132,8 @@ search_policy = "ff"
     fn ro_branch_excluded_from_create() {
         let ctx = TestContext::new("policy_ro_exclude");
 
-        ctx.create_branch("rw_disk", &["file1.txt"]);
-        ctx.create_branch("ro_disk", &["file2.txt"]);
+        let _ = ctx.create_branch("rw_disk", &["file1.txt"]);
+        let _ = ctx.create_branch("ro_disk", &["file2.txt"]);
 
         let config = format!(
             r#"
@@ -164,8 +164,8 @@ create_policy = "mfs"
     fn nc_branch_excluded_from_create() {
         let ctx = TestContext::new("policy_nc_exclude");
 
-        ctx.create_branch("rw_disk", &["file1.txt"]);
-        ctx.create_branch("nc_disk", &["file2.txt"]);
+        let _ = ctx.create_branch("rw_disk", &["file1.txt"]);
+        let _ = ctx.create_branch("nc_disk", &["file2.txt"]);
 
         let config = format!(
             r#"
@@ -196,8 +196,8 @@ create_policy = "mfs"
     fn verbose_shows_policy() {
         let ctx = TestContext::new("policy_verbose");
 
-        ctx.create_branch("disk1", &["file1.txt"]);
-        ctx.create_branch("disk2", &["file2.txt"]);
+        let _ = ctx.create_branch("disk1", &["file1.txt"]);
+        let _ = ctx.create_branch("disk2", &["file2.txt"]);
 
         let config = format!(
             r#"
