@@ -16,7 +16,7 @@ mod tests {
 
         let config = format!(
             r#"
-[union.test]
+[share.test]
 paths = ["{0}/disk1", "{0}/disk2"]
 create_policy = "pfrd"
 "#,
@@ -45,7 +45,7 @@ create_policy = "pfrd"
 
         let config = format!(
             r#"
-[union.test]
+[share.test]
 paths = ["{0}/disk1", "{0}/disk2"]
 create_policy = "mfs"
 "#,
@@ -75,7 +75,7 @@ create_policy = "mfs"
 
         let config = format!(
             r#"
-[union.test]
+[share.test]
 paths = ["{0}/disk1", "{0}/disk2"]
 create_policy = "rand"
 "#,
@@ -107,7 +107,7 @@ create_policy = "rand"
 
         let config = format!(
             r#"
-[union.test]
+[share.test]
 paths = ["{0}/disk1", "{0}/disk2"]
 search_policy = "ff"
 "#,
@@ -137,7 +137,7 @@ search_policy = "ff"
 
         let config = format!(
             r#"
-[union.test]
+[share.test]
 paths = ["{0}/rw_disk"]
 ro_paths = ["{0}/ro_disk"]
 create_policy = "mfs"
@@ -169,7 +169,7 @@ create_policy = "mfs"
 
         let config = format!(
             r#"
-[union.test]
+[share.test]
 paths = ["{0}/rw_disk"]
 nc_paths = ["{0}/nc_disk"]
 create_policy = "mfs"
@@ -201,7 +201,7 @@ create_policy = "mfs"
 
         let config = format!(
             r#"
-[union.test]
+[share.test]
 paths = ["{0}/disk1", "{0}/disk2"]
 create_policy = "pfrd"
 "#,

@@ -14,7 +14,7 @@ pub fn execute_single(pool: &Pool, _verbose: bool) -> Result<()> {
     let stdout = io::stdout();
     let mut handle = stdout.lock();
 
-    let _ = writeln!(handle, "Union Context: {}", pool.name);
+    let _ = writeln!(handle, "Share Context: {}", pool.name);
     let _ = writeln!(handle, "================");
     let _ = writeln!(handle);
 
@@ -67,7 +67,7 @@ pub fn execute_all(pool_mgr: &PoolManager, _verbose: bool) -> Result<()> {
     let stdout = io::stdout();
     let mut handle = stdout.lock();
 
-    let _ = writeln!(handle, "Union Contexts");
+    let _ = writeln!(handle, "Share Contexts");
     let _ = writeln!(handle, "==============");
     let _ = writeln!(handle);
 

@@ -1,4 +1,4 @@
-//! nofs - A lightweight union filesystem tool
+//! nofs - A lightweight shared filesystem tool
 //!
 //! Provides mergerfs-like functionality without FUSE.
 //! All operations happen via subcommands with optional TOML configuration.

@@ -1,25 +1,25 @@
 # nofs configuration file
 # https://github.com/xk/nofs
 
-[union.media]
+[share.media]
 paths = ["/mnt/hdd1/media", "/mnt/hdd2/media"]
 ro_paths = ["/mnt/hdd3/media"]  # read-only branches
 create_policy = "pfrd"
 search_policy = "ff"
 minfreespace = "4G"
 
-[union.backup]
+[share.backup]
 paths = ["/mnt/backup1"]
 ro_paths = ["/mnt/backup2"]
 create_policy = "mfs"
 search_policy = "ff"
 minfreespace = "10G"
 
-[union.scratch]
+[share.scratch]
 paths = ["/tmp/a", "/tmp/b"]
 create_policy = "rand"
 
-[union.archive]
+[share.archive]
 # All read-only
 ro_paths = ["/mnt/archive1", "/mnt/archive2"]
 # No-create (can modify existing but not create new)

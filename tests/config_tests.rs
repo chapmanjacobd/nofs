@@ -16,7 +16,7 @@ mod tests {
 
         let config = format!(
             r#"
-[union.media]
+[share.media]
 paths = ["{0}/disk1/media", "{0}/disk2/media"]
 create_policy = "pfrd"
 search_policy = "ff"
@@ -34,7 +34,7 @@ search_policy = "ff"
         ]);
 
         assert!(output.success(), "Command failed: {}", output.stderr);
-        assert!(output.stdout.contains("Union Context: media"));
+        assert!(output.stdout.contains("Share Context: media"));
         assert!(output.stdout.contains("Branches:     2"));
     }
 
@@ -47,7 +47,7 @@ search_policy = "ff"
 
         let config = format!(
             r#"
-[union.test]
+[share.test]
 paths = ["{0}/rw_branch"]
 ro_paths = ["{0}/ro_branch"]
 create_policy = "mfs"
@@ -78,7 +78,7 @@ create_policy = "mfs"
 
         let config = format!(
             r#"
-[union.test]
+[share.test]
 paths = ["{0}/rw_branch"]
 nc_paths = ["{0}/nc_branch"]
 create_policy = "mfs"
@@ -101,7 +101,7 @@ create_policy = "mfs"
     }
 
     #[test]
-    fn multiple_unions() {
+    fn multiple_shares() {
         let ctx = TestContext::new("config_multi");
 
         let _ = ctx.create_branch("media1", &["movie.mkv"]);
@@ -111,11 +111,11 @@ create_policy = "mfs"
 
         let config = format!(
             r#"
-[union.media]
+[share.media]
 paths = ["{0}/media1", "{0}/media2"]
 create_policy = "pfrd"
 
-[union.backup]
+[share.backup]
 paths = ["{0}/backup1", "{0}/backup2"]
 create_policy = "mfs"
 "#,
@@ -142,7 +142,7 @@ create_policy = "mfs"
 
         let config = format!(
             r#"
-[union.test]
+[share.test]
 paths = ["{0}/rw1", "{0}/rw2"]
 ro_paths = ["{0}/ro1"]
 nc_paths = ["{0}/nc1"]
@@ -174,7 +174,7 @@ create_policy = "pfrd"
 
         let config = format!(
             r#"
-[union.media]
+[share.media]
 paths = ["{0}/disk1/media", "{0}/disk2/media"]
 create_policy = "pfrd"
 "#,
@@ -205,7 +205,7 @@ create_policy = "pfrd"
 
         let config = format!(
             r#"
-[union.test]
+[share.test]
 paths = ["{0}/disk1", "{0}/disk2"]
 minfreespace = "1G"
 create_policy = "mfs"

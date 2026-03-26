@@ -1,6 +1,6 @@
 //! Configuration parsing for nofs
 //!
-//! Supports TOML configuration files with named union contexts.
+//! Supports TOML configuration files with named share contexts.
 
 use crate::branch::Branch;
 use crate::error::{NofsError, Result};
@@ -10,10 +10,10 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-/// Union context configuration
+/// Share context configuration
 #[non_exhaustive]
 #[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct UnionConfig {
+pub struct ShareConfig {
     /// Branch paths with RW mode (default)
     #[serde(default)]
     pub paths: Vec<String>,
@@ -63,9 +63,9 @@ fn default_minfreespace() -> String {
 #[non_exhaustive]
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Config {
-    /// Union contexts
+    /// Share contexts
     #[serde(default)]
-    pub union: HashMap<String, UnionConfig>,
+    pub share: HashMap<String, ShareConfig>,
 }
 
 impl Config {
@@ -90,32 +90,32 @@ impl Config {
         Ok(config)
     }
 
-    /// Get a union context by name
+    /// Get a share context by name
     ///
     /// # Errors
     ///
-    /// Returns an error if the union context is not found.
-    pub fn get_union(&self, name: &str) -> Result<&UnionConfig> {
-        self.union
+    /// Returns an error if the share context is not found.
+    pub fn get_share(&self, name: &str) -> Result<&ShareConfig> {
+        self.share
             .get(name)
-            .ok_or_else(|| NofsError::Config(format!("Union context '{name}' not found")))
+            .ok_or_else(|| NofsError::Config(format!("Share context '{name}' not found")))
     }
 
-    /// Get the first union context (for single-context configs)
+    /// Get the first share context (for single-context configs)
     ///
     /// # Errors
     ///
-    /// Returns an error if no union contexts are defined.
-    pub fn first_union(&self) -> Result<(&str, &UnionConfig)> {
-        self.union
+    /// Returns an error if no share contexts are defined.
+    pub fn first_share(&self) -> Result<(&str, &ShareConfig)> {
+        self.share
             .iter()
             .next()
             .map(|(k, v)| (k.as_str(), v))
-            .ok_or_else(|| NofsError::Config("No union contexts defined in config".to_string()))
+            .ok_or_else(|| NofsError::Config("No share contexts defined in config".to_string()))
     }
 }
 
-impl UnionConfig {
+impl ShareConfig {
     /// Convert to Branch structs
     ///
     /// # Errors

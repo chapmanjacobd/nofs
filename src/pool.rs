@@ -1,6 +1,6 @@
 //! Pool management for nofs
 //!
-//! A pool is a union of multiple branches.
+//! A pool is a share of multiple branches.
 
 use crate::branch::Branch;
 use crate::config::Config;
@@ -9,7 +9,7 @@ use crate::policy::Policy;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
-/// Represents a union pool of branches
+/// Represents a share pool of branches
 #[non_exhaustive]
 pub struct Pool {
     /// Name of the pool/context
@@ -96,22 +96,22 @@ impl PoolManager {
     fn from_config_inner(config: &Config) -> Result<Self> {
         let mut pools = HashMap::new();
 
-        for (name, union_config) in &config.union {
-            let branches = union_config.get_branches()?;
+        for (name, share_config) in &config.share {
+            let branches = share_config.get_branches()?;
 
             if branches.is_empty() {
                 return Err(NofsError::Config(format!(
-                    "No branches defined in union '{name}'"
+                    "No branches defined in share '{name}'"
                 )));
             }
 
             let pool = Pool {
                 name: name.clone(),
                 branches,
-                create_policy: union_config.create_policy()?,
-                search_policy: union_config.search_policy()?,
-                action_policy: union_config.action_policy()?,
-                minfreespace: union_config.minfreespace_bytes()?,
+                create_policy: share_config.create_policy()?,
+                search_policy: share_config.search_policy()?,
+                action_policy: share_config.action_policy()?,
+                minfreespace: share_config.minfreespace_bytes()?,
             };
 
             pools.insert(name.clone(), pool);
@@ -119,7 +119,7 @@ impl PoolManager {
 
         if pools.is_empty() {
             return Err(NofsError::Config(
-                "No union contexts defined in config".to_string(),
+                "No share contexts defined in config".to_string(),
             ));
         }
 
@@ -134,7 +134,7 @@ impl PoolManager {
     pub fn get_pool(&self, name: &str) -> Result<&Pool> {
         self.pools
             .get(name)
-            .ok_or_else(|| NofsError::Config(format!("Union context '{name}' not found")))
+            .ok_or_else(|| NofsError::Config(format!("Share context '{name}' not found")))
     }
 
     /// Get the first/default pool

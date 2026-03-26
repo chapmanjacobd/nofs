@@ -16,7 +16,7 @@ mod tests {
 
         let config = format!(
             r#"
-[union.test]
+[share.test]
 paths = ["{0}/disk1", "{0}/disk2"]
 "#,
             ctx.root.display()
@@ -46,7 +46,7 @@ paths = ["{0}/disk1", "{0}/disk2"]
 
         let config = format!(
             r#"
-[union.test]
+[share.test]
 paths = ["{0}/disk1"]
 "#,
             ctx.root.display()
@@ -75,7 +75,7 @@ paths = ["{0}/disk1"]
 
         let config = format!(
             r#"
-[union.test]
+[share.test]
 paths = ["{0}/disk1"]
 "#,
             ctx.root.display()
@@ -117,7 +117,7 @@ paths = ["{0}/disk1"]
 
         let config = format!(
             r#"
-[union.test]
+[share.test]
 paths = ["{0}/disk1", "{0}/disk2"]
 "#,
             ctx.root.display()
@@ -146,7 +146,7 @@ paths = ["{0}/disk1", "{0}/disk2"]
 
         let config = format!(
             r#"
-[union.test]
+[share.test]
 paths = ["{0}/disk1", "{0}/disk2"]
 "#,
             ctx.root.display()
@@ -177,7 +177,7 @@ paths = ["{0}/disk1", "{0}/disk2"]
 
         let config = format!(
             r#"
-[union.test]
+[share.test]
 paths = ["{0}/disk1", "{0}/disk2"]
 "#,
             ctx.root.display()
@@ -208,7 +208,7 @@ paths = ["{0}/disk1", "{0}/disk2"]
 
         let config = format!(
             r#"
-[union.test]
+[share.test]
 paths = ["{0}/disk1"]
 "#,
             ctx.root.display()
@@ -252,7 +252,7 @@ paths = ["{0}/disk1"]
 
         let config = format!(
             r#"
-[union.test]
+[share.test]
 paths = ["{0}/disk1", "{0}/disk2"]
 create_policy = "mfs"
 "#,
@@ -282,7 +282,7 @@ create_policy = "mfs"
 
         let config = format!(
             r#"
-[union.test]
+[share.test]
 paths = ["{0}/disk1"]
 "#,
             ctx.root.display()
@@ -324,7 +324,7 @@ paths = ["{0}/disk1"]
 
         let config = format!(
             r#"
-[union.test]
+[share.test]
 paths = ["{0}/disk1", "{0}/disk2"]
 "#,
             ctx.root.display()
@@ -351,7 +351,7 @@ paths = ["{0}/disk1", "{0}/disk2"]
 
         let config = format!(
             r#"
-[union.test]
+[share.test]
 paths = ["{0}/disk1", "{0}/disk2"]
 create_policy = "pfrd"
 "#,
@@ -368,7 +368,7 @@ create_policy = "pfrd"
         ]);
 
         assert!(output.success(), "Command failed: {}", output.stderr);
-        assert!(output.stdout.contains("Union Context: test"));
+        assert!(output.stdout.contains("Share Context: test"));
         assert!(output.stdout.contains("Branches:     2"));
         assert!(output.stdout.contains("Create:     pfrd"));
     }
@@ -381,7 +381,7 @@ create_policy = "pfrd"
 
         let config = format!(
             r#"
-[union.test]
+[share.test]
 paths = ["{0}/disk1"]
 "#,
             ctx.root.display()
@@ -411,7 +411,7 @@ paths = ["{0}/disk1"]
 
         let config = format!(
             r#"
-[union.test]
+[share.test]
 paths = ["{0}/disk1", "{0}/disk2", "{0}/disk3"]
 "#,
             ctx.root.display()

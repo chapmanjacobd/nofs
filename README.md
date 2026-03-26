@@ -1,6 +1,6 @@
 # nofs
 
-A lightweight union filesystem tool
+A lightweight [shared filesystem](https://en.wikipedia.org/wiki/Clustered_file_system#Shared-disk_file_system) tool
 
 ## Overview
 
@@ -9,7 +9,7 @@ A lightweight union filesystem tool
 ## Features
 
 - No FUSE required - Pure userspace tool, no kernel module needed
-- Named union contexts - Simple TOML config with `[union.name]` sections
+- Named share contexts - Simple TOML config with `[share.name]` sections
 - Context:path syntax - `nofs ls media:/movies` selects the `media` context
 - Ad-hoc mode - Use directly from command line without config
 - Policy-based branch selection - Choose branches based on free space, randomness, or path preservation
@@ -36,19 +36,19 @@ sudo cp target/release/nofs /usr/local/bin/
 Create `/etc/nofs/config.toml`:
 
 ```toml
-[union.media]
+[share.media]
 paths = ["/mnt/hdd1/media", "/mnt/hdd2/media", "/mnt/hdd3/media"]
 modes = ["RW", "RW", "RO"]  # Optional: last branch is read-only
 create_policy = "pfrd"       # percentage free random distribution
 search_policy = "ff"         # first found
 minfreespace = "4G"
 
-[union.backup]
+[share.backup]
 paths = ["/mnt/backup1", "/mnt/backup2"]
 create_policy = "mfs"        # most free space
 minfreespace = "10G"
 
-[union.scratch]
+[share.scratch]
 paths = ["/tmp/a", "/tmp/b"]
 create_policy = "rand"       # random selection
 ```
@@ -56,7 +56,7 @@ create_policy = "rand"       # random selection
 ### Usage with Contexts
 
 ```bash
-# List directory from specific union context
+# List directory from specific share context
 nofs ls media:/movies
 
 # Find which branch contains a file
@@ -77,7 +77,7 @@ nofs find media:/ --name "*.mkv"
 # Show filesystem statistics
 nofs stat -H
 
-# Show all union contexts
+# Show all share contexts
 nofs info
 
 # Show specific context
@@ -87,7 +87,7 @@ nofs info media
 ### Ad-hoc Mode (No Config)
 
 ```bash
-# Quick union of directories
+# Quick share of directories
 nofs --paths /mnt/hdd1,/mnt/hdd2,/mnt/hdd3 ls /media
 
 # With branch modes
@@ -155,7 +155,7 @@ OPTIONS:
 ```bash
 nofs info [context]
 
-Shows all union contexts, or specific context if named.
+Shows all share contexts, or specific context if named.
 ```
 
 ### `exists` - Check File Existence
@@ -200,14 +200,14 @@ Reads file content from first found branch.
 
 ## Configuration Options
 
-### Union Context Settings
+### Share Context Settings
 
 ```toml
-[union.name]
+[share.name]
 paths = ["/path1", "/path2"]      # Required: branch paths
 modes = ["RW", "RO"]               # Optional: branch modes (parallel to paths)
 create_policy = "pfrd"             # Policy for create operations
-search_policy = "ff"               # Policy for search operations  
+search_policy = "ff"               # Policy for search operations
 action_policy = "epall"            # Policy for action operations
 minfreespace = "4G"                # Minimum free space threshold
 ```
@@ -223,12 +223,12 @@ minfreespace = "4G"                # Minimum free space threshold
 ### Media Server Setup
 
 ```toml
-[union.movies]
+[share.movies]
 paths = ["/hdd1/movies", "/hdd2/movies", "/hdd3/movies"]
 modes = ["RW", "RW", "RO"]
 create_policy = "pfrd"
 
-[union.tv]
+[share.tv]
 paths = ["/hdd1/tv", "/hdd2/tv"]
 create_policy = "mfs"
 ```
@@ -247,7 +247,7 @@ nofs create movies:/new_release.mkv
 ### SSD Cache Setup
 
 ```toml
-[union.fast]
+[share.fast]
 paths = ["/nvme/cache", "/hdd/storage"]
 modes = ["RW", "NC"]  # HDD can read/modify but not create
 create_policy = "lfs"  # Fill SSD first (least free space)
@@ -276,7 +276,7 @@ create_policy = "lfs"  # Fill SSD first (least free space)
 - Batch operations across branches
 - Simple pooling without FUSE complexity
 - Integration with existing tools
-- Multiple independent unions (contexts)
+- Multiple independent shares (contexts)
 
 **Consider mergerfs instead:**
 - Need transparent filesystem access

@@ -1,6 +1,6 @@
 //! Branch management for nofs
 //!
-//! A branch is a path that contributes to the union pool.
+//! A branch is a path that contributes to the share pool.
 
 use crate::error::{NofsError, Result};
 use serde::{Deserialize, Serialize};
