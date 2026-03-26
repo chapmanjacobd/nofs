@@ -265,7 +265,11 @@ pub fn execute(
     Ok(stats)
 }
 
-#[allow(clippy::too_many_lines)]
+#[allow(
+    clippy::too_many_lines,
+    clippy::used_underscore_binding,
+    clippy::only_used_in_recursion
+)]
 fn process_source(
     source: &Path,
     dest: &Path,
@@ -489,7 +493,13 @@ fn handle_file_over_file(
 
     // Evaluate optional conditions
     if check_skip_conditions(
-        strategy, hashes_match, src_size, dest_size, config, source, stats,
+        strategy,
+        hashes_match,
+        src_size,
+        dest_size,
+        config,
+        source,
+        stats,
     ) {
         return Ok(());
     }
@@ -524,13 +534,7 @@ fn handle_file_over_file(
 
     // Apply required fallback
     apply_required_strategy(
-        strategy,
-        source,
-        dest,
-        config,
-        stats,
-        file_count,
-        byte_count,
+        strategy, source, dest, config, stats, file_count, byte_count,
     )
 }
 
@@ -590,6 +594,7 @@ fn check_skip_conditions(
     false
 }
 
+#[allow(clippy::too_many_arguments)]
 fn check_delete_dest_conditions(
     strategy: &FileOverFileStrategy,
     hashes_match: bool,
@@ -612,8 +617,7 @@ fn check_delete_dest_conditions(
         if !config.simulate {
             fs::remove_file(dest)?;
         }
-        return process_file(source, dest, config, stats, file_count, byte_count)
-            .map(|()| true);
+        return process_file(source, dest, config, stats, file_count, byte_count).map(|()| true);
     }
 
     if strategy.delete_dest_size && src_size == dest_size {
@@ -626,8 +630,7 @@ fn check_delete_dest_conditions(
         if !config.simulate {
             fs::remove_file(dest)?;
         }
-        return process_file(source, dest, config, stats, file_count, byte_count)
-            .map(|()| true);
+        return process_file(source, dest, config, stats, file_count, byte_count).map(|()| true);
     }
 
     if strategy.delete_dest_larger && src_size > dest_size {
@@ -640,8 +643,7 @@ fn check_delete_dest_conditions(
         if !config.simulate {
             fs::remove_file(dest)?;
         }
-        return process_file(source, dest, config, stats, file_count, byte_count)
-            .map(|()| true);
+        return process_file(source, dest, config, stats, file_count, byte_count).map(|()| true);
     }
 
     if strategy.delete_dest_smaller && src_size < dest_size {
@@ -654,13 +656,13 @@ fn check_delete_dest_conditions(
         if !config.simulate {
             fs::remove_file(dest)?;
         }
-        return process_file(source, dest, config, stats, file_count, byte_count)
-            .map(|()| true);
+        return process_file(source, dest, config, stats, file_count, byte_count).map(|()| true);
     }
 
     Ok(false)
 }
 
+#[allow(clippy::too_many_arguments)]
 fn check_delete_src_conditions(
     strategy: &FileOverFileStrategy,
     hashes_match: bool,
@@ -1032,15 +1034,13 @@ fn get_unique_filename(base: &Path) -> PathBuf {
     let extension = base.extension().and_then(|s| s.to_str()).unwrap_or("");
 
     // Check if file already has a _N suffix
-    let (base_name, start_idx) = file_stem.rfind('_').map_or(
-        (file_stem, 1),
-        |idx| {
-            let suffix = &file_stem[idx + 1..];
-            suffix
-                .parse::<u32>()
-                .map_or((file_stem, 1), |num| (&file_stem[..idx], num + 1))
-        },
-    );
+    #[allow(clippy::arithmetic_side_effects)]
+    let (base_name, start_idx) = file_stem.rfind('_').map_or((file_stem, 1), |idx| {
+        let suffix = &file_stem[idx + 1..];
+        suffix
+            .parse::<u32>()
+            .map_or((file_stem, 1), |num| (&file_stem[..idx], num + 1))
+    });
 
     for i in start_idx.. {
         let new_name = if extension.is_empty() {
@@ -1074,15 +1074,13 @@ fn get_unique_folder_name(base: &Path) -> PathBuf {
         .unwrap_or("folder");
 
     // Check if folder already has a _N suffix
-    let (base_name, start_idx) = folder_name.rfind('_').map_or(
-        (folder_name, 1),
-        |idx| {
-            let suffix = &folder_name[idx + 1..];
-            suffix
-                .parse::<u32>()
-                .map_or((folder_name, 1), |num| (&folder_name[..idx], num + 1))
-        },
-    );
+    #[allow(clippy::arithmetic_side_effects)]
+    let (base_name, start_idx) = folder_name.rfind('_').map_or((folder_name, 1), |idx| {
+        let suffix = &folder_name[idx + 1..];
+        suffix
+            .parse::<u32>()
+            .map_or((folder_name, 1), |num| (&folder_name[..idx], num + 1))
+    });
 
     for i in start_idx.. {
         let new_name = format!("{base_name}_{i}");
@@ -1126,6 +1124,12 @@ fn sample_hash(path: &Path, stats: &CopyStats) -> Result<String> {
 
     stats.sample_hashes.fetch_add(1, Ordering::Relaxed);
 
+    #[allow(
+        clippy::integer_division,
+        clippy::cast_possible_truncation,
+        clippy::as_conversions,
+        clippy::indexing_slicing
+    )]
     for i in 0..num_samples {
         let pos = size.saturating_mul(i) / num_samples;
         file.seek(io::SeekFrom::Start(pos))?;
@@ -1138,7 +1142,7 @@ fn sample_hash(path: &Path, stats: &CopyStats) -> Result<String> {
 }
 
 #[must_use]
-#[allow(clippy::cast_precision_loss)]
+#[allow(clippy::cast_precision_loss, clippy::float_arithmetic, clippy::as_conversions)]
 pub fn format_size(bytes: u64) -> String {
     const KB: u64 = 1000;
     const MB: u64 = KB * 1000;

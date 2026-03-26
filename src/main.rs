@@ -227,6 +227,7 @@ enum Commands {
     },
 }
 
+#[allow(clippy::too_many_lines)]
 fn main() -> Result<()> {
     let cli = Cli::parse();
 
@@ -315,7 +316,10 @@ fn main() -> Result<()> {
                     "At least one source and one destination are required"
                 ));
             }
-            let (destination, sources) = paths.split_last().unwrap();
+            #[allow(clippy::expect_used)]
+            let (destination, sources) = paths
+                .split_last()
+                .expect("paths must have at least 2 elements");
 
             // Parse size limit
             let parsed_size_limit = size_limit.as_ref().and_then(|s| parse_size(s).ok());
@@ -360,7 +364,10 @@ fn main() -> Result<()> {
                     "At least one source and one destination are required"
                 ));
             }
-            let (destination, sources) = paths.split_last().unwrap();
+            #[allow(clippy::expect_used)]
+            let (destination, sources) = paths
+                .split_last()
+                .expect("paths must have at least 2 elements");
 
             // Parse size limit
             let parsed_size_limit = size_limit.as_ref().and_then(|s| parse_size(s).ok());
