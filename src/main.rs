@@ -121,6 +121,110 @@ enum Commands {
         /// Path within the pool (format: [context:]path).
         path: String,
     },
+
+    /// Copy files/directories (supports nofs context paths).
+    Cp {
+        /// Source paths [...] and destination (last argument).
+        /// Format: [context:]path or regular path.
+        #[arg(required = true)]
+        paths: Vec<String>,
+
+        /// File-over-file conflict strategy (e.g., "skip-hash rename-dest").
+        #[arg(long, default_value = "delete-src-hash rename-dest")]
+        file_over_file: String,
+
+        /// File-over-folder conflict strategy.
+        #[arg(long, default_value = "merge")]
+        file_over_folder: String,
+
+        /// Folder-over-file conflict strategy.
+        #[arg(long, default_value = "merge")]
+        folder_over_file: String,
+
+        /// Simulate without making changes (dry-run).
+        #[arg(short = 'n', long, alias = "simulate")]
+        dry_run: bool,
+
+        /// Number of parallel workers.
+        #[arg(short = 'j', long, default_value = "4")]
+        workers: usize,
+
+        /// Filter by file extensions (e.g., .mkv, .jpg).
+        #[arg(short = 'e', long)]
+        ext: Vec<String>,
+
+        /// Exclude patterns (glob).
+        #[arg(short = 'E', long)]
+        exclude: Vec<String>,
+
+        /// Include patterns (glob).
+        #[arg(short = 'I', long)]
+        include: Vec<String>,
+
+        /// Filter by file size (e.g., +5M, -10M).
+        #[arg(short = 'S', long)]
+        size: Vec<String>,
+
+        /// Limit number of files transferred.
+        #[arg(short = 'l', long)]
+        limit: Option<u64>,
+
+        /// Limit total size transferred (e.g., 100M, 1G).
+        #[arg(long)]
+        size_limit: Option<String>,
+    },
+
+    /// Move files/directories (supports nofs context paths).
+    Mv {
+        /// Source paths [...] and destination (last argument).
+        /// Format: [context:]path or regular path.
+        #[arg(required = true)]
+        paths: Vec<String>,
+
+        /// File-over-file conflict strategy (e.g., "skip-hash rename-dest").
+        #[arg(long, default_value = "delete-src-hash rename-dest")]
+        file_over_file: String,
+
+        /// File-over-folder conflict strategy.
+        #[arg(long, default_value = "merge")]
+        file_over_folder: String,
+
+        /// Folder-over-file conflict strategy.
+        #[arg(long, default_value = "merge")]
+        folder_over_file: String,
+
+        /// Simulate without making changes (dry-run).
+        #[arg(short = 'n', long, alias = "simulate")]
+        dry_run: bool,
+
+        /// Number of parallel workers.
+        #[arg(short = 'j', long, default_value = "4")]
+        workers: usize,
+
+        /// Filter by file extensions (e.g., .mkv, .jpg).
+        #[arg(short = 'e', long)]
+        ext: Vec<String>,
+
+        /// Exclude patterns (glob).
+        #[arg(short = 'E', long)]
+        exclude: Vec<String>,
+
+        /// Include patterns (glob).
+        #[arg(short = 'I', long)]
+        include: Vec<String>,
+
+        /// Filter by file size (e.g., +5M, -10M).
+        #[arg(short = 'S', long)]
+        size: Vec<String>,
+
+        /// Limit number of files transferred.
+        #[arg(short = 'l', long)]
+        limit: Option<u64>,
+
+        /// Limit total size transferred (e.g., 100M, 1G).
+        #[arg(long)]
+        size_limit: Option<String>,
+    },
 }
 
 fn main() -> Result<()> {
@@ -191,7 +295,140 @@ fn main() -> Result<()> {
             let (pool, pool_path) = pool_mgr.resolve_context_path(&path)?;
             commands::cat::execute(pool, pool_path, cli.verbose)?;
         }
+        Commands::Cp {
+            paths,
+            file_over_file,
+            file_over_folder,
+            folder_over_file,
+            dry_run,
+            workers,
+            ext,
+            exclude,
+            include,
+            size: _,
+            limit,
+            size_limit,
+        } => {
+            // Parse sources and destination
+            if paths.len() < 2 {
+                return Err(anyhow::anyhow!(
+                    "At least one source and one destination are required"
+                ));
+            }
+            let sources: Vec<String> = paths[..paths.len() - 1].to_vec();
+            let destination = &paths[paths.len() - 1];
+
+            // Parse size limit
+            let parsed_size_limit = size_limit
+                .as_ref()
+                .and_then(|s| parse_size(s).ok());
+
+            // Get pool for context-aware paths
+            let pool = extract_pool_from_paths(&pool_mgr, &sources, destination)?;
+
+            let config = commands::cp::CopyConfig {
+                copy: true,
+                simulate: dry_run,
+                workers,
+                verbose: cli.verbose,
+                file_over_file: commands::cp::parse_file_over_file(&file_over_file)?,
+                file_over_folder: parse_folder_conflict_mode(&file_over_folder)?,
+                folder_over_file: parse_folder_conflict_mode(&folder_over_file)?,
+                extensions: ext,
+                exclude,
+                include,
+                limit,
+                size_limit: parsed_size_limit,
+            };
+
+            commands::cp::execute(&sources, destination, config, pool)?;
+        }
+        Commands::Mv {
+            paths,
+            file_over_file,
+            file_over_folder,
+            folder_over_file,
+            dry_run,
+            workers,
+            ext,
+            exclude,
+            include,
+            size: _,
+            limit,
+            size_limit,
+        } => {
+            // Parse sources and destination
+            if paths.len() < 2 {
+                return Err(anyhow::anyhow!(
+                    "At least one source and one destination are required"
+                ));
+            }
+            let sources: Vec<String> = paths[..paths.len() - 1].to_vec();
+            let destination = &paths[paths.len() - 1];
+
+            // Parse size limit
+            let parsed_size_limit = size_limit
+                .as_ref()
+                .and_then(|s| parse_size(s).ok());
+
+            // Get pool for context-aware paths
+            let pool = extract_pool_from_paths(&pool_mgr, &sources, destination)?;
+
+            commands::mv::execute(
+                &sources,
+                destination,
+                &file_over_file,
+                &file_over_folder,
+                &folder_over_file,
+                dry_run,
+                workers,
+                cli.verbose,
+                ext,
+                exclude,
+                include,
+                limit,
+                parsed_size_limit,
+                pool,
+            )?;
+        }
     }
 
     Ok(())
+}
+
+fn parse_folder_conflict_mode(s: &str) -> Result<commands::cp::FolderConflictMode> {
+    use commands::cp::FolderConflictMode;
+    match s.to_lowercase().as_str() {
+        "skip" => Ok(FolderConflictMode::Skip),
+        "rename-src" => Ok(FolderConflictMode::RenameSrc),
+        "rename-dest" => Ok(FolderConflictMode::RenameDest),
+        "delete-src" => Ok(FolderConflictMode::DeleteSrc),
+        "delete-dest" => Ok(FolderConflictMode::DeleteDest),
+        "merge" => Ok(FolderConflictMode::Merge),
+        _ => Err(anyhow::anyhow!("Unknown folder conflict mode: {}", s)),
+    }
+}
+
+fn parse_size(s: &str) -> Result<u64> {
+    use crate::policy::parse_size as policy_parse_size;
+    policy_parse_size(s).map_err(|e| anyhow::anyhow!("Parse error: {}", e))
+}
+
+/// Try to extract a pool from paths that contain context prefixes
+fn extract_pool_from_paths<'a>(
+    pool_mgr: &'a pool::PoolManager,
+    sources: &[String],
+    destination: &str,
+) -> Result<Option<&'a pool::Pool>> {
+    // Check if any path has a context prefix
+    for path in sources.iter().chain(std::iter::once(&destination.to_string())) {
+        if let Some((ctx, _)) = path.split_once(':') {
+            if !ctx.contains('/') {
+                // This looks like a context prefix
+                let pool = pool_mgr.get_pool(ctx)?;
+                return Ok(Some(pool));
+            }
+        }
+    }
+    Ok(None)
 }

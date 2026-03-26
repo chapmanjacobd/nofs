@@ -25,6 +25,12 @@ pub enum NofsError {
 
     #[error("Parse error: {0}")]
     Parse(String),
+
+    #[error("Copy/Move error: {0}")]
+    CopyMove(String),
+
+    #[error("Conflict resolution error: {0}")]
+    Conflict(String),
 }
 
 pub type Result<T> = std::result::Result<T, NofsError>;

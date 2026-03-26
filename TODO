@@ -1,0 +1,21 @@
+
+     1. No actual file operations - The create command only returns the best branch path for creating a file, but doesn't actually create files. Similarly, there's no cp, mv, rm, mkdir,
+        touch, or write commands.
+
+     2. No shell integration/completion - Missing shell completion scripts (bash, zsh, fish) and no man page generation.
+
+     3. No JSON/machine-readable output - All commands output human-readable text only. No --json flag for scripting/automation integration.
+
+     4. No caching layer - Branch metadata (space, existence checks) is queried on every operation, which could be slow for large pools or remote filesystems.
+
+     5. No monitoring/watch functionality - No watch command or inotify-based file monitoring to detect changes across branches.
+
+     6. No merge conflict detection - When the same file exists in multiple branches with different content, there's no mechanism to detect or report this.
+
+     7. Limited error handling - The code uses unwrap() and indexing in several places despite clippy lints against it (e.g., branches[idx] in policy.rs).
+
+     8. No configuration validation command - No way to validate a config file without running another command. A nofs validate-config would be useful.
+
+     9. No logging facility - Only verbose mode (-v) for debugging. No structured logging with levels (error, warn, info, debug) or log file output.
+
+     10. No benchmarking/performance tools - No built-in way to measure operation latency across branches or compare policy performance.
