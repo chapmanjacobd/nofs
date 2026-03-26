@@ -1,0 +1,17 @@
+# Build artifacts
+/target/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Test files
+*.test
+test_*.toml

@@ -1,0 +1,44 @@
+# nofs configuration file
+# https://github.com/xk/nofs
+
+[[pools]]
+name = "media"
+mountpoint = "/mnt/pool"
+create_policy = "pfrd"    # percentage free random distribution
+search_policy = "ff"      # first found
+action_policy = "epall"   # existing path - all
+minfreespace = "4G"       # minimum free space threshold
+
+# Branches are listed in order of preference
+[[pools.branches]]
+path = "/mnt/hdd1"
+mode = "RW"               # Read/write (default)
+
+[[pools.branches]]
+path = "/mnt/hdd2"
+mode = "RW"
+
+[[pools.branches]]
+path = "/mnt/hdd3"
+mode = "RW"
+minfreespace = "10G"      # Override minfreespace for this branch
+
+[[pools.branches]]
+path = "/mnt/backup"
+mode = "RO"               # Read-only - excluded from create operations
+
+# Example pool with SSD cache
+[[pools]]
+name = "fast"
+mountpoint = "/mnt/fast"
+create_policy = "mfs"     # most free space
+search_policy = "ff"
+minfreespace = "1G"
+
+[[pools.branches]]
+path = "/mnt/ssd"
+mode = "RW"
+
+[[pools.branches]]
+path = "/mnt/hdd1"
+mode = "NC"               # No-create - can read/modify but not create
