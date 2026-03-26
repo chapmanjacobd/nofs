@@ -25,7 +25,7 @@ pub fn execute(pool: &Pool, path: &str, verbose: bool) -> Result<()> {
         std::process::exit(0);
     } else {
         // File does not exist
-        eprintln!("nofs: '{path}' not found in pool");
+        eprintln!("nofs: '{path}' not found in share");
         // Exit with failure
         std::process::exit(1);
     }

@@ -18,7 +18,7 @@ pub fn execute(pool: &Pool, path: &str, all: bool, verbose: bool) -> Result<()> 
         let branches = pool.find_all_branches(pool_path);
 
         if branches.is_empty() {
-            eprintln!("nofs: '{path}' not found in pool");
+            eprintln!("nofs: '{path}' not found in share");
             return Ok(());
         }
 
@@ -47,7 +47,7 @@ pub fn execute(pool: &Pool, path: &str, all: bool, verbose: bool) -> Result<()> 
         }
         println!("{}", full_path.display());
     } else {
-        eprintln!("nofs: '{path}' not found in pool");
+        eprintln!("nofs: '{path}' not found in share");
     }
 
     Ok(())

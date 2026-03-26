@@ -1,10 +1,10 @@
-//! info command - Show pool configuration and status
+//! info command - Show share configuration and status
 
 use crate::error::Result;
 use crate::pool::{Pool, PoolManager};
 use std::io::{self, Write};
 
-/// Execute info command for a single pool
+/// Execute info command for a single share
 ///
 /// # Errors
 ///
@@ -58,7 +58,7 @@ pub fn execute_single(pool: &Pool, _verbose: bool) -> Result<()> {
     Ok(())
 }
 
-/// Execute info command for all pools
+/// Execute info command for all shares
 ///
 /// # Errors
 ///
@@ -71,7 +71,7 @@ pub fn execute_all(pool_mgr: &PoolManager, _verbose: bool) -> Result<()> {
     let _ = writeln!(handle, "======");
     let _ = writeln!(handle);
 
-    // Get all pool names
+    // Get all share names
     for name in pool_mgr.pool_names() {
         if let Ok(pool) = pool_mgr.get_pool(name) {
             let _ = writeln!(handle, "{name}:");

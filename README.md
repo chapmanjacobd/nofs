@@ -4,16 +4,15 @@ A lightweight [shared filesystem](https://en.wikipedia.org/wiki/Clustered_file_s
 
 ## Overview
 
-**nofs** provides mergerfs-like functionality for pooling multiple filesystems/directories into a unified view, but operates entirely in userspace via subcommands rather than as a FUSE filesystem. This makes it simpler, faster to query, and easier to integrate into scripts.
+**nofs** provides mergerfs-like functionality for combining multiple filesystems/directories into a unified view, but operates entirely in userspace via subcommands rather than as a FUSE filesystem. This makes it simpler, faster to query, and easier to integrate into scripts.
 
 ## Features
 
 - No FUSE: pure userspace tool
 - share-path syntax: `nofs ls media:/movies` lists files in the `media` share
 - Ad-hoc: Use directly from the command line without any config
-- Policy-based branch selection - Choose branches based on free space, randomness, or path preservation
-- Verbose mode - See decision steps with `-v` flag
-- POSIX-like commands - Familiar interface (`ls`, `find`, `which`, etc.)
+- Policy-based branch selection: Choose branches based on free space, randomness, or path preservation
+- POSIX-like commands: Familiar interface (`ls`, `find`, `which`, etc.)
 
 ## Installation
 
@@ -52,10 +51,10 @@ paths = ["/tmp/a", "/tmp/b"]
 create_policy = "rand"       # random selection
 ```
 
-### Usage with Contexts
+### Usage Examples
 
 ```bash
-# List directory from specific share
+# List files in a share
 nofs ls media:/movies
 
 # Find which branch contains a file
@@ -79,7 +78,7 @@ nofs stat -H
 # Show all shares
 nofs info
 
-# Show specific context
+# Show specific share
 nofs info media
 ```
 
@@ -149,7 +148,7 @@ OPTIONS:
     -H, --human    Show human-readable sizes
 ```
 
-### `info` - Pool Information
+### `info` - Share Information
 
 ```bash
 nofs info [context]
@@ -273,11 +272,11 @@ create_policy = "lfs"  # Fill SSD first (least free space)
 - Scripting and automation
 - Querying file locations
 - Batch operations across branches
-- Simple pooling without FUSE complexity
+- Simple shares without FUSE complexity
 - Integration with existing tools
-- Multiple independent shares (contexts)
+- Multiple independent shares
 
 **Consider mergerfs instead:**
 - Need transparent filesystem access
 - Require POSIX filesystem semantics
-- Want applications to see unified pool automatically
+- Want applications to see unified shares automatically

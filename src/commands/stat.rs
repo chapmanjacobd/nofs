@@ -18,7 +18,7 @@ pub fn execute(pool: &Pool, human: bool, _verbose: bool) -> Result<()> {
     let used = pool.total_used_space();
     let available = pool.total_available_space();
 
-    let _ = writeln!(handle, "Pool: {}", pool.name);
+    let _ = writeln!(handle, "Share: {}", pool.name);
     let _ = writeln!(
         handle,
         "Branches: {} ({} writable)",

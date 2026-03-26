@@ -47,7 +47,7 @@ struct Cli {
 enum Commands {
     /// List directory contents (like ls).
     Ls {
-        /// Path within the pool (format: [context:]path).
+        /// Path within the share (format: [context:]path).
         path: String,
 
         /// Show detailed information.
@@ -61,7 +61,7 @@ enum Commands {
 
     /// Find files matching a pattern.
     Find {
-        /// Starting path within the pool (format: [context:]path).
+        /// Starting path within the share (format: [context:]path).
         path: String,
 
         /// Filename pattern (glob).
@@ -80,7 +80,7 @@ enum Commands {
     /// Find which branch contains a file.
     #[command(alias = "where")]
     Which {
-        /// Path within the pool (format: [context:]path).
+        /// Path within the share (format: [context:]path).
         path: String,
 
         /// Show all branches containing the file.
@@ -90,13 +90,13 @@ enum Commands {
 
     /// Get the best branch path for creating a new file.
     Create {
-        /// Path within the pool (format: [context:]path).
+        /// Path within the share (format: [context:]path).
         path: String,
     },
 
     /// Show filesystem statistics.
     Stat {
-        /// Path within the pool (defaults to root).
+        /// Path within the share (defaults to root).
         path: Option<String>,
 
         /// Show human-readable sizes.
@@ -104,7 +104,7 @@ enum Commands {
         human: bool,
     },
 
-    /// Show pool configuration and status.
+    /// Show share configuration and status.
     Info {
         /// Context name (optional, shows all if not specified).
         context: Option<String>,
@@ -112,13 +112,13 @@ enum Commands {
 
     /// Check if a file exists and return its location.
     Exists {
-        /// Path within the pool (format: [context:]path).
+        /// Path within the share (format: [context:]path).
         path: String,
     },
 
     /// Read file content (from first found branch).
     Cat {
-        /// Path within the pool (format: [context:]path).
+        /// Path within the share (format: [context:]path).
         path: String,
     },
 
@@ -230,7 +230,7 @@ enum Commands {
 fn main() -> Result<()> {
     let cli = Cli::parse();
 
-    // Initialize the pool manager based on config or ad-hoc paths
+    // Initialize the share manager based on config or ad-hoc paths
     let pool_mgr = if let Some(config_path) = &cli.config {
         pool::PoolManager::from_config(config_path)?
     } else if let Some(paths_str) = &cli.paths {
@@ -323,7 +323,7 @@ fn main() -> Result<()> {
                 .as_ref()
                 .and_then(|s| parse_size(s).ok());
 
-            // Get pool for context-aware paths
+            // Get share for context-aware paths
             let pool = extract_pool_from_paths(&pool_mgr, &sources, destination)?;
 
             let config = commands::cp::CopyConfig {
@@ -371,7 +371,7 @@ fn main() -> Result<()> {
                 .as_ref()
                 .and_then(|s| parse_size(s).ok());
 
-            // Get pool for context-aware paths
+            // Get share for context-aware paths
             let pool = extract_pool_from_paths(&pool_mgr, &sources, destination)?;
 
             commands::mv::execute(
@@ -414,7 +414,7 @@ fn parse_size(s: &str) -> Result<u64> {
     policy_parse_size(s).map_err(|e| anyhow::anyhow!("Parse error: {}", e))
 }
 
-/// Try to extract a pool from paths that contain context prefixes
+/// Try to extract a share from paths that contain context prefixes
 fn extract_pool_from_paths<'a>(
     pool_mgr: &'a pool::PoolManager,
     sources: &[String],
