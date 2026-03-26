@@ -5,11 +5,13 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 /// Test context for managing temporary test directories
+#[allow(dead_code)]
 pub struct TestContext {
     pub root: PathBuf,
     pub config_path: PathBuf,
 }
 
+#[allow(dead_code)]
 impl TestContext {
     /// Create a new test context with temporary directories
     pub fn new(test_name: &str) -> Self {
@@ -78,12 +80,14 @@ impl Drop for TestContext {
 }
 
 /// Command output helper
+#[allow(dead_code)]
 pub struct CommandOutput {
     pub stdout: String,
     pub stderr: String,
     pub status: std::process::ExitStatus,
 }
 
+#[allow(dead_code)]
 impl CommandOutput {
     pub fn success(&self) -> bool {
         self.status.success()
@@ -99,6 +103,7 @@ impl CommandOutput {
 }
 
 /// Create a temporary test file and return its path
+#[allow(dead_code)]
 pub fn temp_file(path: &Path, content: &str) -> PathBuf {
     let file_path = path.join("testfile.txt");
     fs::write(&file_path, content).expect("Failed to write temp file");

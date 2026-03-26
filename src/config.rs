@@ -108,19 +108,19 @@ impl UnionConfig {
 
         // Add RW paths (default)
         for path_str in &self.paths {
-            branches.push(Branch::from_str(path_str)?);
+            branches.push(Branch::parse(path_str)?);
         }
 
         // Add RO paths
         for path_str in &self.ro_paths {
             let branch_str = format!("{}=RO", path_str);
-            branches.push(Branch::from_str(&branch_str)?);
+            branches.push(Branch::parse(&branch_str)?);
         }
 
         // Add NC paths
         for path_str in &self.nc_paths {
             let branch_str = format!("{}=NC", path_str);
-            branches.push(Branch::from_str(&branch_str)?);
+            branches.push(Branch::parse(&branch_str)?);
         }
 
         Ok(branches)
@@ -128,17 +128,17 @@ impl UnionConfig {
 
     /// Get create policy
     pub fn create_policy(&self) -> Result<Policy> {
-        Policy::from_str(&self.create_policy)
+        Policy::parse(&self.create_policy)
     }
 
     /// Get search policy
     pub fn search_policy(&self) -> Result<Policy> {
-        Policy::from_str(&self.search_policy)
+        Policy::parse(&self.search_policy)
     }
 
     /// Get action policy
     pub fn action_policy(&self) -> Result<Policy> {
-        Policy::from_str(&self.action_policy)
+        Policy::parse(&self.action_policy)
     }
 
     /// Get minfreespace in bytes
@@ -163,13 +163,7 @@ pub fn find_default_config() -> Option<PathBuf> {
         Some(PathBuf::from("/etc/nofs/config.toml")),
     ];
 
-    for loc in locations.into_iter().flatten() {
-        if loc.exists() {
-            return Some(loc);
-        }
-    }
-
-    None
+    locations.into_iter().flatten().find(|loc| loc.exists())
 }
 
 fn dirs_home() -> Option<PathBuf> {

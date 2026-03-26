@@ -55,7 +55,7 @@ impl PoolManager {
     pub fn from_paths(paths_str: &str, policy: &str, minfreespace: &str) -> Result<Self> {
         let branches: Result<Vec<Branch>> = paths_str
             .split(',')
-            .map(|s| Branch::from_str(s.trim()))
+            .map(|s| Branch::parse(s.trim()))
             .collect();
 
         let branches = branches?;
@@ -67,7 +67,7 @@ impl PoolManager {
         let pool = Pool {
             name: "default".to_string(),
             branches,
-            create_policy: Policy::from_str(policy)?,
+            create_policy: Policy::parse(policy)?,
             search_policy: Policy::Ff,
             action_policy: Policy::EpAll,
             minfreespace: crate::policy::parse_size(minfreespace)?,

@@ -6,6 +6,7 @@ use crate::error::{NofsError, Result};
 use serde::{Deserialize, Serialize};
 use std::ffi::CString;
 use std::path::PathBuf;
+use std::str::FromStr;
 
 /// Branch mode determines how a branch can be used
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
@@ -19,6 +20,19 @@ pub enum BranchMode {
     RO,
     /// No-create - can read and modify, but not create new files
     NC,
+}
+
+impl FromStr for BranchMode {
+    type Err = NofsError;
+
+    fn from_str(s: &str) -> Result<Self> {
+        match s.to_uppercase().as_str() {
+            "RW" => Ok(BranchMode::RW),
+            "RO" => Ok(BranchMode::RO),
+            "NC" => Ok(BranchMode::NC),
+            _ => Err(NofsError::Parse(format!("Unknown branch mode: {}", s))),
+        }
+    }
 }
 
 impl std::fmt::Display for BranchMode {
@@ -49,7 +63,7 @@ pub struct Branch {
 impl Branch {
     /// Create a new branch from a path string
     /// Format: "/path" or "/path=MODE" or "/path=MODE,minfreespace"
-    pub fn from_str(s: &str) -> Result<Self> {
+    pub fn parse(s: &str) -> Result<Self> {
         let (path_str, options) = if let Some(idx) = s.find('=') {
             (&s[..idx], Some(&s[idx + 1..]))
         } else {
@@ -72,17 +86,11 @@ impl Branch {
         if let Some(opts) = options {
             for opt in opts.split(',') {
                 let opt = opt.trim();
-                match opt.to_uppercase().as_str() {
-                    "RW" => mode = BranchMode::RW,
-                    "RO" => mode = BranchMode::RO,
-                    "NC" => mode = BranchMode::NC,
-                    _ if opt.chars().any(|c| c.is_numeric()) => {
-                        // Treat as minfreespace value
-                        minfreespace = Some(opt.to_string());
-                    }
-                    _ => {
-                        return Err(NofsError::Parse(format!("Unknown branch option: {}", opt)));
-                    }
+                if opt.chars().any(|c| c.is_numeric()) {
+                    // Treat as minfreespace value
+                    minfreespace = Some(opt.to_string());
+                } else {
+                    mode = BranchMode::from_str(opt)?;
                 }
             }
         }

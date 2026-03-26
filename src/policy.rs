@@ -6,6 +6,7 @@ use crate::branch::Branch;
 use crate::error::{NofsError, Result};
 use rand::Rng;
 use std::path::Path;
+use std::str::FromStr;
 
 /// Available policies for branch selection
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -36,9 +37,10 @@ pub enum Policy {
     All,
 }
 
-impl Policy {
-    /// Parse policy from string
-    pub fn from_str(s: &str) -> Result<Self> {
+impl FromStr for Policy {
+    type Err = NofsError;
+
+    fn from_str(s: &str) -> Result<Self> {
         match s.to_lowercase().as_str() {
             "pfrd" => Ok(Policy::Pfrd),
             "mfs" => Ok(Policy::Mfs),
@@ -54,6 +56,13 @@ impl Policy {
             "all" => Ok(Policy::All),
             _ => Err(NofsError::Policy(format!("Unknown policy: {}", s))),
         }
+    }
+}
+
+impl Policy {
+    /// Parse policy from string
+    pub fn parse(s: &str) -> Result<Self> {
+        <Self as FromStr>::from_str(s)
     }
 }
 
