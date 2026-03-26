@@ -4,7 +4,7 @@
 
 use crate::branch::Branch;
 use crate::error::{NofsError, Result};
-use rand::Rng;
+use rand::RngExt;
 use std::path::Path;
 use std::str::FromStr;
 
@@ -213,8 +213,8 @@ impl<'ctx> CreatePolicy<'ctx> {
         }
 
         // Select based on weighted random
-        let mut rng = rand::thread_rng();
-        let pick = rng.gen_range(0..total);
+        let mut rng = rand::rng();
+        let pick = rng.random_range(0..total);
 
         let mut cumulative = 0_u64;
         for branch in branches {
@@ -264,8 +264,8 @@ impl<'ctx> CreatePolicy<'ctx> {
 
     #[allow(clippy::indexing_slicing)]
     fn select_rand(branches: &[&'ctx Branch]) -> &'ctx Branch {
-        let mut rng = rand::thread_rng();
-        let idx = rng.gen_range(0..branches.len());
+        let mut rng = rand::rng();
+        let idx = rng.random_range(0..branches.len());
         branches[idx]
     }
 }
