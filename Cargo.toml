@@ -21,3 +21,80 @@ rand = "0.8"
 lto = true
 codegen-units = 1
 opt-level = 3
+
+[lints.clippy]
+# Base: pedantic lints (sensible warnings for production code)
+pedantic = "warn"
+
+# === Safety lints (restriction category) ===
+# Require documentation for unsafe blocks
+undocumented_unsafe_blocks = "warn"
+
+# Warn on unwrap/expect/panic (prefer proper error handling)
+unwrap_used = "warn"
+unwrap_in_result = "warn"
+expect_used = "warn"
+expect_fun_call = "warn"
+panic = "warn"
+panic_in_result_fn = "warn"
+todo = "warn"
+unimplemented = "warn"
+unreachable = "warn"
+
+# Warn on operations that can panic
+indexing_slicing = "warn"
+arithmetic_side_effects = "warn"
+integer_division = "warn"
+modulo_arithmetic = "warn"
+float_arithmetic = "warn"
+float_cmp_const = "warn"
+unchecked_duration_subtraction = "warn"
+
+# Warn on dangerous patterns
+mem_forget = "warn"
+get_unwrap = "warn"
+try_unwrap = "warn"
+cast_ref_to_mut = "warn"
+
+# === Code quality (restriction category) ===
+# Prefer explicit pattern matching
+exhaustive_enums = "warn"
+exhaustive_structs = "warn"
+wildcard_enum_match_arm = "warn"
+match_bool = "warn"
+single_match = "warn"
+match_same_arms = "warn"
+match_on_vec = "warn"
+match_result_err = "warn"
+
+# Prefer explicit casts
+as_conversions = "warn"
+cast_lossless = "warn"
+cast_possible_truncation = "warn"
+cast_possible_wrap = "warn"
+cast_precision_loss = "warn"
+cast_sign_loss = "warn"
+cast_ptr_alignment = "warn"
+
+# Cleaner code
+shadow_reuse = "warn"
+shadow_same = "warn"
+shadow_unrelated = "warn"
+non_ascii_idents = "warn"
+else_if_without_else = "warn"
+if_then_some_else_none = "warn"
+option_if_let_else = "warn"
+
+# Error handling
+unused_result_ok = "warn"
+map_unwrap_or = "warn"
+manual_assert = "warn"
+manual_unwrap_or_default = "warn"
+
+# Redundancy
+redundant_clone = "warn"
+redundant_field_initialize = "warn"
+redundant_type_annotations = "warn"
+needless_bitwise_comparisons = "warn"
+needless_parens_on_range_literals = "warn"
+needless_raw_string_hashes = "warn"

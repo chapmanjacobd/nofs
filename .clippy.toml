@@ -1,2 +1,23 @@
 # Allow common patterns in test code
 allow-unwrap-in-tests = true
+allow-expect-in-tests = true
+allow-panic-in-tests = true
+allow-print-in-tests = true
+allow-dbg-in-tests = true
+
+# Complexity thresholds
+too-many-lines-threshold = 100
+cognitive-complexity-threshold = 25
+
+# Code quality
+max-struct-bools = 3
+max-fn-params-bools = 2
+check-inconsistent-struct-field-initializers = true
+lint-commented-code = true
+
+# Import style
+absolute-paths-max-segments = 3
+
+# Naming
+min-ident-chars-threshold = 3
+allowed-idents-below-min-chars = ["i", "j", "k", "x", "y", "z", "n", "m"]
