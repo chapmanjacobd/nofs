@@ -1,8 +1,8 @@
 //! stat command - Show filesystem statistics
 
-use std::io::{self, Write};
-use crate::pool::Pool;
 use crate::error::Result;
+use crate::pool::Pool;
+use std::io::{self, Write};
 
 pub fn execute(pool: &Pool, human: bool, _verbose: bool) -> Result<()> {
     let stdout = io::stdout();
@@ -11,12 +11,15 @@ pub fn execute(pool: &Pool, human: bool, _verbose: bool) -> Result<()> {
     let total = pool.total_space();
     let used = pool.total_used_space();
     let available = pool.total_available_space();
-    
+
     writeln!(handle, "Pool: {}", pool.name).ok();
-    writeln!(handle, "Branches: {} ({} writable)", 
+    writeln!(
+        handle,
+        "Branches: {} ({} writable)",
         pool.branch_count(),
         pool.writable_branch_count()
-    ).ok();
+    )
+    .ok();
     writeln!(handle).ok();
 
     if human {
@@ -37,15 +40,18 @@ pub fn execute(pool: &Pool, human: bool, _verbose: bool) -> Result<()> {
     // Show per-branch stats
     writeln!(handle).ok();
     writeln!(handle, "Per-branch statistics:").ok();
-    writeln!(handle, "{:<40} {:>12} {:>12} {:>12} {:>8}", 
+    writeln!(
+        handle,
+        "{:<40} {:>12} {:>12} {:>12} {:>8}",
         "Branch", "Total", "Used", "Available", "Use%"
-    ).ok();
+    )
+    .ok();
 
     for branch in &pool.branches {
         let branch_total = branch.total_space().unwrap_or(0);
         let branch_used = branch.used_space().unwrap_or(0);
         let branch_available = branch.available_space().unwrap_or(0);
-        
+
         let percent = if branch_total > 0 {
             (branch_used as f64 / branch_total as f64) * 100.0
         } else {
@@ -56,21 +62,27 @@ pub fn execute(pool: &Pool, human: bool, _verbose: bool) -> Result<()> {
         let path_str = format!("{} {}", branch.path.display(), mode_str);
 
         if human {
-            writeln!(handle, "{:<40} {:>12} {:>12} {:>12} {:>7.1}%",
+            writeln!(
+                handle,
+                "{:<40} {:>12} {:>12} {:>12} {:>7.1}%",
                 truncate_path(&path_str, 40),
                 format_size(branch_total),
                 format_size(branch_used),
                 format_size(branch_available),
                 percent
-            ).ok();
+            )
+            .ok();
         } else {
-            writeln!(handle, "{:<40} {:>12} {:>12} {:>12} {:>7.1}%",
+            writeln!(
+                handle,
+                "{:<40} {:>12} {:>12} {:>12} {:>7.1}%",
                 truncate_path(&path_str, 40),
                 branch_total,
                 branch_used,
                 branch_available,
                 percent
-            ).ok();
+            )
+            .ok();
         }
     }
 

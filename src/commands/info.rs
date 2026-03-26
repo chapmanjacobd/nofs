@@ -1,8 +1,8 @@
 //! info command - Show pool configuration and status
 
-use std::io::{self, Write};
-use crate::pool::{Pool, PoolManager};
 use crate::error::Result;
+use crate::pool::{Pool, PoolManager};
+use std::io::{self, Write};
 
 pub fn execute_single(pool: &Pool, _verbose: bool) -> Result<()> {
     let stdout = io::stdout();
@@ -14,7 +14,12 @@ pub fn execute_single(pool: &Pool, _verbose: bool) -> Result<()> {
 
     writeln!(handle, "Branches:     {}", pool.branch_count()).ok();
     writeln!(handle, "  Writable:   {}", pool.writable_branch_count()).ok();
-    writeln!(handle, "  Read-only:  {}", pool.branch_count() - pool.writable_branch_count()).ok();
+    writeln!(
+        handle,
+        "  Read-only:  {}",
+        pool.branch_count() - pool.writable_branch_count()
+    )
+    .ok();
     writeln!(handle).ok();
 
     writeln!(handle, "Policies:").ok();
@@ -28,17 +33,21 @@ pub fn execute_single(pool: &Pool, _verbose: bool) -> Result<()> {
     writeln!(handle, "Branch List:").ok();
     for (i, branch) in pool.branches.iter().enumerate() {
         let mode = branch.mode;
-        let minfree = branch.minfreespace
+        let minfree = branch
+            .minfreespace
             .as_ref()
             .map(|s| format!(" (min: {})", s))
             .unwrap_or_default();
-        
-        writeln!(handle, "  {}. {} [{}]{}", 
+
+        writeln!(
+            handle,
+            "  {}. {} [{}]{}",
             i + 1,
             branch.path.display(),
             mode,
             minfree
-        ).ok();
+        )
+        .ok();
     }
 
     Ok(())
@@ -56,11 +65,19 @@ pub fn execute_all(pool_mgr: &PoolManager, _verbose: bool) -> Result<()> {
     for name in pool_mgr.pool_names() {
         if let Ok(pool) = pool_mgr.get_pool(name) {
             writeln!(handle, "{}:", name).ok();
-            writeln!(handle, "  Branches: {} ({} writable)", 
+            writeln!(
+                handle,
+                "  Branches: {} ({} writable)",
                 pool.branch_count(),
                 pool.writable_branch_count()
-            ).ok();
-            writeln!(handle, "  Policy: {} / {}", pool.create_policy, pool.search_policy).ok();
+            )
+            .ok();
+            writeln!(
+                handle,
+                "  Policy: {} / {}",
+                pool.create_policy, pool.search_policy
+            )
+            .ok();
             writeln!(handle).ok();
         }
     }

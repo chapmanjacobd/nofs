@@ -1,5 +1,5 @@
 //! nofs - A lightweight union filesystem tool
-//! 
+//!
 //! Provides mergerfs-like functionality without FUSE.
 //! All operations happen via subcommands with optional TOML configuration.
 
@@ -124,7 +124,7 @@ enum Commands {
 
 fn main() -> Result<()> {
     let cli = Cli::parse();
-    
+
     // Initialize the pool manager based on config or ad-hoc paths
     let pool_mgr = if let Some(config_path) = &cli.config {
         pool::PoolManager::from_config(config_path)?
@@ -141,9 +141,21 @@ fn main() -> Result<()> {
             let (pool, pool_path) = pool_mgr.resolve_context_path(&path)?;
             commands::ls::execute(pool, pool_path, long, all, cli.verbose)?;
         }
-        Commands::Find { path, name, type_, maxdepth } => {
+        Commands::Find {
+            path,
+            name,
+            type_,
+            maxdepth,
+        } => {
             let (pool, pool_path) = pool_mgr.resolve_context_path(&path)?;
-            commands::find::execute(pool, pool_path, name.as_deref(), type_.as_deref(), maxdepth, cli.verbose)?;
+            commands::find::execute(
+                pool,
+                pool_path,
+                name.as_deref(),
+                type_.as_deref(),
+                maxdepth,
+                cli.verbose,
+            )?;
         }
         Commands::Where { path, all } => {
             let (pool, pool_path) = pool_mgr.resolve_context_path(&path)?;

@@ -1,10 +1,10 @@
 //! Policy engine for nofs
-//! 
+//!
 //! Implements branch selection algorithms for different operations.
 
-use rand::Rng;
 use crate::branch::Branch;
 use crate::error::{NofsError, Result};
+use rand::Rng;
 use std::path::Path;
 
 /// Available policies for branch selection
@@ -93,19 +93,21 @@ impl<'a> CreatePolicy<'a> {
     /// Select a branch for file creation
     pub fn select(&self, policy: Policy, relative_path: Option<&Path>) -> Result<&'a Branch> {
         // Filter branches by create eligibility and minfreespace
-        let eligible: Vec<&Branch> = self.branches
+        let eligible: Vec<&Branch> = self
+            .branches
             .iter()
             .filter(|b| {
                 if !b.can_create() {
                     return false;
                 }
-                
+
                 // Check minfreespace
-                let branch_minfree = b.minfreespace
+                let branch_minfree = b
+                    .minfreespace
                     .as_ref()
                     .map(|s| parse_size(s).unwrap_or(self.minfreespace))
                     .unwrap_or(self.minfreespace);
-                
+
                 match b.available_space() {
                     Ok(available) => available >= branch_minfree,
                     Err(_) => false,
@@ -133,12 +135,12 @@ impl<'a> CreatePolicy<'a> {
                         .copied()
                         .filter(|b| b.path.join(rel_path).exists())
                         .collect();
-                    
+
                     if with_path.is_empty() {
                         // Fall back to non-path-preserving variant
                         return self.select_fallback(policy, &eligible);
                     }
-                    
+
                     match policy {
                         Policy::EpMfs => self.select_mfs(&with_path),
                         Policy::EpFf => Ok(with_path[0]),
@@ -254,12 +256,12 @@ impl<'a> SearchPolicy<'a> {
             }
             Policy::All | Policy::EpAll => {
                 // Return first branch (caller should iterate)
-                self.branches.first()
-                    .ok_or(NofsError::NoSuitableBranch)
+                self.branches.first().ok_or(NofsError::NoSuitableBranch)
             }
             _ => {
                 // For other policies, find all matching and apply policy
-                let matching: Vec<&Branch> = self.branches
+                let matching: Vec<&Branch> = self
+                    .branches
                     .iter()
                     .filter(|b| b.path.join(relative_path).exists())
                     .collect();
@@ -305,17 +307,26 @@ impl<'a> SearchPolicy<'a> {
 /// Parse human-readable size string to bytes
 pub fn parse_size(s: &str) -> Result<u64> {
     let s = s.trim();
-    
+
     // Try to parse as plain number first
     if let Ok(bytes) = s.parse::<u64>() {
         return Ok(bytes);
     }
 
     // Parse with suffix
-    let num_str: String = s.chars().take_while(|c| c.is_numeric() || *c == '.').collect();
-    let suffix = s.chars().skip(num_str.len()).collect::<String>().trim().to_uppercase();
-    
-    let num: f64 = num_str.parse()
+    let num_str: String = s
+        .chars()
+        .take_while(|c| c.is_numeric() || *c == '.')
+        .collect();
+    let suffix = s
+        .chars()
+        .skip(num_str.len())
+        .collect::<String>()
+        .trim()
+        .to_uppercase();
+
+    let num: f64 = num_str
+        .parse()
         .map_err(|_| NofsError::Parse(format!("Invalid size number: {}", s)))?;
 
     let multiplier = match suffix.as_str() {

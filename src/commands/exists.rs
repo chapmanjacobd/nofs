@@ -1,12 +1,12 @@
 //! exists command - Check if a file exists and return its location
 
-use std::path::Path;
-use crate::pool::Pool;
 use crate::error::Result;
+use crate::pool::Pool;
+use std::path::Path;
 
 pub fn execute(pool: &Pool, path: &str, verbose: bool) -> Result<()> {
     let pool_path = Path::new(path);
-    
+
     if pool.exists(pool_path) {
         // File exists - print first location
         if let Some(full_path) = pool.resolve_path_first(pool_path) {

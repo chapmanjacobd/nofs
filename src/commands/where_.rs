@@ -1,17 +1,17 @@
 //! where command - Find which branch contains a file
 
+use crate::error::Result;
+use crate::pool::Pool;
 use std::io::{self, Write};
 use std::path::Path;
-use crate::pool::Pool;
-use crate::error::Result;
 
 pub fn execute(pool: &Pool, path: &str, all: bool, verbose: bool) -> Result<()> {
     let pool_path = Path::new(path);
-    
+
     if all {
         // Show all branches containing the file
         let branches = pool.find_all_branches(pool_path);
-        
+
         if branches.is_empty() {
             eprintln!("nofs: '{}' not found in pool", path);
             return Ok(());

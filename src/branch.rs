@@ -1,28 +1,24 @@
 //! Branch management for nofs
-//! 
+//!
 //! A branch is a path that contributes to the union pool.
 
-use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
-use std::ffi::CString;
 use crate::error::{NofsError, Result};
+use serde::{Deserialize, Serialize};
+use std::ffi::CString;
+use std::path::PathBuf;
 
 /// Branch mode determines how a branch can be used
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "UPPERCASE")]
+#[derive(Default)]
 pub enum BranchMode {
     /// Read/write - full participation in all operations
+    #[default]
     RW,
     /// Read-only - excluded from create/action operations
     RO,
     /// No-create - can read and modify, but not create new files
     NC,
-}
-
-impl Default for BranchMode {
-    fn default() -> Self {
-        BranchMode::RW
-    }
 }
 
 impl std::fmt::Display for BranchMode {
@@ -40,11 +36,11 @@ impl std::fmt::Display for BranchMode {
 pub struct Branch {
     /// Path to the branch
     pub path: PathBuf,
-    
+
     /// Branch mode (RW, RO, NC)
     #[serde(default)]
     pub mode: BranchMode,
-    
+
     /// Optional per-branch minimum free space override
     #[serde(default)]
     pub minfreespace: Option<String>,
@@ -61,7 +57,7 @@ impl Branch {
         };
 
         let path = PathBuf::from(path_str);
-        
+
         // Validate path exists
         if !path.exists() {
             return Err(NofsError::Branch(format!(
@@ -85,10 +81,7 @@ impl Branch {
                         minfreespace = Some(opt.to_string());
                     }
                     _ => {
-                        return Err(NofsError::Parse(format!(
-                            "Unknown branch option: {}",
-                            opt
-                        )));
+                        return Err(NofsError::Parse(format!("Unknown branch option: {}", opt)));
                     }
                 }
             }
@@ -115,16 +108,14 @@ impl Branch {
     pub fn available_space(&self) -> Result<u64> {
         let path_c = CString::new(self.path.to_string_lossy().as_bytes())
             .map_err(|e| NofsError::Branch(format!("Invalid path: {}", e)))?;
-        
+
         let mut stat = unsafe { std::mem::zeroed() };
-        
-        let result = unsafe {
-            libc::statvfs(path_c.as_ptr(), &mut stat)
-        };
-        
+
+        let result = unsafe { libc::statvfs(path_c.as_ptr(), &mut stat) };
+
         if result == 0 {
             // f_bavail is free blocks for unprivileged users
-            Ok(stat.f_bavail as u64 * stat.f_frsize as u64)
+            Ok(stat.f_bavail * stat.f_frsize)
         } else {
             Err(NofsError::Branch("Failed to statvfs".to_string()))
         }
@@ -134,15 +125,13 @@ impl Branch {
     pub fn total_space(&self) -> Result<u64> {
         let path_c = CString::new(self.path.to_string_lossy().as_bytes())
             .map_err(|e| NofsError::Branch(format!("Invalid path: {}", e)))?;
-        
+
         let mut stat = unsafe { std::mem::zeroed() };
-        
-        let result = unsafe {
-            libc::statvfs(path_c.as_ptr(), &mut stat)
-        };
-        
+
+        let result = unsafe { libc::statvfs(path_c.as_ptr(), &mut stat) };
+
         if result == 0 {
-            Ok(stat.f_blocks as u64 * stat.f_frsize as u64)
+            Ok(stat.f_blocks * stat.f_frsize)
         } else {
             Err(NofsError::Branch("Failed to statvfs".to_string()))
         }

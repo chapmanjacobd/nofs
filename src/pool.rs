@@ -1,31 +1,31 @@
 //! Pool management for nofs
-//! 
+//!
 //! A pool is a union of multiple branches.
 
-use std::collections::HashMap;
-use std::path::{Path, PathBuf};
 use crate::branch::Branch;
 use crate::config::Config;
 use crate::error::{NofsError, Result};
 use crate::policy::Policy;
+use std::collections::HashMap;
+use std::path::{Path, PathBuf};
 
 /// Represents a union pool of branches
 pub struct Pool {
     /// Name of the pool/context
     pub name: String,
-    
+
     /// Branches in the pool
     pub branches: Vec<Branch>,
-    
+
     /// Create policy
     pub create_policy: Policy,
-    
+
     /// Search policy
     pub search_policy: Policy,
-    
+
     /// Action policy
     pub action_policy: Policy,
-    
+
     /// Minimum free space threshold
     pub minfreespace: u64,
 }
@@ -44,11 +44,10 @@ impl PoolManager {
 
     /// Try to load from default config locations
     pub fn from_default_config() -> Result<Self> {
-        let config_path = crate::config::find_default_config()
-            .ok_or_else(|| NofsError::Config(
-                "No configuration file found. Use --config or --paths.".to_string()
-            ))?;
-        
+        let config_path = crate::config::find_default_config().ok_or_else(|| {
+            NofsError::Config("No configuration file found. Use --config or --paths.".to_string())
+        })?;
+
         Self::from_config(&config_path)
     }
 
@@ -58,9 +57,9 @@ impl PoolManager {
             .split(',')
             .map(|s| Branch::from_str(s.trim()))
             .collect();
-        
+
         let branches = branches?;
-        
+
         if branches.is_empty() {
             return Err(NofsError::Config("No branches provided".to_string()));
         }
@@ -86,7 +85,7 @@ impl PoolManager {
 
         for (name, union_config) in &config.union {
             let branches = union_config.get_branches()?;
-            
+
             if branches.is_empty() {
                 return Err(NofsError::Config(format!(
                     "No branches defined in union '{}'",
@@ -107,7 +106,9 @@ impl PoolManager {
         }
 
         if pools.is_empty() {
-            return Err(NofsError::Config("No union contexts defined in config".to_string()));
+            return Err(NofsError::Config(
+                "No union contexts defined in config".to_string(),
+            ));
         }
 
         Ok(PoolManager { pools })
@@ -115,7 +116,8 @@ impl PoolManager {
 
     /// Get a pool by name
     pub fn get_pool(&self, name: &str) -> Result<&Pool> {
-        self.pools.get(name)
+        self.pools
+            .get(name)
             .ok_or_else(|| NofsError::Config(format!("Union context '{}' not found", name)))
     }
 
@@ -211,7 +213,7 @@ impl Pool {
     /// Get the best branch for creating a file at the given path
     pub fn select_create_branch(&self, relative_path: &Path) -> Result<&Branch> {
         use crate::policy::CreatePolicy;
-        
+
         let policy = CreatePolicy::new(&self.branches, self.minfreespace);
         policy.select(self.create_policy, Some(relative_path))
     }
@@ -219,7 +221,7 @@ impl Pool {
     /// Get all branches containing a path
     pub fn find_all_branches(&self, relative_path: &Path) -> Vec<&Branch> {
         use crate::policy::SearchPolicy;
-        
+
         let search = SearchPolicy::new(&self.branches);
         search.find_all(relative_path)
     }

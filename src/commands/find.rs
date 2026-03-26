@@ -1,10 +1,10 @@
 //! find command - Find files matching patterns
 
+use crate::error::Result;
+use crate::pool::Pool;
 use std::io::{self, Write};
 use std::path::Path;
 use walkdir::WalkDir;
-use crate::pool::Pool;
-use crate::error::Result;
 
 pub fn execute(
     pool: &Pool,
@@ -15,10 +15,10 @@ pub fn execute(
     verbose: bool,
 ) -> Result<()> {
     let pool_path = Path::new(path);
-    
+
     // Find all branches with this path
     let branches = pool.find_all_branches(pool_path);
-    
+
     if branches.is_empty() {
         eprintln!("nofs: cannot access '{}': No such file or directory", path);
         return Ok(());
@@ -39,21 +39,21 @@ pub fn execute(
 
     for branch in &branches {
         let branch_path = branch.path.join(pool_path);
-        
-        let mut walker = WalkDir::new(&branch_path)
-            .follow_links(true);
-        
+
+        let mut walker = WalkDir::new(&branch_path).follow_links(true);
+
         if let Some(depth) = maxdepth {
             walker = walker.max_depth(depth);
         }
 
         for entry in walker.into_iter().flatten() {
             let entry_path = entry.path();
-            
+
             // Get path relative to branch
-            let relative = entry_path.strip_prefix(&branch_path)
+            let relative = entry_path
+                .strip_prefix(&branch_path)
                 .unwrap_or(Path::new(""));
-            
+
             // Get path relative to pool mount point
             let pool_relative = relative.to_path_buf();
 

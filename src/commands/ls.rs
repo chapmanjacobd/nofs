@@ -1,18 +1,18 @@
 //! ls command - List directory contents
 
-use std::path::Path;
+use crate::error::Result;
+use crate::pool::Pool;
 use std::fs;
 use std::io::{self, Write};
 use std::os::linux::fs::MetadataExt;
-use crate::pool::Pool;
-use crate::error::Result;
+use std::path::Path;
 
 pub fn execute(pool: &Pool, path: &str, long: bool, all: bool, verbose: bool) -> Result<()> {
     let pool_path = Path::new(path);
-    
+
     // Find all branches with this path
     let branches = pool.find_all_branches(pool_path);
-    
+
     if branches.is_empty() {
         eprintln!("nofs: cannot access '{}': No such file or directory", path);
         return Ok(());
@@ -29,20 +29,20 @@ pub fn execute(pool: &Pool, path: &str, long: bool, all: bool, verbose: bool) ->
 
     // Collect all entries from all branches
     let mut entries: Vec<(std::path::PathBuf, String)> = Vec::new();
-    
+
     for branch in &branches {
         let branch_path = branch.path.join(pool_path);
-        
+
         if let Ok(read_dir) = fs::read_dir(&branch_path) {
             for entry in read_dir.flatten() {
                 let file_name = entry.file_name();
                 let file_name_str = file_name.to_string_lossy().to_string();
-                
+
                 // Skip hidden files unless --all
                 if !all && file_name_str.starts_with('.') {
                     continue;
                 }
-                
+
                 entries.push((entry.path(), file_name_str));
             }
         }
@@ -76,12 +76,15 @@ pub fn execute(pool: &Pool, path: &str, long: bool, all: bool, verbose: bool) ->
                 let permissions = format_permissions(metadata.st_mode());
                 let size = metadata.len();
 
-                writeln!(handle, "{} {} {:>8} {}", 
+                writeln!(
+                    handle,
+                    "{} {} {:>8} {}",
                     file_type,
                     permissions,
                     human_size(size),
                     file_name
-                ).ok();
+                )
+                .ok();
             }
         } else {
             // Short format: just the name
@@ -99,22 +102,22 @@ pub fn execute(pool: &Pool, path: &str, long: bool, all: bool, verbose: bool) ->
 
 fn format_permissions(mode: u32) -> String {
     let mut result = String::with_capacity(9);
-    
+
     // Owner
     result.push(if mode & 0o400 != 0 { 'r' } else { '-' });
     result.push(if mode & 0o200 != 0 { 'w' } else { '-' });
     result.push(if mode & 0o100 != 0 { 'x' } else { '-' });
-    
+
     // Group
     result.push(if mode & 0o040 != 0 { 'r' } else { '-' });
     result.push(if mode & 0o020 != 0 { 'w' } else { '-' });
     result.push(if mode & 0o010 != 0 { 'x' } else { '-' });
-    
+
     // Other
     result.push(if mode & 0o004 != 0 { 'r' } else { '-' });
     result.push(if mode & 0o002 != 0 { 'w' } else { '-' });
     result.push(if mode & 0o001 != 0 { 'x' } else { '-' });
-    
+
     result
 }
 
