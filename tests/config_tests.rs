@@ -34,7 +34,7 @@ search_policy = "ff"
         ]);
 
         assert!(output.success(), "Command failed: {}", output.stderr);
-        assert!(output.stdout.contains("Share Context: media"));
+        assert!(output.stdout.contains("Share: media"));
         assert!(output.stdout.contains("Branches:     2"));
     }
 

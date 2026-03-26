@@ -1,6 +1,6 @@
 //! Configuration parsing for nofs
 //!
-//! Supports TOML configuration files with named share contexts.
+//! Supports TOML configuration files with named shares.
 
 use crate::branch::Branch;
 use crate::error::{NofsError, Result};
@@ -10,7 +10,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-/// Share context configuration
+/// Share configuration
 #[non_exhaustive]
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ShareConfig {
@@ -63,7 +63,7 @@ fn default_minfreespace() -> String {
 #[non_exhaustive]
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Config {
-    /// Share contexts
+    /// Shares
     #[serde(default)]
     pub share: HashMap<String, ShareConfig>,
 }
@@ -90,28 +90,28 @@ impl Config {
         Ok(config)
     }
 
-    /// Get a share context by name
+    /// Get a share by name
     ///
     /// # Errors
     ///
-    /// Returns an error if the share context is not found.
+    /// Returns an error if the share is not found.
     pub fn get_share(&self, name: &str) -> Result<&ShareConfig> {
         self.share
             .get(name)
-            .ok_or_else(|| NofsError::Config(format!("Share context '{name}' not found")))
+            .ok_or_else(|| NofsError::Config(format!("Share '{name}' not found")))
     }
 
-    /// Get the first share context (for single-context configs)
+    /// Get the first share (for single-share configs)
     ///
     /// # Errors
     ///
-    /// Returns an error if no share contexts are defined.
+    /// Returns an error if no shares are defined.
     pub fn first_share(&self) -> Result<(&str, &ShareConfig)> {
         self.share
             .iter()
             .next()
             .map(|(k, v)| (k.as_str(), v))
-            .ok_or_else(|| NofsError::Config("No share contexts defined in config".to_string()))
+            .ok_or_else(|| NofsError::Config("No shares defined in config".to_string()))
     }
 }
 

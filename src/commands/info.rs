@@ -14,8 +14,8 @@ pub fn execute_single(pool: &Pool, _verbose: bool) -> Result<()> {
     let stdout = io::stdout();
     let mut handle = stdout.lock();
 
-    let _ = writeln!(handle, "Share Context: {}", pool.name);
-    let _ = writeln!(handle, "================");
+    let _ = writeln!(handle, "Share: {}", pool.name);
+    let _ = writeln!(handle, "======");
     let _ = writeln!(handle);
 
     let _ = writeln!(handle, "Branches:     {}", pool.branch_count());
@@ -67,8 +67,8 @@ pub fn execute_all(pool_mgr: &PoolManager, _verbose: bool) -> Result<()> {
     let stdout = io::stdout();
     let mut handle = stdout.lock();
 
-    let _ = writeln!(handle, "Share Contexts");
-    let _ = writeln!(handle, "==============");
+    let _ = writeln!(handle, "Shares");
+    let _ = writeln!(handle, "======");
     let _ = writeln!(handle);
 
     // Get all pool names

@@ -8,10 +8,9 @@ A lightweight [shared filesystem](https://en.wikipedia.org/wiki/Clustered_file_s
 
 ## Features
 
-- No FUSE required - Pure userspace tool, no kernel module needed
-- Named share contexts - Simple TOML config with `[share.name]` sections
-- Context:path syntax - `nofs ls media:/movies` selects the `media` context
-- Ad-hoc mode - Use directly from command line without config
+- No FUSE: pure userspace tool
+- share-path syntax: `nofs ls media:/movies` lists files in the `media` share
+- Ad-hoc: Use directly from the command line without any config
 - Policy-based branch selection - Choose branches based on free space, randomness, or path preservation
 - Verbose mode - See decision steps with `-v` flag
 - POSIX-like commands - Familiar interface (`ls`, `find`, `which`, etc.)
@@ -56,7 +55,7 @@ create_policy = "rand"       # random selection
 ### Usage with Contexts
 
 ```bash
-# List directory from specific share context
+# List directory from specific share
 nofs ls media:/movies
 
 # Find which branch contains a file
@@ -77,7 +76,7 @@ nofs find media:/ --name "*.mkv"
 # Show filesystem statistics
 nofs stat -H
 
-# Show all share contexts
+# Show all shares
 nofs info
 
 # Show specific context
@@ -155,7 +154,7 @@ OPTIONS:
 ```bash
 nofs info [context]
 
-Shows all share contexts, or specific context if named.
+Shows all shares, or specific share if named.
 ```
 
 ### `exists` - Check File Existence
@@ -200,7 +199,7 @@ Reads file content from first found branch.
 
 ## Configuration Options
 
-### Share Context Settings
+### Share Settings
 
 ```toml
 [share.name]

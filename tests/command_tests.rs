@@ -368,7 +368,7 @@ create_policy = "pfrd"
         ]);
 
         assert!(output.success(), "Command failed: {}", output.stderr);
-        assert!(output.stdout.contains("Share Context: test"));
+        assert!(output.stdout.contains("Share: test"));
         assert!(output.stdout.contains("Branches:     2"));
         assert!(output.stdout.contains("Create:     pfrd"));
     }

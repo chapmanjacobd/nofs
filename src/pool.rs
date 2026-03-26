@@ -119,7 +119,7 @@ impl PoolManager {
 
         if pools.is_empty() {
             return Err(NofsError::Config(
-                "No share contexts defined in config".to_string(),
+                "No shares defined in config".to_string(),
             ));
         }
 
@@ -134,7 +134,7 @@ impl PoolManager {
     pub fn get_pool(&self, name: &str) -> Result<&Pool> {
         self.pools
             .get(name)
-            .ok_or_else(|| NofsError::Config(format!("Share context '{name}' not found")))
+            .ok_or_else(|| NofsError::Config(format!("Share '{name}' not found")))
     }
 
     /// Get the first/default pool
