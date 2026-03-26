@@ -10,6 +10,9 @@ lint:
 	cargo clippy --fix --allow-dirty
 	cargo clippy --all-targets --all-features -- -D warnings
 
+clippy:
+	cargo clippy --all-targets --all-features -- -W clippy::pedantic -W clippy::restriction
+
 test:
 	cargo test --all-targets --all-features
 

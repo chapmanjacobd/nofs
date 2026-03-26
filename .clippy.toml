@@ -1,0 +1,2 @@
+# Allow common patterns in test code
+allow-unwrap-in-tests = true
