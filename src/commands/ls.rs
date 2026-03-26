@@ -1,28 +1,37 @@
 //! ls command - List directory contents
 
-use std::path::PathBuf;
+use std::path::Path;
 use std::fs;
 use std::io::{self, Write};
 use std::os::linux::fs::MetadataExt;
 use crate::pool::Pool;
 use crate::error::Result;
 
-pub fn execute(pool: &Pool, path: &str, long: bool, all: bool) -> Result<()> {
-    let pool_path = PathBuf::from(path);
+pub fn execute(pool: &Pool, path: &str, long: bool, all: bool, verbose: bool) -> Result<()> {
+    let pool_path = Path::new(path);
     
     // Find all branches with this path
-    let branches = pool.find_all_branches(&pool_path);
+    let branches = pool.find_all_branches(pool_path);
     
     if branches.is_empty() {
         eprintln!("nofs: cannot access '{}': No such file or directory", path);
         return Ok(());
     }
 
+    if verbose {
+        let stderr = io::stderr();
+        let mut h = stderr.lock();
+        writeln!(h, "found in:").ok();
+        for branch in &branches {
+            writeln!(h, "  {}", branch.path.join(pool_path).display()).ok();
+        }
+    }
+
     // Collect all entries from all branches
-    let mut entries: Vec<(PathBuf, String)> = Vec::new();
+    let mut entries: Vec<(std::path::PathBuf, String)> = Vec::new();
     
     for branch in &branches {
-        let branch_path = branch.path.join(&pool_path);
+        let branch_path = branch.path.join(pool_path);
         
         if let Ok(read_dir) = fs::read_dir(&branch_path) {
             for entry in read_dir.flatten() {

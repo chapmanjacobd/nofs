@@ -1,16 +1,21 @@
 //! cat command - Read file content from first found branch
 
-use std::path::Path;
 use std::io::{self, Read, Write};
+use std::path::Path;
 use std::fs::File;
 use crate::pool::Pool;
 use crate::error::Result;
 
-pub fn execute(pool: &Pool, path: &str) -> Result<()> {
+pub fn execute(pool: &Pool, path: &str, verbose: bool) -> Result<()> {
     let pool_path = Path::new(path);
     
     // Find first branch containing the file
     if let Some(full_path) = pool.resolve_path_first(pool_path) {
+        if verbose {
+            eprintln!("selected:");
+            eprintln!("  {} (first-found policy)", full_path.display());
+        }
+        
         let mut file = File::open(&full_path)?;
         
         let stdout = io::stdout();

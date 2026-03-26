@@ -4,18 +4,15 @@ use std::io::{self, Write};
 use crate::pool::Pool;
 use crate::error::Result;
 
-pub fn execute(pool: &Pool, path: Option<&str>, human: bool) -> Result<()> {
+pub fn execute(pool: &Pool, human: bool, _verbose: bool) -> Result<()> {
     let stdout = io::stdout();
     let mut handle = stdout.lock();
 
     let total = pool.total_space();
     let used = pool.total_used_space();
     let available = pool.total_available_space();
-
-    let pool_path = path.unwrap_or("/");
     
-    writeln!(handle, "Pool: {}", pool.name.as_deref().unwrap_or("unnamed")).ok();
-    writeln!(handle, "Path: {}", pool_path).ok();
+    writeln!(handle, "Pool: {}", pool.name).ok();
     writeln!(handle, "Branches: {} ({} writable)", 
         pool.branch_count(),
         pool.writable_branch_count()

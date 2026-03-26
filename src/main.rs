@@ -35,6 +35,10 @@ struct Cli {
     #[arg(long, global = true, default_value = "4G")]
     minfreespace: String,
 
+    /// Verbose output (print decision steps to stderr)
+    #[arg(short, long, global = true)]
+    verbose: bool,
+
     #[command(subcommand)]
     command: Commands,
 }
@@ -43,7 +47,7 @@ struct Cli {
 enum Commands {
     /// List directory contents (like ls)
     Ls {
-        /// Path within the pool
+        /// Path within the pool (format: [context:]path)
         path: String,
 
         /// Show detailed information
@@ -57,7 +61,7 @@ enum Commands {
 
     /// Find files matching a pattern
     Find {
-        /// Starting path within the pool
+        /// Starting path within the pool (format: [context:]path)
         path: String,
 
         /// Filename pattern (glob)
@@ -75,7 +79,7 @@ enum Commands {
 
     /// Find which branch contains a file
     Where {
-        /// Path within the pool
+        /// Path within the pool (format: [context:]path)
         path: String,
 
         /// Show all branches containing the file
@@ -85,7 +89,7 @@ enum Commands {
 
     /// Get the best branch path for creating a new file
     Create {
-        /// Path within the pool
+        /// Path within the pool (format: [context:]path)
         path: String,
     },
 
@@ -100,17 +104,20 @@ enum Commands {
     },
 
     /// Show pool configuration and status
-    Info,
+    Info {
+        /// Context name (optional, shows all if not specified)
+        context: Option<String>,
+    },
 
     /// Check if a file exists and return its location
     Exists {
-        /// Path within the pool
+        /// Path within the pool (format: [context:]path)
         path: String,
     },
 
     /// Read file content (from first found branch)
     Cat {
-        /// Path within the pool
+        /// Path within the pool (format: [context:]path)
         path: String,
     },
 }
@@ -118,41 +125,58 @@ enum Commands {
 fn main() -> Result<()> {
     let cli = Cli::parse();
     
-    // Initialize the pool based on config or ad-hoc paths
-    let pool = if let Some(config_path) = &cli.config {
-        pool::Pool::from_config(config_path)?
+    // Initialize the pool manager based on config or ad-hoc paths
+    let pool_mgr = if let Some(config_path) = &cli.config {
+        pool::PoolManager::from_config(config_path)?
     } else if let Some(paths_str) = &cli.paths {
-        pool::Pool::from_paths(paths_str, &cli.policy, &cli.minfreespace)?
+        pool::PoolManager::from_paths(paths_str, &cli.policy, &cli.minfreespace)?
     } else {
         // Try default config location
-        pool::Pool::from_default_config()?
+        pool::PoolManager::from_default_config()?
     };
 
     // Execute the command
     match cli.command {
         Commands::Ls { path, long, all } => {
-            commands::ls::execute(&pool, &path, long, all)?;
+            let (pool, pool_path) = pool_mgr.resolve_context_path(&path)?;
+            commands::ls::execute(pool, pool_path, long, all, cli.verbose)?;
         }
         Commands::Find { path, name, type_, maxdepth } => {
-            commands::find::execute(&pool, &path, name.as_deref(), type_.as_deref(), maxdepth)?;
+            let (pool, pool_path) = pool_mgr.resolve_context_path(&path)?;
+            commands::find::execute(pool, pool_path, name.as_deref(), type_.as_deref(), maxdepth, cli.verbose)?;
         }
         Commands::Where { path, all } => {
-            commands::where_::execute(&pool, &path, all)?;
+            let (pool, pool_path) = pool_mgr.resolve_context_path(&path)?;
+            commands::where_::execute(pool, pool_path, all, cli.verbose)?;
         }
         Commands::Create { path } => {
-            commands::create::execute(&pool, &path, &cli.policy)?;
+            let (pool, pool_path) = pool_mgr.resolve_context_path(&path)?;
+            commands::create::execute(pool, pool_path, cli.verbose)?;
         }
         Commands::Stat { path, human } => {
-            commands::stat::execute(&pool, path.as_deref(), human)?;
+            let pool = if let Some(p) = &path {
+                let (pool, _) = pool_mgr.resolve_context_path(p)?;
+                pool
+            } else {
+                pool_mgr.default_pool()?
+            };
+            commands::stat::execute(pool, human, cli.verbose)?;
         }
-        Commands::Info => {
-            commands::info::execute(&pool)?;
+        Commands::Info { context } => {
+            if let Some(ctx) = &context {
+                let pool = pool_mgr.get_pool(ctx)?;
+                commands::info::execute_single(pool, cli.verbose)?;
+            } else {
+                commands::info::execute_all(&pool_mgr, cli.verbose)?;
+            }
         }
         Commands::Exists { path } => {
-            commands::exists::execute(&pool, &path)?;
+            let (pool, pool_path) = pool_mgr.resolve_context_path(&path)?;
+            commands::exists::execute(pool, pool_path, cli.verbose)?;
         }
         Commands::Cat { path } => {
-            commands::cat::execute(&pool, &path)?;
+            let (pool, pool_path) = pool_mgr.resolve_context_path(&path)?;
+            commands::cat::execute(pool, pool_path, cli.verbose)?;
         }
     }
 

@@ -1,44 +1,27 @@
 # nofs configuration file
 # https://github.com/xk/nofs
 
-[[pools]]
-name = "media"
-mountpoint = "/mnt/pool"
-create_policy = "pfrd"    # percentage free random distribution
-search_policy = "ff"      # first found
-action_policy = "epall"   # existing path - all
-minfreespace = "4G"       # minimum free space threshold
-
-# Branches are listed in order of preference
-[[pools.branches]]
-path = "/mnt/hdd1"
-mode = "RW"               # Read/write (default)
-
-[[pools.branches]]
-path = "/mnt/hdd2"
-mode = "RW"
-
-[[pools.branches]]
-path = "/mnt/hdd3"
-mode = "RW"
-minfreespace = "10G"      # Override minfreespace for this branch
-
-[[pools.branches]]
-path = "/mnt/backup"
-mode = "RO"               # Read-only - excluded from create operations
-
-# Example pool with SSD cache
-[[pools]]
-name = "fast"
-mountpoint = "/mnt/fast"
-create_policy = "mfs"     # most free space
+[union.media]
+paths = ["/mnt/hdd1/media", "/mnt/hdd2/media"]
+ro_paths = ["/mnt/hdd3/media"]  # read-only branches
+create_policy = "pfrd"
 search_policy = "ff"
-minfreespace = "1G"
+minfreespace = "4G"
 
-[[pools.branches]]
-path = "/mnt/ssd"
-mode = "RW"
+[union.backup]
+paths = ["/mnt/backup1"]
+ro_paths = ["/mnt/backup2"]
+create_policy = "mfs"
+search_policy = "ff"
+minfreespace = "10G"
 
-[[pools.branches]]
-path = "/mnt/hdd1"
-mode = "NC"               # No-create - can read/modify but not create
+[union.scratch]
+paths = ["/tmp/a", "/tmp/b"]
+create_policy = "rand"
+
+[union.archive]
+# All read-only
+ro_paths = ["/mnt/archive1", "/mnt/archive2"]
+# No-create (can modify existing but not create new)
+nc_paths = ["/mnt/old_storage"]
+search_policy = "ff"

@@ -2,42 +2,44 @@
 //! 
 //! A pool is a union of multiple branches.
 
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use crate::branch::Branch;
-use crate::config::{Config, PoolConfig};
+use crate::config::Config;
 use crate::error::{NofsError, Result};
-use crate::policy::{parse_size, Policy};
+use crate::policy::Policy;
 
 /// Represents a union pool of branches
 pub struct Pool {
-    /// Name of the pool
-    pub name: Option<String>,
-    
-    /// Mount point path
-    pub mountpoint: Option<PathBuf>,
+    /// Name of the pool/context
+    pub name: String,
     
     /// Branches in the pool
     pub branches: Vec<Branch>,
     
-    /// Default create policy
+    /// Create policy
     pub create_policy: Policy,
     
-    /// Default search policy
+    /// Search policy
     pub search_policy: Policy,
     
-    /// Default action policy
+    /// Action policy
     pub action_policy: Policy,
     
     /// Minimum free space threshold
     pub minfreespace: u64,
 }
 
-impl Pool {
-    /// Create a pool from a configuration file
+/// Pool manager - holds multiple named pools
+pub struct PoolManager {
+    pools: HashMap<String, Pool>,
+}
+
+impl PoolManager {
+    /// Create pool manager from a configuration file
     pub fn from_config<P: AsRef<Path>>(config_path: P) -> Result<Self> {
         let config = Config::from_file(config_path)?;
-        let pool_config = config.first_pool()?;
-        Self::from_pool_config(pool_config)
+        Self::from_config_inner(&config)
     }
 
     /// Try to load from default config locations
@@ -50,8 +52,7 @@ impl Pool {
         Self::from_config(&config_path)
     }
 
-    /// Create a pool from ad-hoc paths string
-    /// Format: "/path1,/path2" or "/path1=RW,/path2=RO"
+    /// Create pool manager from ad-hoc paths string (uses "default" context)
     pub fn from_paths(paths_str: &str, policy: &str, minfreespace: &str) -> Result<Self> {
         let branches: Result<Vec<Branch>> = paths_str
             .split(',')
@@ -64,36 +65,94 @@ impl Pool {
             return Err(NofsError::Config("No branches provided".to_string()));
         }
 
-        Ok(Pool {
-            name: None,
-            mountpoint: None,
+        let pool = Pool {
+            name: "default".to_string(),
             branches,
             create_policy: Policy::from_str(policy)?,
             search_policy: Policy::Ff,
             action_policy: Policy::EpAll,
-            minfreespace: parse_size(minfreespace)?,
-        })
+            minfreespace: crate::policy::parse_size(minfreespace)?,
+        };
+
+        let mut pools = HashMap::new();
+        pools.insert("default".to_string(), pool);
+
+        Ok(PoolManager { pools })
     }
 
-    /// Create a pool from a pool configuration
-    fn from_pool_config(config: &PoolConfig) -> Result<Self> {
-        let branches = config.get_branches()?;
-        
-        if branches.is_empty() {
-            return Err(NofsError::Config("No branches defined in pool".to_string()));
+    /// Create pool manager from config
+    fn from_config_inner(config: &Config) -> Result<Self> {
+        let mut pools = HashMap::new();
+
+        for (name, union_config) in &config.union {
+            let branches = union_config.get_branches()?;
+            
+            if branches.is_empty() {
+                return Err(NofsError::Config(format!(
+                    "No branches defined in union '{}'",
+                    name
+                )));
+            }
+
+            let pool = Pool {
+                name: name.clone(),
+                branches,
+                create_policy: union_config.create_policy()?,
+                search_policy: union_config.search_policy()?,
+                action_policy: union_config.action_policy()?,
+                minfreespace: union_config.minfreespace_bytes()?,
+            };
+
+            pools.insert(name.clone(), pool);
         }
 
-        Ok(Pool {
-            name: config.name.clone(),
-            mountpoint: config.mountpoint.as_ref().map(PathBuf::from),
-            create_policy: Policy::from_str(&config.create_policy)?,
-            search_policy: Policy::from_str(&config.search_policy)?,
-            action_policy: Policy::from_str(&config.action_policy)?,
-            minfreespace: parse_size(&config.minfreespace)?,
-            branches,
-        })
+        if pools.is_empty() {
+            return Err(NofsError::Config("No union contexts defined in config".to_string()));
+        }
+
+        Ok(PoolManager { pools })
     }
 
+    /// Get a pool by name
+    pub fn get_pool(&self, name: &str) -> Result<&Pool> {
+        self.pools.get(name)
+            .ok_or_else(|| NofsError::Config(format!("Union context '{}' not found", name)))
+    }
+
+    /// Get the first/default pool
+    pub fn default_pool(&self) -> Result<&Pool> {
+        if let Some(pool) = self.pools.get("default") {
+            Ok(pool)
+        } else if let Some((_, pool)) = self.pools.iter().next() {
+            Ok(pool)
+        } else {
+            Err(NofsError::Config("No pools available".to_string()))
+        }
+    }
+
+    /// Get all pool names
+    pub fn pool_names(&self) -> Vec<&str> {
+        let mut names: Vec<&str> = self.pools.keys().map(|s| s.as_str()).collect();
+        names.sort();
+        names
+    }
+
+    /// Parse a context:path reference and return the appropriate pool
+    pub fn resolve_context_path<'a>(&'a self, input: &'a str) -> Result<(&'a Pool, &'a str)> {
+        if let Some(colon_idx) = input.find(':') {
+            let context = &input[..colon_idx];
+            let path = &input[colon_idx + 1..];
+            let pool = self.get_pool(context)?;
+            Ok((pool, path))
+        } else {
+            // No context specified, use default pool
+            let pool = self.default_pool()?;
+            Ok((pool, input))
+        }
+    }
+}
+
+impl Pool {
     /// Get total available space across all RW branches
     pub fn total_available_space(&self) -> u64 {
         self.branches

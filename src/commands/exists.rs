@@ -4,12 +4,16 @@ use std::path::Path;
 use crate::pool::Pool;
 use crate::error::Result;
 
-pub fn execute(pool: &Pool, path: &str) -> Result<()> {
+pub fn execute(pool: &Pool, path: &str, verbose: bool) -> Result<()> {
     let pool_path = Path::new(path);
     
     if pool.exists(pool_path) {
         // File exists - print first location
         if let Some(full_path) = pool.resolve_path_first(pool_path) {
+            if verbose {
+                eprintln!("selected:");
+                eprintln!("  {} (first-found policy)", full_path.display());
+            }
             println!("{}", full_path.display());
         }
         // Exit with success

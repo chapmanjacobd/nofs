@@ -9,11 +9,12 @@ A lightweight union filesystem tool - a mergerfs alternative without FUSE.
 ## Features
 
 - **No FUSE required** - Pure userspace tool, no kernel module needed
-- **TOML configuration** - Optional config file for persistent pool definitions
+- **Named union contexts** - Simple TOML config with `[union.name]` sections
+- **Context:path syntax** - `nofs ls media:/movies` selects the `media` context
 - **Ad-hoc mode** - Use directly from command line without config
 - **Policy-based branch selection** - Choose branches based on free space, randomness, or path preservation
-- **Fast lookups** - Query which branch contains a file instantly
-- **POSIX-like commands** - Familiar interface (`ls`, `find`, `stat`, etc.)
+- **Verbose mode** - See decision steps with `-v` flag
+- **POSIX-like commands** - Familiar interface (`ls`, `find`, `where`, etc.)
 
 ## Installation
 
@@ -24,56 +25,70 @@ sudo cp target/release/nofs /usr/local/bin/
 
 ## Quick Start
 
-### Ad-hoc Usage (No Config)
-
-```bash
-# List directory contents from pooled branches
-nofs --paths /mnt/hdd1,/mnt/hdd2,/mnt/hdd3 ls /media
-
-# Find which branch contains a file
-nofs --paths /mnt/hdd1,/mnt/hdd2 where /media/movie.mkv
-
-# Get best branch for creating a new file
-nofs --paths /mnt/hdd1,/mnt/hdd2 --policy mfs create /media/newfile.txt
-
-# Find files matching a pattern
-nofs --paths /mnt/hdd1,/mnt/hdd2 find /media --name "*.mkv"
-
-# Show filesystem statistics
-nofs --paths /mnt/hdd1,/mnt/hdd2 stat --human
-```
-
-### With Configuration File
+### Configuration File
 
 Create `/etc/nofs/config.toml`:
 
 ```toml
-[[pools]]
-name = "media"
-mountpoint = "/mnt/pool"
-create_policy = "pfrd"
-search_policy = "ff"
+[union.media]
+paths = ["/mnt/hdd1/media", "/mnt/hdd2/media", "/mnt/hdd3/media"]
+modes = ["RW", "RW", "RO"]  # Optional: last branch is read-only
+create_policy = "pfrd"       # percentage free random distribution
+search_policy = "ff"         # first found
 minfreespace = "4G"
 
-[[pools.branches]]
-path = "/mnt/hdd1"
-mode = "RW"
+[union.backup]
+paths = ["/mnt/backup1", "/mnt/backup2"]
+create_policy = "mfs"        # most free space
+minfreespace = "10G"
 
-[[pools.branches]]
-path = "/mnt/hdd2"
-mode = "RW"
-
-[[pools.branches]]
-path = "/mnt/backup"
-mode = "RO"  # Read-only
+[union.scratch]
+paths = ["/tmp/a", "/tmp/b"]
+create_policy = "rand"       # random selection
 ```
 
-Then use:
+### Usage with Contexts
 
 ```bash
-nofs --config /etc/nofs/config.toml ls /media
-nofs where /media/movie.mkv
-nofs stat --human
+# List directory from specific union context
+nofs ls media:/movies
+
+# Find which branch contains a file
+nofs -v where media:/movies/blade_runner.mkv
+# Output (stderr):
+#   selected:
+#     /mnt/hdd1/media/movies/blade_runner.mkv (first-found policy)
+
+# Get best branch for creating a new file
+nofs -v create media:/new_movie.mkv
+# Output (stderr):
+#   selected:
+#     /mnt/hdd2/media/new_movie.mkv (pfrd policy)
+
+# Find files matching a pattern
+nofs find media:/ --name "*.mkv"
+
+# Show filesystem statistics
+nofs stat -H
+
+# Show all union contexts
+nofs info
+
+# Show specific context
+nofs info media
+```
+
+### Ad-hoc Mode (No Config)
+
+```bash
+# Quick union of directories
+nofs --paths /mnt/hdd1,/mnt/hdd2,/mnt/hdd3 ls /media
+
+# With branch modes
+nofs --paths /mnt/hdd1=RW,/mnt/hdd2=RW,/mnt/backup=RO ls /
+
+# With custom policy
+nofs --paths /mnt/ssd,/mnt/hdd --policy mfs create /data/newfile.txt
 ```
 
 ## Commands
@@ -81,70 +96,75 @@ nofs stat --human
 ### `ls` - List Directory Contents
 
 ```bash
-nofs ls [OPTIONS] <PATH>
+nofs [OPTIONS] ls [context:]path
 
 OPTIONS:
     -l, --long     Show detailed information
     -a, --all      Show hidden files
+    -v, --verbose  Show which branches contain the directory
 ```
 
 ### `find` - Find Files
 
 ```bash
-nofs find [OPTIONS] <PATH>
+nofs [OPTIONS] find [context:]path
 
 OPTIONS:
     --name <PATTERN>     Filename pattern (glob)
     --type <TYPE>        File type: f=file, d=directory
     --maxdepth <N>       Maximum depth
+    -v, --verbose        Show which branches are searched
 ```
 
 ### `where` - Find File Location
 
 ```bash
-nofs where [OPTIONS] <PATH>
+nofs [OPTIONS] where [context:]path
 
 OPTIONS:
-    -a, --all    Show all branches containing the file
+    -a, --all      Show all branches containing the file
+    -v, --verbose  Show selection decision
 ```
 
 ### `create` - Get Create Path
 
 ```bash
-nofs create [OPTIONS] <PATH>
+nofs [OPTIONS] create [context:]path
 
 Returns the full path on the best branch for creating a new file.
+Use -v to see which policy was used.
 ```
 
 ### `stat` - Filesystem Statistics
 
 ```bash
-nofs stat [OPTIONS] [PATH]
+nofs [OPTIONS] stat [context:]path
 
 OPTIONS:
-    -h, --human    Show human-readable sizes
+    -H, --human    Show human-readable sizes
 ```
 
 ### `info` - Pool Information
 
 ```bash
-nofs info
+nofs info [context]
 
-Shows pool configuration and status.
+Shows all union contexts, or specific context if named.
 ```
 
 ### `exists` - Check File Existence
 
 ```bash
-nofs exists <PATH>
+nofs exists [context:]path
 
 Returns exit code 0 if file exists, 1 otherwise.
+Prints location to stdout.
 ```
 
 ### `cat` - Read File Content
 
 ```bash
-nofs cat <PATH>
+nofs cat [context:]path
 
 Reads file content from first found branch.
 ```
@@ -153,91 +173,94 @@ Reads file content from first found branch.
 
 ### Create Policies
 
-- **pfrd** - Percentage free random distribution (default)
-  - Selects branches weighted by available space
-- **mfs** - Most free space
-  - Selects branch with most available space
-- **ff** - First found
-  - Selects first eligible branch
-- **rand** - Random
-  - Selects random eligible branch
-- **lfs** - Least free space
-  - Selects branch with least available space
-- **lus** - Least used space
-  - Selects branch with least used space
-- **lup** - Least used percentage
-  - Selects branch with lowest usage percentage
-- **epmfs** - Existing path, most free space
-  - Path-preserving variant of mfs
-- **epff** - Existing path, first found
-  - Path-preserving variant of ff
+| Policy | Description |
+|--------|-------------|
+| **pfrd** | Percentage free random distribution (default) - weighted by available space |
+| **mfs** | Most free space |
+| **ff** | First found (first in list) |
+| **rand** | Random selection |
+| **lfs** | Least free space |
+| **lus** | Least used space |
+| **lup** | Least used percentage |
+| **epmfs** | Existing path, most free space (path-preserving) |
+| **epff** | Existing path, first found (path-preserving) |
 
 ### Search Policies
 
-- **ff** - First found (default)
-- **all** - All branches
+| Policy | Description |
+|--------|-------------|
+| **ff** | First found (default) |
+| **all** | All branches |
 
-### Action Policies
+## Configuration Options
 
-- **epall** - Existing path, all (default)
-- **all** - All branches
+### Union Context Settings
 
-## Branch Modes
+```toml
+[union.name]
+paths = ["/path1", "/path2"]      # Required: branch paths
+modes = ["RW", "RO"]               # Optional: branch modes (parallel to paths)
+create_policy = "pfrd"             # Policy for create operations
+search_policy = "ff"               # Policy for search operations  
+action_policy = "epall"            # Policy for action operations
+minfreespace = "4G"                # Minimum free space threshold
+```
+
+### Branch Modes
 
 - **RW** (Read/Write) - Full participation in all operations (default)
 - **RO** (Read-Only) - Excluded from create and action operations
 - **NC** (No-Create) - Can read and modify, but not create new files
 
-## Configuration Options
-
-### Pool Settings
-
-- `name` - Pool identifier
-- `mountpoint` - Virtual mount point path
-- `create_policy` - Default policy for create operations
-- `search_policy` - Default policy for search operations
-- `action_policy` - Default policy for action operations
-- `minfreespace` - Minimum free space threshold (e.g., "4G", "100M")
-
-### Branch Settings
-
-- `path` - Branch filesystem path
-- `mode` - Branch mode (RW, RO, NC)
-- `minfreespace` - Per-branch minimum free space override
-
 ## Examples
 
-### Basic Media Pool
+### Media Server Setup
 
-```bash
-# Create pool with 3 HDDs
-nofs --paths /mnt/hdd1,/mnt/hdd2,/mnt/hdd3 ls /
+```toml
+[union.movies]
+paths = ["/hdd1/movies", "/hdd2/movies", "/hdd3/movies"]
+modes = ["RW", "RW", "RO"]
+create_policy = "pfrd"
 
-# Find movies across all drives
-nofs --paths /mnt/hdd1,/mnt/hdd2,/mnt/hdd3 find / --name "*.mkv"
-
-# Check where a file is stored
-nofs --paths /mnt/hdd1,/mnt/hdd2,/mnt/hdd3 where /movies/blade_runner.mkv
+[union.tv]
+paths = ["/hdd1/tv", "/hdd2/tv"]
+create_policy = "mfs"
 ```
 
-### With Read-Only Backup Branch
-
 ```bash
-# Include read-only backup drive
-nofs --paths /mnt/hdd1=RW,/mnt/hdd2=RW,/mnt/backup=RO stat
+# List movies across all drives
+nofs ls movies:/
 
-# Create will only use RW branches
-nofs --paths /mnt/hdd1=RW,/mnt/hdd2=RW,/mnt/backup=RO create /newfile.txt
+# Find specific movie
+nofs where movies:/scifi/blade_runner.mkv
+
+# Add new movie (automatically selects best branch)
+nofs create movies:/new_release.mkv
 ```
 
 ### SSD Cache Setup
 
-```bash
-# Prefer SSD for new files
-nofs --paths /mnt/ssd,/mnt/hdd1,/mnt/hdd2 --policy mfs create /data/newfile.txt
+```toml
+[union.fast]
+paths = ["/nvme/cache", "/hdd/storage"]
+modes = ["RW", "NC"]  # HDD can read/modify but not create
+create_policy = "lfs"  # Fill SSD first (least free space)
+```
 
-# But search all branches
-nofs --paths /mnt/ssd,/mnt/hdd1,/mnt/hdd2 find /data --name "*.log"
+### Verbose Debugging
+
+```bash
+$ nofs -v where media:/movie.mkv
+selected:
+  /mnt/hdd1/media/movie.mkv (first-found policy)
+/mnt/hdd1/media/movie.mkv
+
+$ nofs -v ls media:/movies
+found in:
+  /mnt/hdd1/media/movies
+  /mnt/hdd2/media/movies
+file1.mkv
+file2.mkv
 ```
 
 ## Comparison with mergerfs
@@ -247,7 +270,9 @@ nofs --paths /mnt/ssd,/mnt/hdd1,/mnt/hdd2 find /data --name "*.log"
 | FUSE-based | Yes | No |
 | Mount point | Yes | No |
 | Config file | Optional | Optional |
+| Named contexts | No | Yes |
 | Ad-hoc usage | Limited | Full |
+| Verbose mode | No | Yes |
 | File creation | Transparent | Via `create` command |
 | File access | Direct | Via subcommands |
 | Performance | Near-native | Subprocess overhead |
@@ -261,6 +286,7 @@ nofs --paths /mnt/ssd,/mnt/hdd1,/mnt/hdd2 find /data --name "*.log"
 - Batch operations across branches
 - Simple pooling without FUSE complexity
 - Integration with existing tools
+- Multiple independent unions (contexts)
 
 **Consider mergerfs instead:**
 - Need transparent filesystem access

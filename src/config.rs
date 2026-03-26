@@ -1,34 +1,39 @@
 //! Configuration parsing for nofs
 //! 
-//! Supports TOML configuration files with pool and branch definitions.
+//! Supports TOML configuration files with named union contexts.
 
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::fs;
 use crate::branch::Branch;
 use crate::error::{NofsError, Result};
+use crate::policy::Policy;
 
-/// Pool configuration
+/// Union context configuration
 #[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct PoolConfig {
-    /// Pool name (for identification)
-    pub name: Option<String>,
+pub struct UnionConfig {
+    /// Branch paths with RW mode (default)
+    #[serde(default)]
+    pub paths: Vec<String>,
     
-    /// Mount point path (where the pool would be mounted in FUSE scenario)
-    pub mountpoint: Option<String>,
+    /// Branch paths with RO (read-only) mode
+    #[serde(default)]
+    pub ro_paths: Vec<String>,
     
-    /// Branches in this pool
-    pub branches: Vec<BranchConfig>,
+    /// Branch paths with NC (no-create) mode
+    #[serde(default)]
+    pub nc_paths: Vec<String>,
     
-    /// Default policy for create operations
+    /// Policy for create operations
     #[serde(default = "default_create_policy")]
     pub create_policy: String,
     
-    /// Default policy for search operations
+    /// Policy for search operations
     #[serde(default = "default_search_policy")]
     pub search_policy: String,
     
-    /// Default policy for action operations
+    /// Policy for action operations
     #[serde(default = "default_action_policy")]
     pub action_policy: String,
     
@@ -53,48 +58,12 @@ fn default_minfreespace() -> String {
     "4G".to_string()
 }
 
-/// Branch configuration within a pool
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct BranchConfig {
-    /// Path to the branch
-    pub path: String,
-    
-    /// Branch mode (RW, RO, NC)
-    #[serde(default)]
-    pub mode: Option<String>,
-    
-    /// Optional per-branch minimum free space
-    pub minfreespace: Option<String>,
-}
-
-impl BranchConfig {
-    /// Convert to Branch struct
-    pub fn to_branch(&self) -> Result<Branch> {
-        let mut branch_str = self.path.clone();
-        
-        if let Some(mode) = &self.mode {
-            branch_str.push('=');
-            branch_str.push_str(mode);
-        }
-        
-        if let Some(minfree) = &self.minfreespace {
-            if !branch_str.contains('=') {
-                branch_str.push('=');
-            } else {
-                branch_str.push(',');
-            }
-            branch_str.push_str(minfree);
-        }
-        
-        Branch::from_str(&branch_str)
-    }
-}
-
 /// Main configuration structure
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Config {
-    /// List of pools
-    pub pools: Vec<PoolConfig>,
+    /// Union contexts
+    #[serde(default)]
+    pub union: HashMap<String, UnionConfig>,
 }
 
 impl Config {
@@ -117,26 +86,64 @@ impl Config {
         Ok(config)
     }
 
-    /// Get the first pool (for single-pool configs)
-    pub fn first_pool(&self) -> Result<&PoolConfig> {
-        self.pools.first()
-            .ok_or_else(|| NofsError::Config("No pools defined in config".to_string()))
+    /// Get a union context by name
+    pub fn get_union(&self, name: &str) -> Result<&UnionConfig> {
+        self.union.get(name)
+            .ok_or_else(|| NofsError::Config(format!("Union context '{}' not found", name)))
     }
 
-    /// Get a pool by name
-    pub fn get_pool(&self, name: &str) -> Result<&PoolConfig> {
-        self.pools.iter()
-            .find(|p| p.name.as_deref() == Some(name))
-            .ok_or_else(|| NofsError::Config(format!("Pool '{}' not found", name)))
+    /// Get the first union context (for single-context configs)
+    pub fn first_union(&self) -> Result<(&str, &UnionConfig)> {
+        self.union.iter()
+            .next()
+            .map(|(k, v)| (k.as_str(), v))
+            .ok_or_else(|| NofsError::Config("No union contexts defined in config".to_string()))
     }
 }
 
-impl PoolConfig {
-    /// Convert all branch configs to Branch structs
+impl UnionConfig {
+    /// Convert to Branch structs
     pub fn get_branches(&self) -> Result<Vec<Branch>> {
-        self.branches.iter()
-            .map(|b| b.to_branch())
-            .collect()
+        let mut branches = Vec::new();
+        
+        // Add RW paths (default)
+        for path_str in &self.paths {
+            branches.push(Branch::from_str(path_str)?);
+        }
+        
+        // Add RO paths
+        for path_str in &self.ro_paths {
+            let branch_str = format!("{}=RO", path_str);
+            branches.push(Branch::from_str(&branch_str)?);
+        }
+        
+        // Add NC paths
+        for path_str in &self.nc_paths {
+            let branch_str = format!("{}=NC", path_str);
+            branches.push(Branch::from_str(&branch_str)?);
+        }
+        
+        Ok(branches)
+    }
+
+    /// Get create policy
+    pub fn create_policy(&self) -> Result<Policy> {
+        Policy::from_str(&self.create_policy)
+    }
+
+    /// Get search policy
+    pub fn search_policy(&self) -> Result<Policy> {
+        Policy::from_str(&self.search_policy)
+    }
+
+    /// Get action policy
+    pub fn action_policy(&self) -> Result<Policy> {
+        Policy::from_str(&self.action_policy)
+    }
+
+    /// Get minfreespace in bytes
+    pub fn minfreespace_bytes(&self) -> Result<u64> {
+        crate::policy::parse_size(&self.minfreespace)
     }
 }
 

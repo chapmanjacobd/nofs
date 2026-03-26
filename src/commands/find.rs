@@ -1,7 +1,7 @@
 //! find command - Find files matching patterns
 
-use std::path::Path;
 use std::io::{self, Write};
+use std::path::Path;
 use walkdir::WalkDir;
 use crate::pool::Pool;
 use crate::error::Result;
@@ -12,6 +12,7 @@ pub fn execute(
     name_pattern: Option<&str>,
     type_filter: Option<&str>,
     maxdepth: Option<usize>,
+    verbose: bool,
 ) -> Result<()> {
     let pool_path = Path::new(path);
     
@@ -21,6 +22,15 @@ pub fn execute(
     if branches.is_empty() {
         eprintln!("nofs: cannot access '{}': No such file or directory", path);
         return Ok(());
+    }
+
+    if verbose {
+        let stderr = io::stderr();
+        let mut h = stderr.lock();
+        writeln!(h, "found in:").ok();
+        for branch in &branches {
+            writeln!(h, "  {}", branch.path.join(pool_path).display()).ok();
+        }
     }
 
     let stdout = io::stdout();
@@ -45,11 +55,7 @@ pub fn execute(
                 .unwrap_or(Path::new(""));
             
             // Get path relative to pool mount point
-            let pool_relative = if let Some(mp) = &pool.mountpoint {
-                mp.join(relative)
-            } else {
-                relative.to_path_buf()
-            };
+            let pool_relative = relative.to_path_buf();
 
             // Skip if we've already output this path
             if !seen_paths.insert(pool_relative.clone()) {

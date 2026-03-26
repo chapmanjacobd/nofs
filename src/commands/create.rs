@@ -4,7 +4,7 @@ use std::path::Path;
 use crate::pool::Pool;
 use crate::error::Result;
 
-pub fn execute(pool: &Pool, path: &str, _policy_str: &str) -> Result<()> {
+pub fn execute(pool: &Pool, path: &str, verbose: bool) -> Result<()> {
     let pool_path = Path::new(path);
     
     // Get parent directory for path preservation policies
@@ -15,6 +15,12 @@ pub fn execute(pool: &Pool, path: &str, _policy_str: &str) -> Result<()> {
     
     // Return the full path on the selected branch
     let full_path = branch.path.join(pool_path);
+    
+    if verbose {
+        eprintln!("selected:");
+        eprintln!("  {} ({} policy)", full_path.display(), pool.create_policy);
+    }
+    
     println!("{}", full_path.display());
 
     Ok(())
