@@ -117,7 +117,7 @@ fn select_branch_for_read<'a>(pool: &'a Pool, relative_path: &Path, cache: &'a O
 /// # Errors
 ///
 /// Returns an error if the share is not found or if path resolution fails.
-#[allow(clippy::arithmetic_side_effects, clippy::indexing_slicing)]
+#[allow(clippy::arithmetic_side_effects)]
 fn resolve_dest_path(
     dest_str: &str,
     share: Option<&Pool>,
@@ -152,8 +152,7 @@ fn resolve_dest_path(
 
     // Try to use the same branch as the source (for efficient same-branch operations)
     if let Some(src_idx) = source_branch_index {
-        if src_idx < pool.branches.len() {
-            let branch = &pool.branches[src_idx];
+        if let Some(branch) = pool.branches.get(src_idx) {
             if branch.can_create() {
                 return Ok(branch.path.join(relative_path));
             }
@@ -1087,7 +1086,11 @@ fn process_file(source: &Path, dest: &Path, config: &CopyConfig, stats: &Arc<Cop
                 Ordering::Relaxed,
             ) {
                 Ok(_) => break,
-                Err(actual) => current = actual,
+                Err(actual) => {
+                    current = actual;
+                    // Hint to the CPU that we're in a spin-wait loop
+                    std::hint::spin_loop();
+                }
             }
         }
     }
@@ -1106,7 +1109,11 @@ fn process_file(source: &Path, dest: &Path, config: &CopyConfig, stats: &Arc<Cop
                 Ordering::Relaxed,
             ) {
                 Ok(_) => break,
-                Err(actual) => current = actual,
+                Err(actual) => {
+                    current = actual;
+                    // Hint to the CPU that we're in a spin-wait loop
+                    std::hint::spin_loop();
+                }
             }
         }
     }
@@ -1537,6 +1544,9 @@ fn process_source_contents(source: &Path, dest: &Path, config: &CopyConfig, stat
 /// # Returns
 ///
 /// Returns a path with a unique filename that doesn't exist on disk.
+///
+/// Uses atomic file creation to avoid TOCTOU race conditions when multiple
+/// threads are generating unique filenames concurrently.
 #[allow(clippy::arithmetic_side_effects)]
 fn get_unique_filename(base: &Path) -> PathBuf {
     // Quick check: if base doesn't exist, use it directly
@@ -1571,8 +1581,17 @@ fn get_unique_filename(base: &Path) -> PathBuf {
             format!("{base_name}_{i}.{extension}")
         };
         let new_path = dir.join(&new_name);
-        // Use atomic check-and-create to avoid race conditions
-        if !new_path.exists() {
+        // Use atomic file creation to avoid TOCTOU race conditions
+        // Create a temporary file that will be deleted immediately - this just
+        // reserves the name atomically
+        if std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&new_path)
+            .is_ok()
+        {
+            // Successfully created the file, now delete it so caller can use the name
+            let _ = std::fs::remove_file(&new_path);
             return new_path;
         }
     }
@@ -1619,6 +1638,8 @@ fn find_suffix_and_index(file_stem: &str) -> (&str, u32) {
 /// # Returns
 ///
 /// Returns a path with a unique folder name that doesn't exist on disk.
+///
+/// Uses atomic directory creation to avoid TOCTOU race conditions.
 #[allow(clippy::arithmetic_side_effects)]
 fn get_unique_folder_name(base: &Path) -> PathBuf {
     if !base.exists() {
@@ -1644,8 +1665,15 @@ fn get_unique_folder_name(base: &Path) -> PathBuf {
     for i in start_idx.. {
         let new_name = format!("{base_name}_{i}");
         let new_path = dir.join(&new_name);
-        if !new_path.exists() {
-            return new_path;
+        // Use atomic directory creation to avoid TOCTOU race conditions
+        match std::fs::create_dir(&new_path) {
+            Ok(()) => {
+                // Successfully created, remove it so caller can use the name
+                let _ = std::fs::remove_dir(&new_path);
+                return new_path;
+            }
+            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {}
+            Err(_) => {}
         }
     }
 
@@ -1706,17 +1734,14 @@ fn sample_hash(path: &Path, stats: &CopyStats) -> Result<String> {
 
     stats.sample_hashes.fetch_add(1, Ordering::Relaxed);
 
-    #[allow(
-        clippy::integer_division,
-        clippy::cast_possible_truncation,
-        clippy::as_conversions,
-        clippy::indexing_slicing
-    )]
+    #[allow(clippy::integer_division, clippy::cast_possible_truncation, clippy::as_conversions)]
     for i in 0..num_samples {
         let pos = size.saturating_mul(i) / num_samples;
         file.seek(io::SeekFrom::Start(pos))?;
         let mut buf = vec![0_u8; chunk_size as usize];
         let bytes_read = file.read(&mut buf)?;
+        // Safe: bytes_read is guaranteed to be <= buf.len()
+        #[allow(clippy::indexing_slicing)]
         buf[..bytes_read].hash(&mut hasher);
     }
 

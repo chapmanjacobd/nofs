@@ -210,7 +210,7 @@ pub fn find_default_config() -> Option<PathBuf> {
     system_path.exists().then_some(system_path)
 }
 
-/// Get the home directory from HOME environment variable
+/// Get the home directory using the dirs crate
 fn dirs_home() -> Option<PathBuf> {
-    std::env::var_os("HOME").map(PathBuf::from)
+    dirs::home_dir()
 }

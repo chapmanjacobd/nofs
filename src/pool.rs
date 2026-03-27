@@ -313,6 +313,12 @@ impl Pool {
         self.branches.iter().any(|b| b.path.join(pool_path).exists())
     }
 
+    // Note: The following cached methods are duplicated from the non-cached versions above.
+    // This duplication is intentional - the cached and non-cached versions have different
+    // signatures (cached versions take &OperationCache) and call different branch methods.
+    // Consolidating them would require trait objects or complex generics, which would add
+    // runtime overhead that defeats the purpose of caching.
+
     /// Get total available space across all RW branches (cached)
     #[must_use]
     pub fn total_available_space_cached(&self, cache: &OperationCache) -> u64 {

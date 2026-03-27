@@ -32,6 +32,8 @@ pub fn execute(pool: &Pool, human: bool, _verbose: bool, json: bool) -> Result<(
     if json {
         let mut branches: Vec<BranchStat> = Vec::new();
         for branch in &pool.branches {
+            // For stat display, we silently use 0 for branches that fail.
+            // This allows the command to succeed even if some branches are inaccessible.
             let branch_total = branch.total_space().unwrap_or(0);
             let branch_used = branch.used_space().unwrap_or(0);
             let branch_available = branch.available_space().unwrap_or(0);
@@ -100,6 +102,8 @@ pub fn execute(pool: &Pool, human: bool, _verbose: bool, json: bool) -> Result<(
         )?;
 
         for branch in &pool.branches {
+            // For stat display, we silently use 0 for branches that fail.
+            // This allows the command to succeed even if some branches are inaccessible.
             let branch_total = branch.total_space().unwrap_or(0);
             let branch_used = branch.used_space().unwrap_or(0);
             let branch_available = branch.available_space().unwrap_or(0);

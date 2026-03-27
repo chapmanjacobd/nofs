@@ -24,4 +24,4 @@ min-ident-chars-threshold = 3
 allowed-idents-below-min-chars = ["i", "j", "k", "x", "y", "z", "n", "m"]
 
 # Allowed duplicate crate versions
-allowed-duplicate-crates = ["hashbrown", "redox_syscall", "windows-sys"]
+allowed-duplicate-crates = ["hashbrown", "redox_syscall", "windows-sys", "getrandom"]

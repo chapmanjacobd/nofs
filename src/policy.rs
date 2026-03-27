@@ -531,33 +531,40 @@ pub fn parse_size(s: &str) -> Result<u64> {
 
     // Check if the number has a decimal point
     if num_str.contains('.') {
-        // For decimal numbers, use f64 arithmetic
+        // For decimal numbers, use f64 arithmetic with overflow checking
         let num: f64 = num_str
             .parse()
             .map_err(|e| NofsError::Parse(format!("Invalid size number {num_str} in {s}: {e}")))?;
 
-        let multiplier = match suffix.as_str() {
-            "" | "B" => 1_u64,
-            "K" | "KB" => KB,
-            "M" | "MB" => MB,
-            "G" | "GB" => GB,
-            "T" | "TB" => TB,
-            "P" | "PB" => PB,
-            "KIB" => 1024,
-            "MIB" => 1024 * 1024,
-            "GIB" => 1024 * 1024 * 1024,
-            "TIB" => 1024 * 1024 * 1024 * 1024,
-            "PIB" => 1024 * 1024 * 1024 * 1024 * 1024,
+        #[allow(clippy::cast_precision_loss, clippy::as_conversions, clippy::cast_sign_loss)]
+        let multiplier: f64 = match suffix.as_str() {
+            "" | "B" => 1.0,
+            "K" | "KB" => KB as f64,
+            "M" | "MB" => MB as f64,
+            "G" | "GB" => GB as f64,
+            "T" | "TB" => TB as f64,
+            "P" | "PB" => PB as f64,
+            "KIB" => 1024.0,
+            "MIB" => (1024_u64 * 1024) as f64,
+            "GIB" => (1024_u64 * 1024 * 1024) as f64,
+            "TIB" => (1024_u64 * 1024 * 1024 * 1024) as f64,
+            "PIB" => (1024_u64 * 1024 * 1024 * 1024 * 1024) as f64,
             _ => return Err(NofsError::Parse(format!("Invalid size suffix: {s}"))),
         };
 
-        #[allow(
-            clippy::cast_precision_loss,
-            clippy::as_conversions,
-            clippy::float_arithmetic,
-            clippy::cast_sign_loss
-        )]
-        return Ok((num * multiplier as f64) as u64);
+        // Check for potential overflow before casting
+        #[allow(clippy::float_arithmetic, clippy::cast_precision_loss)]
+        let result = num * multiplier;
+        #[allow(clippy::cast_precision_loss)]
+        if result > u64::MAX as f64 || result < 0.0 {
+            return Err(NofsError::Parse(format!(
+                "Size {s} exceeds maximum value ({})",
+                u64::MAX
+            )));
+        }
+
+        #[allow(clippy::cast_precision_loss, clippy::as_conversions, clippy::cast_sign_loss)]
+        return Ok(result as u64);
     }
 
     // For integer numbers, use u128 to avoid overflow during multiplication
