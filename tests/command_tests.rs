@@ -25,12 +25,7 @@ paths = ["{0}/disk1", "{0}/disk2"]
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&[
-            "--config",
-            ctx.config_path.to_str().unwrap(),
-            "ls",
-            "test:dir",
-        ]);
+        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "ls", "test:dir"]);
 
         assert!(output.success(), "Command failed: {}", output.stderr);
         assert!(output.stdout.contains("file1.txt"));
@@ -55,13 +50,7 @@ paths = ["{0}/disk1"]
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&[
-            "--config",
-            ctx.config_path.to_str().unwrap(),
-            "ls",
-            "-l",
-            "test:dir",
-        ]);
+        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "ls", "-l", "test:dir"]);
 
         assert!(output.success(), "Command failed: {}", output.stderr);
         // Long format should show file size
@@ -85,25 +74,14 @@ paths = ["{0}/disk1"]
         ctx.write_config(&config);
 
         // Without -a, hidden files should not appear
-        let output = ctx.run_nofs(&[
-            "--config",
-            ctx.config_path.to_str().unwrap(),
-            "ls",
-            "test:dir",
-        ]);
+        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "ls", "test:dir"]);
 
         assert!(output.success());
         assert!(output.stdout.contains("visible.txt"));
         assert!(!output.stdout.contains(".hidden"));
 
         // With -a, hidden files should appear
-        let output2 = ctx.run_nofs(&[
-            "--config",
-            ctx.config_path.to_str().unwrap(),
-            "ls",
-            "-a",
-            "test:dir",
-        ]);
+        let output2 = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "ls", "-a", "test:dir"]);
 
         assert!(output2.success());
         assert!(output2.stdout.contains(".hidden"));
@@ -310,10 +288,7 @@ paths = ["{0}/disk1"]
             "test:dir/missing.txt",
         ]);
 
-        assert!(
-            !output2.success(),
-            "exists should return 1 for missing file"
-        );
+        assert!(!output2.success(), "exists should return 1 for missing file");
     }
 
     #[test]
@@ -360,12 +335,7 @@ paths = ["{0}/disk1", "{0}/disk2"]
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&[
-            "--config",
-            ctx.config_path.to_str().unwrap(),
-            "du",
-            "test:dir",
-        ]);
+        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "du", "test:dir"]);
 
         assert!(output.success(), "Command failed: {}", output.stderr);
         // Should show disk usage for the directory
@@ -388,13 +358,7 @@ paths = ["{0}/disk1"]
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&[
-            "--config",
-            ctx.config_path.to_str().unwrap(),
-            "du",
-            "-H",
-            "test:dir",
-        ]);
+        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "du", "-H", "test:dir"]);
 
         assert!(output.success(), "Command failed: {}", output.stderr);
         // Human-readable output should contain size units
@@ -423,13 +387,7 @@ paths = ["{0}/disk1"]
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&[
-            "--config",
-            ctx.config_path.to_str().unwrap(),
-            "du",
-            "-a",
-            "test:dir",
-        ]);
+        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "du", "-a", "test:dir"]);
 
         assert!(output.success(), "Command failed: {}", output.stderr);
         // Should show subdirectory
@@ -515,13 +473,7 @@ paths = ["{0}/disk1", "{0}/disk2"]
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&[
-            "--config",
-            ctx.config_path.to_str().unwrap(),
-            "du",
-            "-H",
-            "test:dir",
-        ]);
+        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "du", "-H", "test:dir"]);
 
         assert!(output.success(), "Command failed: {}", output.stderr);
         // Should show both branch paths
@@ -546,13 +498,7 @@ paths = ["{0}/disk1"]
         ctx.write_config(&config);
 
         // Test with leading slash (should be treated as share root, not filesystem root)
-        let output = ctx.run_nofs(&[
-            "--config",
-            ctx.config_path.to_str().unwrap(),
-            "du",
-            "-H",
-            "test:/",
-        ]);
+        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "du", "-H", "test:/"]);
 
         assert!(output.success(), "Command failed: {}", output.stderr);
         // Should show disk1 path, not filesystem root
@@ -578,12 +524,7 @@ paths = ["{0}/disk1"]
         ctx.write_config(&config);
 
         // Test with leading slash (should be treated as share root)
-        let output = ctx.run_nofs(&[
-            "--config",
-            ctx.config_path.to_str().unwrap(),
-            "ls",
-            "test:/",
-        ]);
+        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "ls", "test:/"]);
 
         assert!(output.success(), "Command failed: {}", output.stderr);
         // Should show contents of disk1, not filesystem root
@@ -600,12 +541,7 @@ paths = ["{0}/disk1"]
         let branch_path = ctx.create_branch("disk1", &["file1.txt", "file2.txt"]);
 
         // Test with ad-hoc mode and leading slash
-        let output = ctx.run_nofs(&[
-            "--paths",
-            &branch_path.display().to_string(),
-            "ls",
-            "/",
-        ]);
+        let output = ctx.run_nofs(&["--paths", &branch_path.display().to_string(), "ls", "/"]);
 
         assert!(output.success(), "Command failed: {}", output.stderr);
         // Should show contents of disk1, not filesystem root
@@ -622,19 +558,89 @@ paths = ["{0}/disk1"]
         let branch_path = ctx.create_branch("disk1", &["file1.txt"]);
 
         // Test with ad-hoc mode and leading slash
-        let output = ctx.run_nofs(&[
-            "--paths",
-            &branch_path.display().to_string(),
-            "du",
-            "-H",
-            "/",
-        ]);
+        let output = ctx.run_nofs(&["--paths", &branch_path.display().to_string(), "du", "-H", "/"]);
 
         assert!(output.success(), "Command failed: {}", output.stderr);
         // Should show disk1 path, not filesystem root
         assert!(output.stdout.contains(&branch_path.display().to_string()));
         assert!(!output.stdout.contains("/afs/"));
         assert!(!output.stdout.contains("/bin/"));
+    }
+
+    #[test]
+    fn ls_command_share_subdir_with_slash() {
+        let ctx = TestContext::new("cmd_ls_subdir");
+
+        let _ = ctx.create_branch("disk1/dir/subdir", &["file1.txt", "file2.txt"]);
+
+        let config = format!(
+            r#"
+[share.test]
+paths = ["{0}/disk1"]
+"#,
+            ctx.root.display()
+        );
+
+        ctx.write_config(&config);
+
+        // Test with leading slash and subdirectory
+        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "ls", "test:/dir/subdir"]);
+
+        assert!(output.success(), "Command failed: {}", output.stderr);
+        // Should show contents of subdir, not filesystem root
+        assert!(output.stdout.contains("file1.txt"));
+        assert!(output.stdout.contains("file2.txt"));
+        assert!(!output.stdout.contains("afs/"));
+    }
+
+    #[test]
+    fn du_command_share_subdir_with_slash() {
+        let ctx = TestContext::new("cmd_du_subdir");
+
+        let branch_path = ctx.create_branch("disk1/dir/subdir", &["file1.txt"]);
+
+        let config = format!(
+            r#"
+[share.test]
+paths = ["{0}/disk1"]
+"#,
+            ctx.root.display()
+        );
+
+        ctx.write_config(&config);
+
+        // Test with leading slash and subdirectory
+        let output = ctx.run_nofs(&[
+            "--config",
+            ctx.config_path.to_str().unwrap(),
+            "du",
+            "-H",
+            "test:/dir/subdir",
+        ]);
+
+        assert!(output.success(), "Command failed: {}", output.stderr);
+        // Should show subdir path, not filesystem root
+        assert!(output.stdout.contains(&branch_path.display().to_string()));
+        assert!(!output.stdout.contains("/afs/"));
+    }
+
+    #[test]
+    fn ls_command_share_subdir_adhoc() {
+        let ctx = TestContext::new("cmd_ls_subdir_adhoc");
+
+        let branch_path = ctx.create_branch("disk1/dir/subdir", &["file1.txt"]);
+
+        // Test with ad-hoc mode and leading slash with subdirectory
+        let output = ctx.run_nofs(&[
+            "--paths",
+            &branch_path.parent().unwrap().parent().unwrap().display().to_string(),
+            "ls",
+            "/dir/subdir",
+        ]);
+
+        assert!(output.success(), "Command failed: {}", output.stderr);
+        assert!(output.stdout.contains("file1.txt"));
+        assert!(!output.stdout.contains("afs/"));
     }
 
     #[test]
@@ -655,12 +661,7 @@ create_policy = "pfrd"
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&[
-            "--config",
-            ctx.config_path.to_str().unwrap(),
-            "info",
-            "test",
-        ]);
+        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "info", "test"]);
 
         assert!(output.success(), "Command failed: {}", output.stderr);
         assert!(output.stdout.contains("Share: test"));
@@ -714,12 +715,7 @@ paths = ["{0}/disk1", "{0}/disk2", "{0}/disk3"]
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&[
-            "--config",
-            ctx.config_path.to_str().unwrap(),
-            "ls",
-            "test:dir",
-        ]);
+        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "ls", "test:dir"]);
 
         assert!(output.success(), "Command failed: {}", output.stderr);
         // Should only show "shared.txt" once despite being in 3 branches
@@ -807,10 +803,7 @@ paths = ["{0}/disk1"]
 
         // Verify file was copied to share
         let copied_file = ctx.root.join("disk1/dest/source.txt");
-        assert!(
-            copied_file.exists(),
-            "File should be copied to share destination"
-        );
+        assert!(copied_file.exists(), "File should be copied to share destination");
     }
 
     #[test]
@@ -935,10 +928,7 @@ paths = ["{0}/disk1"]
         let copied_file = dest_dir.join("file.txt");
         let original_file = ctx.root.join("disk1/source/file.txt");
         assert!(copied_file.exists(), "File should be moved to destination");
-        assert!(
-            !original_file.exists(),
-            "Original file should be removed after move"
-        );
+        assert!(!original_file.exists(), "Original file should be removed after move");
     }
 
     #[test]
@@ -987,14 +977,8 @@ paths = ["{0}/branch1", "{0}/branch2"]
         let original_file = ctx.root.join("branch1/file.txt");
         let wrong_branch_file = ctx.root.join("branch2/renamed.txt");
 
-        assert!(
-            moved_file.exists(),
-            "File should be moved to branch1/renamed.txt"
-        );
-        assert!(
-            !original_file.exists(),
-            "Original file should be removed after move"
-        );
+        assert!(moved_file.exists(), "File should be moved to branch1/renamed.txt");
+        assert!(!original_file.exists(), "Original file should be removed after move");
         assert!(!wrong_branch_file.exists(), "File should NOT be on branch2");
     }
 
@@ -1045,10 +1029,7 @@ paths = ["{0}/disk1", "{0}/disk2"]
             moved_file.exists(),
             "File should be moved to disk1/dest (same branch as source)"
         );
-        assert!(
-            !original_file.exists(),
-            "Original file should be removed after move"
-        );
+        assert!(!original_file.exists(), "Original file should be removed after move");
         assert!(
             !wrong_branch_file.exists(),
             "File should NOT be on disk2 (different branch)"
@@ -1097,14 +1078,8 @@ paths = ["{0}/branch1", "{0}/branch2"]
         let original_file = ctx.root.join("branch1/file.txt");
         let wrong_branch_file = ctx.root.join("branch2/copied.txt");
 
-        assert!(
-            copied_file.exists(),
-            "File should be copied to branch1/copied.txt"
-        );
-        assert!(
-            original_file.exists(),
-            "Original file should still exist after copy"
-        );
+        assert!(copied_file.exists(), "File should be copied to branch1/copied.txt");
+        assert!(original_file.exists(), "Original file should still exist after copy");
         assert!(!wrong_branch_file.exists(), "File should NOT be on branch2");
     }
 
@@ -1155,10 +1130,7 @@ paths = ["{0}/disk1", "{0}/disk2"]
             copied_file.exists(),
             "File should be copied to disk1/dest (same branch as source)"
         );
-        assert!(
-            original_file.exists(),
-            "Original file should still exist after copy"
-        );
+        assert!(original_file.exists(), "Original file should still exist after copy");
         assert!(
             !wrong_branch_file.exists(),
             "File should NOT be on disk2 (different branch)"
@@ -1181,12 +1153,7 @@ paths = ["{0}/disk1"]
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&[
-            "--config",
-            ctx.config_path.to_str().unwrap(),
-            "mkdir",
-            "test:newdir",
-        ]);
+        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "mkdir", "test:newdir"]);
 
         assert!(output.success(), "Command failed: {}", output.stderr);
 
@@ -1242,12 +1209,7 @@ paths = ["{0}/disk1"]
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&[
-            "--config",
-            ctx.config_path.to_str().unwrap(),
-            "rmdir",
-            "test:emptydir",
-        ]);
+        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "rmdir", "test:emptydir"]);
 
         assert!(output.success(), "Command failed: {}", output.stderr);
 
@@ -1278,14 +1240,8 @@ paths = ["{0}/disk1"]
             "test:nonemptydir",
         ]);
 
-        assert!(
-            !output.success(),
-            "rmdir should fail on non-empty directory"
-        );
-        assert!(
-            output.stderr.contains("not empty"),
-            "Error should mention 'not empty'"
-        );
+        assert!(!output.success(), "rmdir should fail on non-empty directory");
+        assert!(output.stderr.contains("not empty"), "Error should mention 'not empty'");
 
         let dir_path = ctx.path("disk1/nonemptydir");
         assert!(dir_path.exists(), "Directory should still exist");
@@ -1366,12 +1322,7 @@ paths = ["{0}/disk1"]
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&[
-            "--config",
-            ctx.config_path.to_str().unwrap(),
-            "rm",
-            "test:file.txt",
-        ]);
+        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "rm", "test:file.txt"]);
 
         assert!(output.success(), "Command failed: {}", output.stderr);
 
@@ -1395,12 +1346,7 @@ paths = ["{0}/disk1"]
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&[
-            "--config",
-            ctx.config_path.to_str().unwrap(),
-            "rm",
-            "test:dir",
-        ]);
+        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "rm", "test:dir"]);
 
         assert!(output.success(), "Command failed: {}", output.stderr);
 
@@ -1424,13 +1370,7 @@ paths = ["{0}/disk1"]
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&[
-            "--config",
-            ctx.config_path.to_str().unwrap(),
-            "rm",
-            "-r",
-            "test:dir",
-        ]);
+        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "rm", "-r", "test:dir"]);
 
         assert!(output.success(), "Command failed: {}", output.stderr);
 

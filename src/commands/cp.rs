@@ -49,22 +49,13 @@ fn resolve_path(
                 if pool.name == share_name {
                     let (branch, branch_idx) = if for_create {
                         // For create operations, use policy-based selection
-                        let branch =
-                            select_branch_for_create(pool, Some(relative_path.as_ref()), cache)?;
-                        let idx = pool
-                            .branches
-                            .iter()
-                            .position(|b| b.path == branch.path)
-                            .unwrap_or(0);
+                        let branch = select_branch_for_create(pool, Some(relative_path.as_ref()), cache)?;
+                        let idx = pool.branches.iter().position(|b| b.path == branch.path).unwrap_or(0);
                         (branch, idx)
                     } else {
                         // For existing files, find the branch containing the file
                         let branch = select_branch_for_read(pool, Path::new(relative_path), cache)?;
-                        let idx = pool
-                            .branches
-                            .iter()
-                            .position(|b| b.path == branch.path)
-                            .unwrap_or(0);
+                        let idx = pool.branches.iter().position(|b| b.path == branch.path).unwrap_or(0);
                         (branch, idx)
                     };
 
@@ -102,11 +93,7 @@ fn select_branch_for_create<'a>(
 }
 
 /// Select a branch for read operations (finds the branch containing the file)
-fn select_branch_for_read<'a>(
-    pool: &'a Pool,
-    relative_path: &Path,
-    cache: &'a OperationCache,
-) -> Result<&'a Branch> {
+fn select_branch_for_read<'a>(pool: &'a Pool, relative_path: &Path, cache: &'a OperationCache) -> Result<&'a Branch> {
     // For reads, find the branch that has the file
     // Prefer RW branches, then NC, then RO
     for branch in &pool.branches {
@@ -115,10 +102,7 @@ fn select_branch_for_read<'a>(
         }
     }
     // File not found in any branch
-    Err(NofsError::CopyMove(format!(
-        "File not found in share '{}'",
-        pool.name
-    )))
+    Err(NofsError::CopyMove(format!("File not found in share '{}'", pool.name)))
 }
 
 /// Resolve a destination path, preferring the same branch as the source
@@ -157,8 +141,7 @@ fn resolve_dest_path(
                     }
 
                     // Otherwise, use policy-based selection
-                    let branch =
-                        select_branch_for_create(pool, Some(relative_path.as_ref()), cache)?;
+                    let branch = select_branch_for_create(pool, Some(relative_path.as_ref()), cache)?;
                     return Ok(branch.path.join(relative_path));
                 }
             }
@@ -242,7 +225,7 @@ pub struct Rule {
 }
 
 impl Rule {
-    #[must_use] 
+    #[must_use]
     pub fn display(&self) -> String {
         match self.attribute {
             Attribute::Hash => "hashes match".to_string(),
@@ -258,9 +241,7 @@ impl Rule {
             },
             Attribute::Created => match self.comparison {
                 Comparison::Equal => "creation times match".to_string(),
-                Comparison::Greater => {
-                    "source was created more recently than destination".to_string()
-                }
+                Comparison::Greater => "source was created more recently than destination".to_string(),
                 Comparison::Less => "source was created earlier than destination".to_string(),
             },
         }
@@ -310,11 +291,7 @@ pub fn parse_file_over_file(spec: &str) -> Result<FileOverFileStrategy> {
         "rename-dest" => FileOverFileMode::RenameDest,
         "delete-src" => FileOverFileMode::DeleteSrc,
         "delete-dest" => FileOverFileMode::DeleteDest,
-        _ => {
-            return Err(NofsError::Parse(format!(
-                "Unknown file-over-file mode: {required_str}"
-            )))
-        }
+        _ => return Err(NofsError::Parse(format!("Unknown file-over-file mode: {required_str}"))),
     };
 
     // Previous parts are optional conditions - convert to rules
@@ -376,58 +353,18 @@ fn parse_rule_token(token: &str) -> Result<Rule> {
     match token {
         // Skip rules
         "skip-hash" => Ok(make_hash_rule(RuleAction::Skip)),
-        "skip-size" => Ok(make_size_rule(
-            RuleAction::Skip,
-            Comparison::Equal,
-            Target::Dest,
-        )),
-        "skip-larger" => Ok(make_size_rule(
-            RuleAction::Skip,
-            Comparison::Greater,
-            Target::Src,
-        )),
-        "skip-smaller" => Ok(make_size_rule(
-            RuleAction::Skip,
-            Comparison::Less,
-            Target::Src,
-        )),
-        "skip-modified-newer" => Ok(make_modified_rule(
-            RuleAction::Skip,
-            Comparison::Greater,
-            Target::Src,
-        )),
-        "skip-modified-older" => Ok(make_modified_rule(
-            RuleAction::Skip,
-            Comparison::Less,
-            Target::Src,
-        )),
-        "skip-created-newer" => Ok(make_created_rule(
-            RuleAction::Skip,
-            Comparison::Greater,
-            Target::Src,
-        )),
-        "skip-created-older" => Ok(make_created_rule(
-            RuleAction::Skip,
-            Comparison::Less,
-            Target::Src,
-        )),
+        "skip-size" => Ok(make_size_rule(RuleAction::Skip, Comparison::Equal, Target::Dest)),
+        "skip-larger" => Ok(make_size_rule(RuleAction::Skip, Comparison::Greater, Target::Src)),
+        "skip-smaller" => Ok(make_size_rule(RuleAction::Skip, Comparison::Less, Target::Src)),
+        "skip-modified-newer" => Ok(make_modified_rule(RuleAction::Skip, Comparison::Greater, Target::Src)),
+        "skip-modified-older" => Ok(make_modified_rule(RuleAction::Skip, Comparison::Less, Target::Src)),
+        "skip-created-newer" => Ok(make_created_rule(RuleAction::Skip, Comparison::Greater, Target::Src)),
+        "skip-created-older" => Ok(make_created_rule(RuleAction::Skip, Comparison::Less, Target::Src)),
         // Delete-dest rules
         "delete-dest-hash" => Ok(make_hash_rule(RuleAction::DeleteDest)),
-        "delete-dest-size" => Ok(make_size_rule(
-            RuleAction::DeleteDest,
-            Comparison::Equal,
-            Target::Dest,
-        )),
-        "delete-dest-larger" => Ok(make_size_rule(
-            RuleAction::DeleteDest,
-            Comparison::Greater,
-            Target::Src,
-        )),
-        "delete-dest-smaller" => Ok(make_size_rule(
-            RuleAction::DeleteDest,
-            Comparison::Less,
-            Target::Src,
-        )),
+        "delete-dest-size" => Ok(make_size_rule(RuleAction::DeleteDest, Comparison::Equal, Target::Dest)),
+        "delete-dest-larger" => Ok(make_size_rule(RuleAction::DeleteDest, Comparison::Greater, Target::Src)),
+        "delete-dest-smaller" => Ok(make_size_rule(RuleAction::DeleteDest, Comparison::Less, Target::Src)),
         "delete-dest-modified-newer" => Ok(make_modified_rule(
             RuleAction::DeleteDest,
             Comparison::Greater,
@@ -443,51 +380,25 @@ fn parse_rule_token(token: &str) -> Result<Rule> {
             Comparison::Greater,
             Target::Src,
         )),
-        "delete-dest-created-older" => Ok(make_created_rule(
-            RuleAction::DeleteDest,
-            Comparison::Less,
-            Target::Src,
-        )),
+        "delete-dest-created-older" => Ok(make_created_rule(RuleAction::DeleteDest, Comparison::Less, Target::Src)),
         // Delete-src rules
         "delete-src-hash" => Ok(make_hash_rule(RuleAction::DeleteSrc)),
-        "delete-src-size" => Ok(make_size_rule(
-            RuleAction::DeleteSrc,
-            Comparison::Equal,
-            Target::Dest,
-        )),
-        "delete-src-larger" => Ok(make_size_rule(
-            RuleAction::DeleteSrc,
-            Comparison::Greater,
-            Target::Src,
-        )),
-        "delete-src-smaller" => Ok(make_size_rule(
-            RuleAction::DeleteSrc,
-            Comparison::Less,
-            Target::Src,
-        )),
+        "delete-src-size" => Ok(make_size_rule(RuleAction::DeleteSrc, Comparison::Equal, Target::Dest)),
+        "delete-src-larger" => Ok(make_size_rule(RuleAction::DeleteSrc, Comparison::Greater, Target::Src)),
+        "delete-src-smaller" => Ok(make_size_rule(RuleAction::DeleteSrc, Comparison::Less, Target::Src)),
         "delete-src-modified-newer" => Ok(make_modified_rule(
             RuleAction::DeleteSrc,
             Comparison::Greater,
             Target::Src,
         )),
-        "delete-src-modified-older" => Ok(make_modified_rule(
-            RuleAction::DeleteSrc,
-            Comparison::Less,
-            Target::Src,
-        )),
+        "delete-src-modified-older" => Ok(make_modified_rule(RuleAction::DeleteSrc, Comparison::Less, Target::Src)),
         "delete-src-created-newer" => Ok(make_created_rule(
             RuleAction::DeleteSrc,
             Comparison::Greater,
             Target::Src,
         )),
-        "delete-src-created-older" => Ok(make_created_rule(
-            RuleAction::DeleteSrc,
-            Comparison::Less,
-            Target::Src,
-        )),
-        _ => Err(NofsError::Parse(format!(
-            "Unknown file-over-file option: {token}"
-        ))),
+        "delete-src-created-older" => Ok(make_created_rule(RuleAction::DeleteSrc, Comparison::Less, Target::Src)),
+        _ => Err(NofsError::Parse(format!("Unknown file-over-file option: {token}"))),
     }
 }
 
@@ -727,9 +638,7 @@ pub fn execute(
     let start_time = Instant::now();
 
     if sources.is_empty() {
-        return Err(NofsError::CopyMove(
-            "At least one source is required".to_string(),
-        ));
+        return Err(NofsError::CopyMove("At least one source is required".to_string()));
     }
 
     // Create operation cache for this command execution
@@ -866,15 +775,7 @@ fn process_source(
             let entry_name = entry.file_name();
             let entry_dest = dest.join(&entry_name);
 
-            if let Err(e) = process_source(
-                &entry_path,
-                &entry_dest,
-                config,
-                stats,
-                _share,
-                file_count,
-                byte_count,
-            ) {
+            if let Err(e) = process_source(&entry_path, &entry_dest, config, stats, _share, file_count, byte_count) {
                 eprintln!(
                     "Error processing {}: {}",
                     shell_quote(entry_path.to_string_lossy().as_ref()),
@@ -887,10 +788,7 @@ fn process_source(
         // Check extension filter
         if !config.extensions.is_empty() {
             let ext = source.extension().and_then(|s| s.to_str()).unwrap_or("");
-            let matches = config
-                .extensions
-                .iter()
-                .any(|e| e.trim_start_matches('.') == ext);
+            let matches = config.extensions.iter().any(|e| e.trim_start_matches('.') == ext);
             if !matches {
                 return Ok(());
             }
@@ -902,9 +800,7 @@ fn process_source(
             if dest_is_dir {
                 // File over folder - apply strategy
                 stats.conflicts_resolved.fetch_add(1, Ordering::Relaxed);
-                return handle_file_over_folder(
-                    source, dest, config, stats, file_count, byte_count,
-                );
+                return handle_file_over_folder(source, dest, config, stats, file_count, byte_count);
             }
             // File over file conflict
             stats.conflicts_resolved.fetch_add(1, Ordering::Relaxed);
@@ -1080,11 +976,7 @@ fn handle_file_over_file(
         .map(|d| d.as_secs());
 
     // Check hash-based conditions if needed
-    let hashes_match = if strategy
-        .rules
-        .iter()
-        .any(|r| r.attribute == Attribute::Hash)
-    {
+    let hashes_match = if strategy.rules.iter().any(|r| r.attribute == Attribute::Hash) {
         files_match_by_hash(source, dest, stats)?
     } else {
         false
@@ -1114,9 +1006,7 @@ fn handle_file_over_file(
     }
 
     // Apply required fallback
-    apply_required_strategy(
-        strategy, source, dest, config, stats, file_count, byte_count,
-    )
+    apply_required_strategy(strategy, source, dest, config, stats, file_count, byte_count)
 }
 
 /// Apply the required file-over-file strategy when no optional conditions match
@@ -1135,14 +1025,7 @@ fn apply_required_strategy(
 ) -> Result<()> {
     match strategy.required {
         FileOverFileMode::Skip => {
-            execute_action(
-                RuleAction::Skip,
-                source,
-                dest,
-                config,
-                stats,
-                "strategy: skip",
-            )?;
+            execute_action(RuleAction::Skip, source, dest, config, stats, "strategy: skip")?;
         }
         FileOverFileMode::DeleteSrc => {
             execute_action(
@@ -1294,12 +1177,7 @@ fn handle_file_over_folder(
 /// # Errors
 ///
 /// Returns an error if file operations fail.
-fn handle_folder_over_file(
-    dest: &Path,
-    source: &Path,
-    config: &CopyConfig,
-    stats: &Arc<CopyStats>,
-) -> Result<()> {
+fn handle_folder_over_file(dest: &Path, source: &Path, config: &CopyConfig, stats: &Arc<CopyStats>) -> Result<()> {
     match config.folder_over_file {
         FolderConflictMode::Skip => {
             if config.verbose {
@@ -1397,12 +1275,7 @@ fn handle_folder_over_file(
 /// # Errors
 ///
 /// Returns an error if directory cannot be read or entries cannot be processed.
-fn process_source_contents(
-    source: &Path,
-    dest: &Path,
-    config: &CopyConfig,
-    stats: &Arc<CopyStats>,
-) -> Result<()> {
+fn process_source_contents(source: &Path, dest: &Path, config: &CopyConfig, stats: &Arc<CopyStats>) -> Result<()> {
     let entries = fs::read_dir(source)?;
     for entry_result in entries {
         let entry = entry_result?;
@@ -1483,10 +1356,7 @@ fn get_unique_folder_name(base: &Path) -> PathBuf {
     }
 
     let dir = base.parent().unwrap_or_else(|| Path::new("."));
-    let folder_name = base
-        .file_name()
-        .and_then(|s| s.to_str())
-        .unwrap_or("folder");
+    let folder_name = base.file_name().and_then(|s| s.to_str()).unwrap_or("folder");
 
     // Check if folder already has a _N suffix
     #[allow(clippy::arithmetic_side_effects)]
@@ -1577,10 +1447,7 @@ fn shell_quote<S: AsRef<str>>(s: S) -> String {
     if s_ref.is_empty() {
         return "''".to_string();
     }
-    if s_ref
-        .chars()
-        .all(|c| c.is_alphanumeric() || "!@%_+=:,./-".contains(c))
-    {
+    if s_ref.chars().all(|c| c.is_alphanumeric() || "!@%_+=:,./-".contains(c)) {
         return format!("'{s_ref}'");
     }
     format!("'{}'", s_ref.replace('\'', "'\\''"))
@@ -1589,22 +1456,13 @@ fn shell_quote<S: AsRef<str>>(s: S) -> String {
 /// Print copy/move statistics
 fn print_stats(stats: &CopyStats) {
     eprintln!("\nSummary:");
-    eprintln!(
-        "  {} files copied",
-        stats.files_copied.load(Ordering::Relaxed)
-    );
-    eprintln!(
-        "  {} folders created",
-        stats.folders_created.load(Ordering::Relaxed)
-    );
+    eprintln!("  {} files copied", stats.files_copied.load(Ordering::Relaxed));
+    eprintln!("  {} folders created", stats.folders_created.load(Ordering::Relaxed));
     eprintln!(
         "  {} bytes copied",
         crate::utils::format_size(stats.bytes_copied.load(Ordering::Relaxed))
     );
-    eprintln!(
-        "  {} files skipped",
-        stats.files_skipped.load(Ordering::Relaxed)
-    );
+    eprintln!("  {} files skipped", stats.files_skipped.load(Ordering::Relaxed));
     eprintln!(
         "  {} conflicts resolved",
         stats.conflicts_resolved.load(Ordering::Relaxed)

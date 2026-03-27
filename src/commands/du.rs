@@ -63,11 +63,7 @@ pub fn execute(
 
     for branch_path in &resolved_paths {
         // Verify this path belongs to a branch
-        if !pool
-            .branches
-            .iter()
-            .any(|b| branch_path.starts_with(&b.path))
-        {
+        if !pool.branches.iter().any(|b| branch_path.starts_with(&b.path)) {
             continue;
         }
 
@@ -187,10 +183,7 @@ fn calculate_directory_usage(path: &Path, max_depth: Option<usize>, all: bool) -
         }
     }
 
-    DuBranchData {
-        total_size,
-        subdirs,
-    }
+    DuBranchData { total_size, subdirs }
 }
 
 /// Get the number of components in an entry's path

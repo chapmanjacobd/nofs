@@ -113,11 +113,7 @@ impl<'ctx> CreatePolicy<'ctx> {
 
     /// Create a new `CreatePolicy` with cache support
     #[must_use]
-    pub const fn with_cache(
-        branches: &'ctx [Branch],
-        minfreespace: u64,
-        cache: &'ctx OperationCache,
-    ) -> Self {
+    pub const fn with_cache(branches: &'ctx [Branch], minfreespace: u64, cache: &'ctx OperationCache) -> Self {
         CreatePolicy {
             branches,
             minfreespace,
@@ -148,9 +144,10 @@ impl<'ctx> CreatePolicy<'ctx> {
                     b.available_space().ok()?
                 };
 
-                let branch_minfree = b.minfreespace.as_ref().map_or(self.minfreespace, |s| {
-                    parse_size(s).unwrap_or(self.minfreespace)
-                });
+                let branch_minfree = b
+                    .minfreespace
+                    .as_ref()
+                    .map_or(self.minfreespace, |s| parse_size(s).unwrap_or(self.minfreespace));
 
                 (available >= branch_minfree).then_some((b, available))
             })
@@ -179,13 +176,11 @@ impl<'ctx> CreatePolicy<'ctx> {
                 .ok_or(NofsError::NoSuitableBranch),
             Policy::Lus => {
                 // For Lus and Lup, we need to fetch used space separately
-                let eligible: Vec<&Branch> =
-                    eligible_with_space.into_iter().map(|(b, _)| b).collect();
+                let eligible: Vec<&Branch> = eligible_with_space.into_iter().map(|(b, _)| b).collect();
                 Self::select_lus(&eligible)
             }
             Policy::Lup => {
-                let eligible: Vec<&Branch> =
-                    eligible_with_space.into_iter().map(|(b, _)| b).collect();
+                let eligible: Vec<&Branch> = eligible_with_space.into_iter().map(|(b, _)| b).collect();
                 Self::select_lup(&eligible)
             }
             Policy::EpMfs | Policy::EpFf | Policy::EpRand | Policy::EpAll => {
@@ -213,10 +208,7 @@ impl<'ctx> CreatePolicy<'ctx> {
                             .max_by_key(|(_, space)| *space)
                             .map(|(b, _)| b)
                             .ok_or(NofsError::NoSuitableBranch),
-                        Policy::EpFf => with_path
-                            .first()
-                            .map(|(b, _)| *b)
-                            .ok_or(NofsError::NoSuitableBranch),
+                        Policy::EpFf => with_path.first().map(|(b, _)| *b).ok_or(NofsError::NoSuitableBranch),
                         Policy::EpRand => Ok(Self::select_rand_with_space(&with_path)),
                         Policy::Pfrd
                         | Policy::Mfs
@@ -257,10 +249,7 @@ impl<'ctx> CreatePolicy<'ctx> {
             | Policy::Lus
             | Policy::Lup
             | Policy::EpRand
-            | Policy::All => eligible
-                .first()
-                .map(|(b, _)| *b)
-                .ok_or(NofsError::NoSuitableBranch),
+            | Policy::All => eligible.first().map(|(b, _)| *b).ok_or(NofsError::NoSuitableBranch),
         }
     }
 
@@ -271,10 +260,7 @@ impl<'ctx> CreatePolicy<'ctx> {
         let total: u64 = eligible.iter().map(|(_, s)| s).sum();
 
         if total == 0 {
-            return eligible
-                .first()
-                .map(|(b, _)| *b)
-                .ok_or(NofsError::NoSuitableBranch);
+            return eligible.first().map(|(b, _)| *b).ok_or(NofsError::NoSuitableBranch);
         }
 
         // Select based on weighted random
@@ -289,10 +275,7 @@ impl<'ctx> CreatePolicy<'ctx> {
             }
         }
 
-        eligible
-            .last()
-            .map(|(b, _)| *b)
-            .ok_or(NofsError::NoSuitableBranch)
+        eligible.last().map(|(b, _)| *b).ok_or(NofsError::NoSuitableBranch)
     }
 
     /// Select a random branch from eligible branches with pre-fetched space
@@ -334,10 +317,7 @@ pub struct SearchPolicy<'ctx> {
 impl<'ctx> SearchPolicy<'ctx> {
     #[must_use]
     pub const fn new(branches: &'ctx [Branch]) -> Self {
-        SearchPolicy {
-            branches,
-            cache: None,
-        }
+        SearchPolicy { branches, cache: None }
     }
 
     /// Create a new `SearchPolicy` with cache support
@@ -431,13 +411,7 @@ impl<'ctx> SearchPolicy<'ctx> {
                     .map(|(b, _)| b)
                     .ok_or(NofsError::NoSuitableBranch)
             }
-            Policy::Pfrd
-            | Policy::Rand
-            | Policy::Lus
-            | Policy::Lup
-            | Policy::EpMfs
-            | Policy::EpFf
-            | Policy::EpRand => {
+            Policy::Pfrd | Policy::Rand | Policy::Lus | Policy::Lup | Policy::EpMfs | Policy::EpFf | Policy::EpRand => {
                 let matching: Vec<&Branch> = self.branches.iter().filter(|b| exists(b)).collect();
 
                 if matching.is_empty() {
@@ -470,11 +444,7 @@ use crate::utils::{GB, KB, MB, PB, TB};
 /// # Errors
 ///
 /// Returns an error if the size string cannot be parsed.
-#[allow(
-    clippy::cast_possible_truncation,
-    clippy::cast_sign_loss,
-    clippy::as_conversions
-)]
+#[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss, clippy::as_conversions)]
 pub fn parse_size(s: &str) -> Result<u64> {
     let trimmed = s.trim();
 
@@ -484,10 +454,7 @@ pub fn parse_size(s: &str) -> Result<u64> {
     }
 
     // Parse with suffix
-    let num_str: String = trimmed
-        .chars()
-        .take_while(|c| c.is_numeric() || *c == '.')
-        .collect();
+    let num_str: String = trimmed.chars().take_while(|c| c.is_numeric() || *c == '.').collect();
     let suffix = trimmed
         .chars()
         .skip(num_str.len())
@@ -514,11 +481,7 @@ pub fn parse_size(s: &str) -> Result<u64> {
         _ => return Err(NofsError::Parse(format!("Invalid size suffix: {s}"))),
     };
 
-    #[allow(
-        clippy::cast_precision_loss,
-        clippy::as_conversions,
-        clippy::float_arithmetic
-    )]
+    #[allow(clippy::cast_precision_loss, clippy::as_conversions, clippy::float_arithmetic)]
     Ok((num * multiplier as f64) as u64)
 }
 

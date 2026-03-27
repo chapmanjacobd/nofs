@@ -2,9 +2,7 @@
 //!
 //! Wrapper around the copy command with move semantics (copy=false).
 
-use crate::commands::cp::{
-    execute as copy_execute, parse_file_over_file, CopyConfig, CopyStats, FolderConflictMode,
-};
+use crate::commands::cp::{execute as copy_execute, parse_file_over_file, CopyConfig, CopyStats, FolderConflictMode};
 use crate::error::{NofsError, Result};
 use crate::pool::Pool;
 use std::sync::Arc;
@@ -70,8 +68,6 @@ fn parse_folder_conflict_mode(s: &str) -> Result<FolderConflictMode> {
         "delete-src" => Ok(FolderConflictMode::DeleteSrc),
         "delete-dest" => Ok(FolderConflictMode::DeleteDest),
         "merge" => Ok(FolderConflictMode::Merge),
-        _ => Err(NofsError::Parse(format!(
-            "Unknown folder conflict mode: {s}"
-        ))),
+        _ => Err(NofsError::Parse(format!("Unknown folder conflict mode: {s}"))),
     }
 }

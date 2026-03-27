@@ -120,10 +120,7 @@ paths = ["{}"]
         let new_meta = fs::metadata(&file_path).unwrap();
         let new_mtime = new_meta.modified().unwrap();
 
-        assert!(
-            new_mtime > original_mtime,
-            "Modification time should be updated"
-        );
+        assert!(new_mtime > original_mtime, "Modification time should be updated");
 
         cleanup_test_dir(&test_dir);
     }

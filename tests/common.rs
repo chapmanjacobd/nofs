@@ -21,8 +21,7 @@ impl TestContext {
     /// Panics if the test root directory cannot be created.
     #[must_use]
     pub fn new(test_name: &str) -> Self {
-        let root =
-            std::env::temp_dir().join(format!("nofs_test_{}_{}", test_name, std::process::id()));
+        let root = std::env::temp_dir().join(format!("nofs_test_{}_{}", test_name, std::process::id()));
 
         // Clean up if exists
         if root.exists() {

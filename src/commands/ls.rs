@@ -64,8 +64,7 @@ pub fn execute(
     }
 
     // Collect all entries from all branches
-    let mut entries: Vec<(std::path::PathBuf, String)> =
-        collect_directory_entries(&branches, pool_path, all, verbose);
+    let mut entries: Vec<(std::path::PathBuf, String)> = collect_directory_entries(&branches, pool_path, all, verbose);
 
     // Sort entry names alphabetically
     entries.sort_by(|a, b| a.1.cmp(&b.1));
@@ -78,8 +77,7 @@ pub fn execute(
         .collect();
 
     // Build a set of conflicting file names for quick lookup
-    let conflict_names: std::collections::HashSet<&str> =
-        conflict_list.iter().map(|c| c.name.as_str()).collect();
+    let conflict_names: std::collections::HashSet<&str> = conflict_list.iter().map(|c| c.name.as_str()).collect();
 
     if json {
         output_json(path, &unique_entries, &conflict_list, long, &conflict_names)?;
@@ -116,12 +114,7 @@ fn output_json(
 
             let (size, permissions) = if long {
                 fs::metadata(entry_path)
-                    .map(|metadata| {
-                        (
-                            Some(metadata.len()),
-                            Some(format_permissions(metadata.st_mode())),
-                        )
-                    })
+                    .map(|metadata| (Some(metadata.len()), Some(format_permissions(metadata.st_mode()))))
                     .unwrap_or((None, None))
             } else {
                 (None, None)

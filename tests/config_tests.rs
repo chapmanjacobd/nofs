@@ -26,12 +26,7 @@ search_policy = "ff"
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&[
-            "--config",
-            ctx.config_path.to_str().unwrap(),
-            "info",
-            "media",
-        ]);
+        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "info", "media"]);
 
         assert!(output.success(), "Command failed: {}", output.stderr);
         assert!(output.stdout.contains("Share: media"));
@@ -57,12 +52,7 @@ create_policy = "mfs"
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&[
-            "--config",
-            ctx.config_path.to_str().unwrap(),
-            "info",
-            "test",
-        ]);
+        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "info", "test"]);
 
         assert!(output.success(), "Command failed: {}", output.stderr);
         assert!(output.stdout.contains("[RW]"));
@@ -88,12 +78,7 @@ create_policy = "mfs"
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&[
-            "--config",
-            ctx.config_path.to_str().unwrap(),
-            "info",
-            "test",
-        ]);
+        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "info", "test"]);
 
         assert!(output.success(), "Command failed: {}", output.stderr);
         assert!(output.stdout.contains("[RW]"));
@@ -153,12 +138,7 @@ create_policy = "pfrd"
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&[
-            "--config",
-            ctx.config_path.to_str().unwrap(),
-            "info",
-            "test",
-        ]);
+        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "info", "test"]);
 
         assert!(output.success(), "Command failed: {}", output.stderr);
         assert!(output.stdout.contains("Branches:     4"));
@@ -184,12 +164,7 @@ create_policy = "pfrd"
         ctx.write_config(&config);
 
         // Test context:path syntax
-        let output = ctx.run_nofs(&[
-            "--config",
-            ctx.config_path.to_str().unwrap(),
-            "ls",
-            "media:movies",
-        ]);
+        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "ls", "media:movies"]);
 
         assert!(output.success(), "Command failed: {}", output.stderr);
         assert!(output.stdout.contains("big_buck_bunny.mkv"));
@@ -215,12 +190,7 @@ create_policy = "mfs"
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&[
-            "--config",
-            ctx.config_path.to_str().unwrap(),
-            "info",
-            "test",
-        ]);
+        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "info", "test"]);
 
         assert!(output.success(), "Command failed: {}", output.stderr);
         assert!(output.stdout.contains("Min Free Space: 1000000000 bytes"));

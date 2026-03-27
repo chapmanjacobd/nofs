@@ -34,9 +34,7 @@ pub fn execute_single(pool: &Pool, _verbose: bool, json: bool) -> Result<()> {
             share: pool.name.clone(),
             branch_count: pool.branch_count(),
             writable_branch_count: pool.writable_branch_count(),
-            read_only_branch_count: pool
-                .branch_count()
-                .saturating_sub(pool.writable_branch_count()),
+            read_only_branch_count: pool.branch_count().saturating_sub(pool.writable_branch_count()),
             policies: Policies {
                 create: pool.create_policy.to_string(),
                 search: pool.search_policy.to_string(),
@@ -55,8 +53,7 @@ pub fn execute_single(pool: &Pool, _verbose: bool, json: bool) -> Result<()> {
         writeln!(
             handle,
             "  Read-only:  {}",
-            pool.branch_count()
-                .saturating_sub(pool.writable_branch_count())
+            pool.branch_count().saturating_sub(pool.writable_branch_count())
         )?;
         writeln!(handle)?;
 
@@ -131,11 +128,7 @@ pub fn execute_all(pool_mgr: &PoolManager, _verbose: bool, json: bool) -> Result
                     pool.branch_count(),
                     pool.writable_branch_count()
                 )?;
-                writeln!(
-                    handle,
-                    "  Policy: {} / {}",
-                    pool.create_policy, pool.search_policy
-                )?;
+                writeln!(handle, "  Policy: {} / {}", pool.create_policy, pool.search_policy)?;
                 writeln!(handle)?;
             }
         }

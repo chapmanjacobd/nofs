@@ -46,16 +46,11 @@ pub struct BranchConflict {
 ///
 /// Returns an error if there is an IO error reading files.
 #[allow(clippy::missing_panics_doc)]
-pub fn detect_conflicts(
-    branches: &[&Branch],
-    relative_path: &Path,
-    use_hash: bool,
-) -> Result<Vec<FileConflict>> {
+pub fn detect_conflicts(branches: &[&Branch], relative_path: &Path, use_hash: bool) -> Result<Vec<FileConflict>> {
     let mut conflicts = Vec::new();
 
     // Collect all files from all branches
-    let mut file_map: std::collections::HashMap<String, Vec<BranchConflict>> =
-        std::collections::HashMap::new();
+    let mut file_map: std::collections::HashMap<String, Vec<BranchConflict>> = std::collections::HashMap::new();
 
     for branch in branches {
         let branch_path = branch.path.join(relative_path);
@@ -98,17 +93,14 @@ pub fn detect_conflicts(
                 None
             };
 
-            file_map
-                .entry(file_name_str)
-                .or_default()
-                .push(BranchConflict {
-                    branch_name: branch.path.to_string_lossy().to_string(),
-                    path: entry.path().to_string_lossy().to_string(),
-                    size,
-                    hash,
-                    mtime,
-                    ctime,
-                });
+            file_map.entry(file_name_str).or_default().push(BranchConflict {
+                branch_name: branch.path.to_string_lossy().to_string(),
+                path: entry.path().to_string_lossy().to_string(),
+                size,
+                hash,
+                mtime,
+                ctime,
+            });
         }
     }
 
@@ -154,8 +146,7 @@ fn files_differ(branch_files: &[BranchConflict], use_hash: bool) -> bool {
     // If sizes match but we're using hash comparison, check hashes
     if use_hash {
         // Compute hashes if not already computed
-        let mut hashes: Vec<Option<String>> =
-            branch_files.iter().map(|bf| bf.hash.clone()).collect();
+        let mut hashes: Vec<Option<String>> = branch_files.iter().map(|bf| bf.hash.clone()).collect();
 
         // Compute missing hashes
         for (i, bf) in branch_files.iter().enumerate() {
@@ -193,24 +184,18 @@ fn files_differ(branch_files: &[BranchConflict], use_hash: bool) -> bool {
 pub fn compute_file_hash(path: &Path) -> Result<String> {
     const SMALL_FILE_THRESHOLD: u64 = crate::utils::MB; // 1MB
 
-    let mut file = File::open(path).map_err(|e| {
-        NofsError::Conflict(format!("Failed to open file {}: {}", path.display(), e))
-    })?;
+    let mut file =
+        File::open(path).map_err(|e| NofsError::Conflict(format!("Failed to open file {}: {}", path.display(), e)))?;
 
     // For small files, hash the entire content
-    let metadata = file.metadata().map_err(|e| {
-        NofsError::Conflict(format!(
-            "Failed to get metadata for {}: {}",
-            path.display(),
-            e
-        ))
-    })?;
+    let metadata = file
+        .metadata()
+        .map_err(|e| NofsError::Conflict(format!("Failed to get metadata for {}: {}", path.display(), e)))?;
 
     if metadata.len() <= SMALL_FILE_THRESHOLD {
         let mut content = Vec::new();
-        file.read_to_end(&mut content).map_err(|e| {
-            NofsError::Conflict(format!("Failed to read file {}: {}", path.display(), e))
-        })?;
+        file.read_to_end(&mut content)
+            .map_err(|e| NofsError::Conflict(format!("Failed to read file {}: {}", path.display(), e)))?;
         let mut hasher = DefaultHasher::new();
         content.hash(&mut hasher);
         return Ok(format!("{:x}", hasher.finish()));
@@ -221,9 +206,9 @@ pub fn compute_file_hash(path: &Path) -> Result<String> {
     let mut buf = vec![0u8; (8 * crate::utils::KB) as usize];
 
     // Sample beginning (first 8KB)
-    let bytes_read = file.read(&mut buf).map_err(|e| {
-        NofsError::Conflict(format!("Failed to read file {}: {}", path.display(), e))
-    })?;
+    let bytes_read = file
+        .read(&mut buf)
+        .map_err(|e| NofsError::Conflict(format!("Failed to read file {}: {}", path.display(), e)))?;
     if let Some(buf_slice) = buf.get(..bytes_read) {
         buf_slice.hash(&mut hasher);
     }
@@ -232,24 +217,21 @@ pub fn compute_file_hash(path: &Path) -> Result<String> {
     let file_size = metadata.len();
     let middle_pos = file_size / 2;
     file.seek(std::io::SeekFrom::Start(middle_pos))
-        .map_err(|e| {
-            NofsError::Conflict(format!("Failed to seek in file {}: {}", path.display(), e))
-        })?;
-    let bytes_read_middle = file.read(&mut buf).map_err(|e| {
-        NofsError::Conflict(format!("Failed to read file {}: {}", path.display(), e))
-    })?;
+        .map_err(|e| NofsError::Conflict(format!("Failed to seek in file {}: {}", path.display(), e)))?;
+    let bytes_read_middle = file
+        .read(&mut buf)
+        .map_err(|e| NofsError::Conflict(format!("Failed to read file {}: {}", path.display(), e)))?;
     if let Some(buf_slice) = buf.get(..bytes_read_middle) {
         buf_slice.hash(&mut hasher);
     }
 
     // Sample end (last 8KB)
     let end_pos = file_size.saturating_sub(8 * crate::utils::KB);
-    file.seek(std::io::SeekFrom::Start(end_pos)).map_err(|e| {
-        NofsError::Conflict(format!("Failed to seek in file {}: {}", path.display(), e))
-    })?;
-    let bytes_read_end = file.read(&mut buf).map_err(|e| {
-        NofsError::Conflict(format!("Failed to read file {}: {}", path.display(), e))
-    })?;
+    file.seek(std::io::SeekFrom::Start(end_pos))
+        .map_err(|e| NofsError::Conflict(format!("Failed to seek in file {}: {}", path.display(), e)))?;
+    let bytes_read_end = file
+        .read(&mut buf)
+        .map_err(|e| NofsError::Conflict(format!("Failed to read file {}: {}", path.display(), e)))?;
     if let Some(buf_slice) = buf.get(..bytes_read_end) {
         buf_slice.hash(&mut hasher);
     }

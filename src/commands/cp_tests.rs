@@ -1,8 +1,8 @@
 //! Tests for cp/mv commands
 
 use crate::commands::cp::{
-    execute as cp_execute, parse_file_over_file, Attribute, Comparison, CopyConfig,
-    FileOverFileMode, FolderConflictMode, Rule, RuleAction, Target,
+    execute as cp_execute, parse_file_over_file, Attribute, Comparison, CopyConfig, FileOverFileMode,
+    FolderConflictMode, Rule, RuleAction, Target,
 };
 use crate::commands::mv::execute as mv_execute;
 use std::fs;
@@ -440,10 +440,7 @@ fn test_copy_directory_recursive() {
     // Create nested structure
     create_file(&src.join("file1.txt"), "content1");
     create_file(&src.join("subdir").join("file2.txt"), "content2");
-    create_file(
-        &src.join("subdir").join("deep").join("file3.txt"),
-        "content3",
-    );
+    create_file(&src.join("subdir").join("deep").join("file3.txt"), "content3");
 
     let config = CopyConfig {
         copy: true,
@@ -464,11 +461,7 @@ fn test_copy_directory_recursive() {
 
     let dest_file1 = dest.join("src").join("file1.txt");
     let dest_file2 = dest.join("src").join("subdir").join("file2.txt");
-    let dest_file3 = dest
-        .join("src")
-        .join("subdir")
-        .join("deep")
-        .join("file3.txt");
+    let dest_file3 = dest.join("src").join("subdir").join("deep").join("file3.txt");
 
     assert!(file_exists(&dest_file1));
     assert!(file_exists(&dest_file2));
@@ -702,10 +695,7 @@ fn test_multiple_sources() {
         ..Default::default()
     };
 
-    let sources = vec![
-        src1.to_string_lossy().to_string(),
-        src2.to_string_lossy().to_string(),
-    ];
+    let sources = vec![src1.to_string_lossy().to_string(), src2.to_string_lossy().to_string()];
 
     let result = cp_execute(&sources, &dest.to_string_lossy(), &config, None);
 
@@ -741,8 +731,7 @@ fn test_parse_file_over_file() {
     assert_eq!(strategy2.required, FileOverFileMode::RenameDest);
 
     // Test strategy with multiple rules
-    let strategy3 =
-        parse_file_over_file("skip-hash skip-size delete-dest-larger delete-dest").unwrap();
+    let strategy3 = parse_file_over_file("skip-hash skip-size delete-dest-larger delete-dest").unwrap();
     assert_eq!(strategy3.rules.len(), 3);
     let Some(rule0) = strategy3.rules.first() else {
         panic!("Expected rule at index 0");
@@ -1395,10 +1384,7 @@ fn test_folder_over_folder_merge() {
 
     // Dest already has subdir with different file
     fs::create_dir_all(dest.join("src").join("subdir")).unwrap();
-    create_file(
-        &dest.join("src").join("subdir").join("file2.txt"),
-        "from dest",
-    );
+    create_file(&dest.join("src").join("subdir").join("file2.txt"), "from dest");
 
     let config = CopyConfig {
         copy: true,
@@ -1417,12 +1403,8 @@ fn test_folder_over_folder_merge() {
 
     assert!(result.is_ok());
     // Both files should exist (merged)
-    assert!(file_exists(
-        &dest.join("src").join("subdir").join("file1.txt")
-    ));
-    assert!(file_exists(
-        &dest.join("src").join("subdir").join("file2.txt")
-    ));
+    assert!(file_exists(&dest.join("src").join("subdir").join("file1.txt")));
+    assert!(file_exists(&dest.join("src").join("subdir").join("file2.txt")));
 
     cleanup_test_dir(&test_dir);
 }
@@ -1866,10 +1848,7 @@ fn test_parse_file_over_file_mtime_ctime_options() {
         ("delete-src-created-newer delete-src", true),
         ("delete-src-created-older delete-src", true),
         ("skip-modified-newer skip-created-older skip", true),
-        (
-            "delete-dest-created-older delete-dest-modified-newer delete-dest",
-            true,
-        ),
+        ("delete-dest-created-older delete-dest-modified-newer delete-dest", true),
     ];
 
     for (input, should_succeed) in test_cases {
@@ -1880,10 +1859,7 @@ fn test_parse_file_over_file_mtime_ctime_options() {
                 "Expected '{input}' to parse successfully, but got: {result:?}"
             );
         } else {
-            assert!(
-                result.is_err(),
-                "Expected '{input}' to fail, but it succeeded"
-            );
+            assert!(result.is_err(), "Expected '{input}' to fail, but it succeeded");
         }
     }
 }

@@ -63,11 +63,7 @@ pub fn execute(
                 Ok(e) => e,
                 Err(e) => {
                     if verbose {
-                        eprintln!(
-                            "nofs: warning: error traversing '{}': {}",
-                            branch_path.display(),
-                            e
-                        );
+                        eprintln!("nofs: warning: error traversing '{}': {}", branch_path.display(), e);
                     }
                     continue;
                 }
@@ -76,9 +72,7 @@ pub fn execute(
             let entry_path = entry.path();
 
             // Get path relative to branch
-            let relative = entry_path
-                .strip_prefix(&branch_path)
-                .unwrap_or_else(|_| Path::new(""));
+            let relative = entry_path.strip_prefix(&branch_path).unwrap_or_else(|_| Path::new(""));
 
             // Get path relative to pool mount point
             let pool_relative = relative.to_path_buf();

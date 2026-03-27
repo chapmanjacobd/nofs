@@ -80,16 +80,11 @@ impl Config {
     /// Returns an error if the file cannot be read or parsed.
     pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self> {
         let path_ref = path.as_ref();
-        let content = fs::read_to_string(path_ref).map_err(|e| {
-            NofsError::Config(format!(
-                "Failed to read config file {}: {}",
-                path_ref.display(),
-                e
-            ))
-        })?;
+        let content = fs::read_to_string(path_ref)
+            .map_err(|e| NofsError::Config(format!("Failed to read config file {}: {}", path_ref.display(), e)))?;
 
-        let config: Config = toml::from_str(&content)
-            .map_err(|e| NofsError::Config(format!("Failed to parse config file: {e}")))?;
+        let config: Config =
+            toml::from_str(&content).map_err(|e| NofsError::Config(format!("Failed to parse config file: {e}")))?;
 
         Ok(config)
     }

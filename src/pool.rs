@@ -55,9 +55,8 @@ impl PoolManager {
     ///
     /// Returns an error if no default config is found.
     pub fn from_default_config() -> Result<Self> {
-        let config_path = crate::config::find_default_config().ok_or_else(|| {
-            NofsError::Config("No configuration file found. Use --config or --paths.".to_string())
-        })?;
+        let config_path = crate::config::find_default_config()
+            .ok_or_else(|| NofsError::Config("No configuration file found. Use --config or --paths.".to_string()))?;
 
         Self::from_config(&config_path)
     }
@@ -68,10 +67,7 @@ impl PoolManager {
     ///
     /// Returns an error if branches cannot be parsed or if no branches are provided.
     pub fn from_paths(paths_str: &str, policy: &str, minfreespace: &str) -> Result<Self> {
-        let branches_result: Result<Vec<Branch>> = paths_str
-            .split(',')
-            .map(|s| Branch::parse(s.trim()))
-            .collect();
+        let branches_result: Result<Vec<Branch>> = paths_str.split(',').map(|s| Branch::parse(s.trim())).collect();
 
         let branches = branches_result?;
 
@@ -102,9 +98,7 @@ impl PoolManager {
             let branches = share_config.get_branches()?;
 
             if branches.is_empty() {
-                return Err(NofsError::Config(format!(
-                    "No branches defined in share '{name}'"
-                )));
+                return Err(NofsError::Config(format!("No branches defined in share '{name}'")));
             }
 
             let pool = Pool {
@@ -163,10 +157,7 @@ impl PoolManager {
     ///
     /// Returns an error if the context is not found.
     #[allow(clippy::arithmetic_side_effects)]
-    pub fn resolve_context_path<'ctx>(
-        &'ctx self,
-        input: &'ctx str,
-    ) -> Result<(&'ctx Pool, &'ctx str)> {
+    pub fn resolve_context_path<'ctx>(&'ctx self, input: &'ctx str) -> Result<(&'ctx Pool, &'ctx str)> {
         if let Some(colon_idx) = input.find(':') {
             let context = &input[..colon_idx];
             // Strip leading `/` to make path relative to share root
@@ -197,10 +188,7 @@ impl Pool {
     /// Get total space across all branches
     #[must_use]
     pub fn total_space(&self) -> u64 {
-        self.branches
-            .iter()
-            .filter_map(|b| b.total_space().ok())
-            .sum()
+        self.branches.iter().filter_map(|b| b.total_space().ok()).sum()
     }
 
     /// Get total used space across all branches
@@ -272,9 +260,7 @@ impl Pool {
     /// Check if a path exists in the pool
     #[must_use]
     pub fn exists(&self, pool_path: &Path) -> bool {
-        self.branches
-            .iter()
-            .any(|b| b.path.join(pool_path).exists())
+        self.branches.iter().any(|b| b.path.join(pool_path).exists())
     }
 
     /// Get total available space across all RW branches (cached)
@@ -316,11 +302,7 @@ impl Pool {
 
     /// Find the first branch where a path exists (cached)
     #[must_use]
-    pub fn resolve_path_first_cached(
-        &self,
-        pool_path: &Path,
-        cache: &OperationCache,
-    ) -> Option<PathBuf> {
+    pub fn resolve_path_first_cached(&self, pool_path: &Path, cache: &OperationCache) -> Option<PathBuf> {
         self.branches
             .iter()
             .find(|b| b.path_exists_cached(pool_path, cache))
@@ -345,11 +327,7 @@ impl Pool {
 
     /// Get all branches containing a path (cached)
     #[must_use]
-    pub fn find_all_branches_cached<'a>(
-        &'a self,
-        relative_path: &Path,
-        cache: &'a OperationCache,
-    ) -> Vec<&'a Branch> {
+    pub fn find_all_branches_cached<'a>(&'a self, relative_path: &Path, cache: &'a OperationCache) -> Vec<&'a Branch> {
         use crate::policy::SearchPolicy;
 
         let search = SearchPolicy::with_cache(&self.branches, cache);
@@ -359,8 +337,6 @@ impl Pool {
     /// Check if a path exists in the pool (cached)
     #[must_use]
     pub fn exists_cached(&self, pool_path: &Path, cache: &OperationCache) -> bool {
-        self.branches
-            .iter()
-            .any(|b| b.path_exists_cached(pool_path, cache))
+        self.branches.iter().any(|b| b.path_exists_cached(pool_path, cache))
     }
 }

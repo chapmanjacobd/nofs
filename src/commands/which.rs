@@ -141,11 +141,7 @@ fn report_conflict(conflict: &crate::conflict::FileConflict, verbose: bool) -> R
     let stderr = io::stderr();
     let mut h = stderr.lock();
 
-    writeln!(
-        h,
-        "conflict detected: file '{}' differs across branches",
-        conflict.name
-    )?;
+    writeln!(h, "conflict detected: file '{}' differs across branches", conflict.name)?;
 
     if verbose {
         for branch in &conflict.branches {

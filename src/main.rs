@@ -767,16 +767,7 @@ fn main() -> Result<()> {
             hash,
         } => {
             let (pool, pool_path) = pool_mgr.resolve_context_path(&path)?;
-            commands::ls::execute(
-                pool,
-                pool_path,
-                long,
-                all,
-                cli.verbose,
-                conflicts,
-                hash,
-                cli.json,
-            )?;
+            commands::ls::execute(pool, pool_path, long, all, cli.verbose, conflicts, hash, cli.json)?;
         }
         Commands::Find {
             path,
@@ -849,14 +840,10 @@ fn main() -> Result<()> {
         } => {
             // Parse sources and destination
             if paths.len() < 2 {
-                return Err(anyhow::anyhow!(
-                    "At least one source and one destination are required"
-                ));
+                return Err(anyhow::anyhow!("At least one source and one destination are required"));
             }
             #[allow(clippy::expect_used)]
-            let (destination, sources) = paths
-                .split_last()
-                .expect("paths must have at least 2 elements");
+            let (destination, sources) = paths.split_last().expect("paths must have at least 2 elements");
 
             // Parse size limit
             let parsed_size_limit = size_limit.as_ref().and_then(|s| parse_size(s).ok());
@@ -900,14 +887,10 @@ fn main() -> Result<()> {
         } => {
             // Parse sources and destination
             if paths.len() < 2 {
-                return Err(anyhow::anyhow!(
-                    "At least one source and one destination are required"
-                ));
+                return Err(anyhow::anyhow!("At least one source and one destination are required"));
             }
             #[allow(clippy::expect_used)]
-            let (destination, sources) = paths
-                .split_last()
-                .expect("paths must have at least 2 elements");
+            let (destination, sources) = paths.split_last().expect("paths must have at least 2 elements");
 
             // Parse size limit
             let parsed_size_limit = size_limit.as_ref().and_then(|s| parse_size(s).ok());
@@ -944,9 +927,7 @@ fn main() -> Result<()> {
             let mut any_failed = false;
             for path in paths {
                 let (pool, pool_path) = pool_mgr.resolve_context_path(&path)?;
-                if let Err(e) =
-                    commands::rm::execute(pool, pool_path, recursive, verbose || cli.verbose)
-                {
+                if let Err(e) = commands::rm::execute(pool, pool_path, recursive, verbose || cli.verbose) {
                     eprintln!("nofs: {e}");
                     any_failed = true;
                 }
@@ -955,11 +936,7 @@ fn main() -> Result<()> {
                 return Err(anyhow::anyhow!("Some removal operations failed"));
             }
         }
-        Commands::Mkdir {
-            path,
-            parents,
-            verbose,
-        } => {
+        Commands::Mkdir { path, parents, verbose } => {
             let (pool, pool_path) = pool_mgr.resolve_context_path(&path)?;
             commands::mkdir::execute(pool, pool_path, parents, verbose || cli.verbose)?;
         }
@@ -1022,10 +999,7 @@ fn extract_share_from_paths<'a>(
     destination: &str,
 ) -> Result<Option<&'a pool::Pool>> {
     // Check if any path has a context prefix
-    for path in sources
-        .iter()
-        .chain(std::iter::once(&destination.to_string()))
-    {
+    for path in sources.iter().chain(std::iter::once(&destination.to_string())) {
         if let Some((ctx, _)) = path.split_once(':') {
             if !ctx.contains('/') {
                 // This looks like a context prefix

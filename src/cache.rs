@@ -78,27 +78,15 @@ impl OperationCache {
 
     /// Get cached existence check, or None if not cached
     #[must_use]
-    pub fn get_exists<B: AsRef<Path>, R: AsRef<Path>>(
-        &self,
-        branch_path: B,
-        relative_path: R,
-    ) -> Option<bool> {
-        let key = (
-            branch_path.as_ref().to_path_buf(),
-            relative_path.as_ref().to_path_buf(),
-        );
+    pub fn get_exists<B: AsRef<Path>, R: AsRef<Path>>(&self, branch_path: B, relative_path: R) -> Option<bool> {
+        let key = (branch_path.as_ref().to_path_buf(), relative_path.as_ref().to_path_buf());
         self.exists_cache.get(&key).map(|r| *r)
     }
 
     /// Cache existence check result
     ///
     /// If the key already exists, the value is updated.
-    pub fn set_exists<B: Into<PathBuf>, R: Into<PathBuf>>(
-        &self,
-        branch_path: B,
-        relative_path: R,
-        exists: bool,
-    ) {
+    pub fn set_exists<B: Into<PathBuf>, R: Into<PathBuf>>(&self, branch_path: B, relative_path: R, exists: bool) {
         let key = (branch_path.into(), relative_path.into());
         self.exists_cache.insert(key, exists);
     }
@@ -126,22 +114,14 @@ impl OperationCache {
         P: AsRef<Path> + Into<PathBuf> + Clone,
         F: FnOnce() -> SpaceInfo,
     {
-        *self
-            .space_cache
-            .entry(branch_path.into())
-            .or_insert_with(compute)
+        *self.space_cache.entry(branch_path.into()).or_insert_with(compute)
     }
 
     /// Atomically get or compute existence check
     ///
     /// The `compute` closure is called at most once per key, even under
     /// concurrent access from multiple threads.
-    pub fn get_or_insert_exists<B, R, F>(
-        &self,
-        branch_path: &B,
-        relative_path: &R,
-        compute: F,
-    ) -> bool
+    pub fn get_or_insert_exists<B, R, F>(&self, branch_path: &B, relative_path: &R, compute: F) -> bool
     where
         B: AsRef<Path> + ?Sized,
         R: AsRef<Path> + ?Sized,
@@ -217,9 +197,7 @@ impl CachedBranch for Branch {
 
     /// Check path existence with caching
     fn path_exists_cached(&self, relative_path: &Path, cache: &OperationCache) -> bool {
-        cache.get_or_insert_exists(&self.path, relative_path, || {
-            self.path.join(relative_path).exists()
-        })
+        cache.get_or_insert_exists(&self.path, relative_path, || self.path.join(relative_path).exists())
     }
 }
 

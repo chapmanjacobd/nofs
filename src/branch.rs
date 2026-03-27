@@ -72,9 +72,9 @@ impl Branch {
     ///
     /// Returns an error if the path does not exist or if the mode cannot be parsed.
     pub fn parse(s: &str) -> Result<Self> {
-        let (path_str, options) = s.find('=').map_or((s, None), |idx| {
-            (&s[..idx], Some(&s[idx.saturating_add(1)..]))
-        });
+        let (path_str, options) = s
+            .find('=')
+            .map_or((s, None), |idx| (&s[..idx], Some(&s[idx.saturating_add(1)..])));
 
         let path = PathBuf::from(path_str);
 
@@ -189,11 +189,7 @@ impl Branch {
     /// # Errors
     ///
     /// Returns an error if statvfs fails.
-    #[allow(
-        clippy::cast_precision_loss,
-        clippy::as_conversions,
-        clippy::float_arithmetic
-    )]
+    #[allow(clippy::cast_precision_loss, clippy::as_conversions, clippy::float_arithmetic)]
     pub fn free_percentage(&self) -> Result<f64> {
         let total = self.total_space()?;
         if total == 0 {

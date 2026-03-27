@@ -21,11 +21,7 @@ pub fn execute(pool: &Pool, human: bool, _verbose: bool, json: bool) -> Result<(
     let available = pool.total_available_space();
 
     let use_percent = if total > 0 {
-        #[allow(
-            clippy::cast_precision_loss,
-            clippy::as_conversions,
-            clippy::float_arithmetic
-        )]
+        #[allow(clippy::cast_precision_loss, clippy::as_conversions, clippy::float_arithmetic)]
         {
             Some((used as f64 / total as f64) * 100.0)
         }
@@ -41,11 +37,7 @@ pub fn execute(pool: &Pool, human: bool, _verbose: bool, json: bool) -> Result<(
             let branch_available = branch.available_space().unwrap_or(0);
 
             let percent = if branch_total > 0 {
-                #[allow(
-                    clippy::cast_precision_loss,
-                    clippy::as_conversions,
-                    clippy::float_arithmetic
-                )]
+                #[allow(clippy::cast_precision_loss, clippy::as_conversions, clippy::float_arithmetic)]
                 {
                     Some((branch_used as f64 / branch_total as f64) * 100.0)
                 }
@@ -87,11 +79,7 @@ pub fn execute(pool: &Pool, human: bool, _verbose: bool, json: bool) -> Result<(
         if human {
             writeln!(handle, "Total:     {}", crate::utils::format_size(total))?;
             writeln!(handle, "Used:      {}", crate::utils::format_size(used))?;
-            writeln!(
-                handle,
-                "Available: {}",
-                crate::utils::format_size(available)
-            )?;
+            writeln!(handle, "Available: {}", crate::utils::format_size(available))?;
         } else {
             writeln!(handle, "Total:     {total} bytes")?;
             writeln!(handle, "Used:      {used} bytes")?;
@@ -117,11 +105,7 @@ pub fn execute(pool: &Pool, human: bool, _verbose: bool, json: bool) -> Result<(
             let branch_available = branch.available_space().unwrap_or(0);
 
             let percent = if branch_total > 0 {
-                #[allow(
-                    clippy::cast_precision_loss,
-                    clippy::as_conversions,
-                    clippy::float_arithmetic
-                )]
+                #[allow(clippy::cast_precision_loss, clippy::as_conversions, clippy::float_arithmetic)]
                 {
                     (branch_used as f64 / branch_total as f64) * 100.0
                 }
