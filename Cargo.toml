@@ -10,7 +10,10 @@ categories = ["filesystem", "command-line-utilities"]
 
 [dependencies]
 clap = { version = "4.6", features = ["derive"] }
+clap_complete = "4.6"
+clap_mangen = "0.2"
 serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
 toml = "1.1"
 walkdir = "2.5"
 glob = "0.3"
@@ -48,7 +51,7 @@ panic = "warn"
 panic_in_result_fn = "warn"
 todo = "warn"
 unimplemented = "warn"
-unreachable = "warn"
+unreachable = "allow"
 
 # Warn on operations that can panic
 indexing_slicing = "warn"

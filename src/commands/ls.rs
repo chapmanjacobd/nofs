@@ -4,7 +4,9 @@ use crate::branch::Branch;
 use crate::cache::OperationCache;
 use crate::conflict::{detect_conflicts, FileConflict};
 use crate::error::{NofsError, Result};
+use crate::output::{ConflictBranch, ConflictEntry, LsEntry, LsOutput};
 use crate::pool::Pool;
+use serde_json;
 use std::fs;
 use std::io::{self, Write};
 use std::os::linux::fs::MetadataExt;
@@ -15,7 +17,7 @@ use std::path::Path;
 /// # Errors
 ///
 /// Returns an error if there is an IO error during output.
-#[allow(clippy::fn_params_excessive_bools)]
+#[allow(clippy::too_many_arguments, clippy::fn_params_excessive_bools)]
 pub fn execute(
     pool: &Pool,
     path: &str,
@@ -24,6 +26,7 @@ pub fn execute(
     verbose: bool,
     conflicts: bool,
     hash: bool,
+    json: bool,
 ) -> Result<()> {
     let pool_path = Path::new(path);
 
@@ -64,7 +67,7 @@ pub fn execute(
     let mut entries: Vec<(std::path::PathBuf, String)> =
         collect_directory_entries(&branches, pool_path, all, verbose);
 
-    // Sort entries by name
+    // Sort entry names alphabetically
     entries.sort_by(|a, b| a.1.cmp(&b.1));
 
     // Remove duplicates (same filename from multiple branches)
@@ -78,15 +81,112 @@ pub fn execute(
     let conflict_names: std::collections::HashSet<&str> =
         conflict_list.iter().map(|c| c.name.as_str()).collect();
 
+    if json {
+        output_json(path, &unique_entries, &conflict_list, long, &conflict_names)?;
+    } else {
+        output_text(&unique_entries, long, &conflict_names)?;
+    }
+
+    Ok(())
+}
+
+/// Output JSON format
+///
+/// # Errors
+///
+/// Returns an error if there is a serialization or IO error.
+fn output_json(
+    path: &str,
+    entries: &[(std::path::PathBuf, String)],
+    conflict_list: &[FileConflict],
+    long: bool,
+    conflict_names: &std::collections::HashSet<&str>,
+) -> Result<()> {
+    let json_entries: Vec<LsEntry> = entries
+        .iter()
+        .map(|(entry_path, file_name)| {
+            let entry_type = if entry_path.is_dir() {
+                "directory"
+            } else if entry_path.is_symlink() {
+                "symlink"
+            } else {
+                "file"
+            }
+            .to_string();
+
+            let (size, permissions) = if long {
+                fs::metadata(entry_path)
+                    .map(|metadata| {
+                        (
+                            Some(metadata.len()),
+                            Some(format_permissions(metadata.st_mode())),
+                        )
+                    })
+                    .unwrap_or((None, None))
+            } else {
+                (None, None)
+            };
+
+            let is_conflict = conflict_names.contains(file_name.as_str());
+            let name = if is_conflict {
+                format!("{file_name} !")
+            } else {
+                file_name.clone()
+            };
+
+            LsEntry {
+                name,
+                entry_type,
+                size,
+                permissions,
+            }
+        })
+        .collect();
+
+    let json_conflicts: Vec<ConflictEntry> = conflict_list
+        .iter()
+        .map(|c| ConflictEntry {
+            name: c.name.clone(),
+            branches: c
+                .branches
+                .iter()
+                .map(|b| ConflictBranch {
+                    path: b.path.clone(),
+                    size: b.size,
+                })
+                .collect(),
+        })
+        .collect();
+
+    let output = LsOutput {
+        path: path.to_string(),
+        entries: json_entries,
+        conflicts: json_conflicts,
+    };
+
+    println!("{}", serde_json::to_string_pretty(&output)?);
+    Ok(())
+}
+
+/// Output text format
+///
+/// # Errors
+///
+/// Returns an error if there is an IO error during output.
+fn output_text(
+    entries: &[(std::path::PathBuf, String)],
+    long: bool,
+    conflict_names: &std::collections::HashSet<&str>,
+) -> Result<()> {
     let stdout = io::stdout();
     let mut handle = stdout.lock();
 
-    for (entry_path, file_name) in unique_entries {
+    for (entry_path, file_name) in entries {
         let is_conflict = conflict_names.contains(file_name.as_str());
 
         if long {
             // Long format: show details
-            if let Ok(metadata) = fs::metadata(&entry_path) {
+            if let Ok(metadata) = fs::metadata(entry_path) {
                 let file_type = if metadata.is_dir() {
                     "d"
                 } else if metadata.is_symlink() {

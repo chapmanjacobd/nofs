@@ -3,7 +3,9 @@
 use crate::cache::OperationCache;
 use crate::conflict::detect_single_file_conflict;
 use crate::error::Result;
+use crate::output::{ConflictBranch, ConflictEntry, WhichOutput};
 use crate::pool::Pool;
+use serde_json;
 use std::io::{self, Write};
 use std::path::Path;
 
@@ -20,6 +22,7 @@ pub fn execute(
     verbose: bool,
     conflicts: bool,
     hash: bool,
+    json: bool,
 ) -> Result<()> {
     let pool_path = Path::new(path);
 
@@ -31,19 +34,33 @@ pub fn execute(
         let branches = pool.find_all_branches_cached(pool_path, &cache);
 
         if branches.is_empty() {
-            eprintln!("nofs: '{path}' not found in share");
+            if json {
+                let output = WhichOutput {
+                    path: path.to_string(),
+                    locations: vec![],
+                    conflict: None,
+                };
+                println!("{}", serde_json::to_string_pretty(&output)?);
+            } else {
+                eprintln!("nofs: '{path}' not found in share");
+            }
             return Ok(());
         }
 
         // Detect conflicts if requested
-        if conflicts {
-            if let Some(conflict) = detect_single_file_conflict(&branches, pool_path, hash)? {
-                report_conflict(&conflict, verbose)?;
-            } else if verbose {
-                eprintln!("no conflict: file content is identical across branches");
-            } else {
-                // Silent when not verbose
-            }
+        let conflict = if conflicts {
+            detect_single_file_conflict(&branches, pool_path, hash)?
+        } else {
+            None
+        };
+
+        // Report conflict to stderr
+        if let Some(ref c) = conflict {
+            report_conflict(c, verbose)?;
+        } else if conflicts && verbose {
+            eprintln!("no conflict: file content is identical across branches");
+        } else {
+            // No conflict or not reporting conflict status
         }
 
         if verbose {
@@ -55,12 +72,36 @@ pub fn execute(
             }
         }
 
-        let stdout = io::stdout();
-        let mut handle = stdout.lock();
+        let locations: Vec<String> = branches
+            .iter()
+            .map(|branch| branch.path.join(pool_path).display().to_string())
+            .collect();
 
-        for branch in branches {
-            let full_path = branch.path.join(pool_path);
-            writeln!(handle, "{}", full_path.display())?;
+        let json_conflict = conflict.as_ref().map(|c| ConflictEntry {
+            name: c.name.clone(),
+            branches: c
+                .branches
+                .iter()
+                .map(|b| ConflictBranch {
+                    path: b.path.clone(),
+                    size: b.size,
+                })
+                .collect(),
+        });
+
+        if json {
+            let output = WhichOutput {
+                path: path.to_string(),
+                locations,
+                conflict: json_conflict,
+            };
+            println!("{}", serde_json::to_string_pretty(&output)?);
+        } else {
+            let stdout = io::stdout();
+            let mut handle = stdout.lock();
+            for loc in &locations {
+                writeln!(handle, "{loc}")?;
+            }
         }
     }
     // Show first branch containing the file (cached)
@@ -69,9 +110,21 @@ pub fn execute(
             eprintln!("selected:");
             eprintln!("  {} (first-found policy)", full_path.display());
         }
-        println!("{}", full_path.display());
+
+        if json {
+            let output = WhichOutput {
+                path: path.to_string(),
+                locations: vec![full_path.display().to_string()],
+                conflict: None,
+            };
+            println!("{}", serde_json::to_string_pretty(&output)?);
+        } else {
+            println!("{}", full_path.display());
+        }
     } else {
-        eprintln!("nofs: '{path}' not found in share");
+        if !json {
+            eprintln!("nofs: '{path}' not found in share");
+        }
     }
 
     Ok(())

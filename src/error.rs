@@ -34,6 +34,9 @@ pub enum NofsError {
 
     #[error("{0}")]
     Command(String),
+
+    #[error("JSON serialization error: {0}")]
+    Json(#[from] serde_json::Error),
 }
 
 pub type Result<T> = std::result::Result<T, NofsError>;

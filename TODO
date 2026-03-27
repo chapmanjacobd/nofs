@@ -1,3 +1,0 @@
-shell integration/completion - Missing shell completion scripts (bash, zsh, fish) and no man page generation.
-
-JSON/machine-readable output - All commands output human-readable text only. No --json flag for scripting/automation integration.

@@ -1,0 +1,88 @@
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.TH nofs 1  "nofs 0.1.1" 
+.SH NAME
+nofs \- A lightweight shared filesystem tool
+.SH SYNOPSIS
+\fBnofs\fR [\fB\-c\fR|\fB\-\-config\fR] [\fB\-\-paths\fR] [\fB\-\-policy\fR] [\fB\-\-minfreespace\fR] [\fB\-v\fR|\fB\-\-verbose\fR] [\fB\-\-json\fR] [\fB\-h\fR|\fB\-\-help\fR] [\fB\-V\fR|\fB\-\-version\fR] <\fIsubcommands\fR>
+.SH DESCRIPTION
+A lightweight shared filesystem tool
+.SH OPTIONS
+.TP
+\fB\-c\fR, \fB\-\-config\fR \fI<CONFIG>\fR
+Path to configuration file
+.TP
+\fB\-\-paths\fR \fI<PATHS>\fR
+Comma\-separated list of branch paths (ad\-hoc mode) Format: /path1,/path2 or /path1=RW,/path2=RO
+.TP
+\fB\-\-policy\fR \fI<POLICY>\fR [default: pfrd]
+Policy to use for branch selection
+.TP
+\fB\-\-minfreespace\fR \fI<MINFREESPACE>\fR [default: 4G]
+Minimum free space required on branch (e.g., "4G", "100M")
+.TP
+\fB\-v\fR, \fB\-\-verbose\fR
+Verbose output (print decision steps to stderr)
+.TP
+\fB\-\-json\fR
+Output in JSON format (for scripting/automation)
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print help
+.TP
+\fB\-V\fR, \fB\-\-version\fR
+Print version
+.SH SUBCOMMANDS
+.TP
+nofs\-ls(1)
+List directory contents (like ls)
+.TP
+nofs\-find(1)
+Find files matching a pattern
+.TP
+nofs\-which(1)
+Find which branch contains a file
+.TP
+nofs\-create(1)
+Get the best branch path for creating a new file
+.TP
+nofs\-stat(1)
+Show filesystem statistics
+.TP
+nofs\-info(1)
+Show share configuration and status
+.TP
+nofs\-exists(1)
+Check if a file exists and return its location
+.TP
+nofs\-cat(1)
+Read file content (from first found branch)
+.TP
+nofs\-cp(1)
+Copy files/directories (supports nofs context paths)
+.TP
+nofs\-mv(1)
+Move files/directories (supports nofs context paths)
+.TP
+nofs\-rm(1)
+Remove files or directories
+.TP
+nofs\-mkdir(1)
+Create directories
+.TP
+nofs\-rmdir(1)
+Remove empty directories
+.TP
+nofs\-touch(1)
+Create or update files
+.TP
+nofs\-completions(1)
+Generate shell completion scripts
+.TP
+nofs\-manpage(1)
+Generate man page
+.TP
+nofs\-help(1)
+Print this message or the help of the given subcommand(s)
+.SH VERSION
+v0.1.1

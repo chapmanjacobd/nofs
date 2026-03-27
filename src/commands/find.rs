@@ -2,7 +2,9 @@
 
 use crate::cache::OperationCache;
 use crate::error::{NofsError, Result};
+use crate::output::FindOutput;
 use crate::pool::Pool;
+use serde_json;
 use std::io::{self, Write};
 use std::path::Path;
 use walkdir::WalkDir;
@@ -20,6 +22,7 @@ pub fn execute(
     type_filter: Option<&str>,
     maxdepth: Option<usize>,
     verbose: bool,
+    json: bool,
 ) -> Result<()> {
     let pool_path = Path::new(path);
 
@@ -44,9 +47,7 @@ pub fn execute(
         }
     }
 
-    let stdout = io::stdout();
-    let mut handle = stdout.lock();
-    let mut seen_paths = std::collections::HashSet::new();
+    let mut found_paths: Vec<String> = Vec::new();
 
     for branch in &branches {
         let branch_path = branch.path.join(pool_path);
@@ -82,11 +83,6 @@ pub fn execute(
             // Get path relative to pool mount point
             let pool_relative = relative.to_path_buf();
 
-            // Skip if we've already output this path
-            if !seen_paths.insert(pool_relative.clone()) {
-                continue;
-            }
-
             // Apply name filter
             if let Some(pattern) = name_pattern {
                 if let Some(file_name) = entry_path.file_name() {
@@ -120,8 +116,25 @@ pub fn execute(
                 }
             }
 
-            // Output the path
-            writeln!(handle, "{}", pool_relative.display())?;
+            // Add to results (avoid duplicates)
+            let path_str = pool_relative.display().to_string();
+            if !found_paths.contains(&path_str) {
+                found_paths.push(path_str);
+            }
+        }
+    }
+
+    if json {
+        let output = FindOutput {
+            path: path.to_string(),
+            files: found_paths,
+        };
+        println!("{}", serde_json::to_string_pretty(&output)?);
+    } else {
+        let stdout = io::stdout();
+        let mut handle = stdout.lock();
+        for path_str in &found_paths {
+            writeln!(handle, "{path_str}")?;
         }
     }
 

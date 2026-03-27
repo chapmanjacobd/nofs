@@ -9,6 +9,7 @@ pub mod commands;
 pub mod config;
 pub mod conflict;
 pub mod error;
+pub mod output;
 pub mod policy;
 pub mod pool;
 
@@ -41,6 +42,10 @@ struct Cli {
     /// Verbose output (print decision steps to stderr)
     #[arg(short, long, global = true)]
     verbose: bool,
+
+    /// Output in JSON format (for scripting/automation)
+    #[arg(long, global = true)]
+    json: bool,
 
     /// Subcommand to execute
     #[command(subcommand)]
@@ -298,11 +303,57 @@ enum Commands {
         #[arg(short, long)]
         verbose: bool,
     },
+
+    /// Generate shell completion scripts.
+    ///
+    /// Usage: nofs completions <SHELL> > completions.<shell>
+    ///
+    /// Supported shells: bash, zsh, fish, elvish, powershell
+    Completions {
+        /// Shell type (bash, zsh, fish, elvish, powershell)
+        #[arg(value_enum)]
+        shell: clap_complete::Shell,
+    },
+
+    /// Generate man page.
+    ///
+    /// Usage: nofs manpage > nofs.1
+    Manpage,
 }
 
 #[allow(clippy::too_many_lines)]
 fn main() -> Result<()> {
     let cli = Cli::parse();
+
+    // Handle commands that don't require config initialization
+    match cli.command {
+        Commands::Completions { shell } => {
+            use clap::CommandFactory;
+            clap_complete::generate(shell, &mut Cli::command(), "nofs", &mut std::io::stdout());
+            return Ok(());
+        }
+        Commands::Manpage => {
+            use clap::CommandFactory;
+            let man = clap_mangen::Man::new(Cli::command());
+            man.render(&mut std::io::stdout())
+                .map_err(|e| anyhow::anyhow!("Failed to render man page: {e}"))?;
+            return Ok(());
+        }
+        Commands::Ls { .. }
+        | Commands::Find { .. }
+        | Commands::Which { .. }
+        | Commands::Create { .. }
+        | Commands::Stat { .. }
+        | Commands::Info { .. }
+        | Commands::Exists { .. }
+        | Commands::Cat { .. }
+        | Commands::Cp { .. }
+        | Commands::Mv { .. }
+        | Commands::Rm { .. }
+        | Commands::Mkdir { .. }
+        | Commands::Rmdir { .. }
+        | Commands::Touch { .. } => {}
+    }
 
     // Initialize the share manager based on config or ad-hoc paths
     let pool_mgr = if let Some(config_path) = &cli.config {
@@ -324,7 +375,16 @@ fn main() -> Result<()> {
             hash,
         } => {
             let (pool, pool_path) = pool_mgr.resolve_context_path(&path)?;
-            commands::ls::execute(pool, pool_path, long, all, cli.verbose, conflicts, hash)?;
+            commands::ls::execute(
+                pool,
+                pool_path,
+                long,
+                all,
+                cli.verbose,
+                conflicts,
+                hash,
+                cli.json,
+            )?;
         }
         Commands::Find {
             path,
@@ -340,6 +400,7 @@ fn main() -> Result<()> {
                 type_.as_deref(),
                 maxdepth,
                 cli.verbose,
+                cli.json,
             )?;
         }
         Commands::Which {
@@ -349,11 +410,11 @@ fn main() -> Result<()> {
             hash,
         } => {
             let (pool, pool_path) = pool_mgr.resolve_context_path(&path)?;
-            commands::which::execute(pool, pool_path, all, cli.verbose, conflicts, hash)?;
+            commands::which::execute(pool, pool_path, all, cli.verbose, conflicts, hash, cli.json)?;
         }
         Commands::Create { path } => {
             let (pool, pool_path) = pool_mgr.resolve_context_path(&path)?;
-            commands::create::execute(pool, pool_path, cli.verbose)?;
+            commands::create::execute(pool, pool_path, cli.verbose, cli.json)?;
         }
         Commands::Stat { path, human } => {
             let pool = if let Some(p) = &path {
@@ -362,19 +423,19 @@ fn main() -> Result<()> {
             } else {
                 pool_mgr.default_pool()?
             };
-            commands::stat::execute(pool, human, cli.verbose)?;
+            commands::stat::execute(pool, human, cli.verbose, cli.json)?;
         }
         Commands::Info { context } => {
             if let Some(ctx) = &context {
                 let pool = pool_mgr.get_pool(ctx)?;
-                commands::info::execute_single(pool, cli.verbose)?;
+                commands::info::execute_single(pool, cli.verbose, cli.json)?;
             } else {
-                commands::info::execute_all(&pool_mgr, cli.verbose)?;
+                commands::info::execute_all(&pool_mgr, cli.verbose, cli.json)?;
             }
         }
         Commands::Exists { path } => {
             let (pool, pool_path) = pool_mgr.resolve_context_path(&path)?;
-            commands::exists::execute(pool, pool_path, cli.verbose)?;
+            commands::exists::execute(pool, pool_path, cli.verbose, cli.json)?;
         }
         Commands::Cat { path } => {
             let (pool, pool_path) = pool_mgr.resolve_context_path(&path)?;
@@ -518,6 +579,8 @@ fn main() -> Result<()> {
             let (pool, pool_path) = pool_mgr.resolve_context_path(&path)?;
             commands::touch::execute(pool, pool_path, verbose || cli.verbose)?;
         }
+        // These commands are handled earlier and don't reach here
+        Commands::Completions { .. } | Commands::Manpage => unreachable!(),
     }
 
     Ok(())
