@@ -10,8 +10,8 @@ use crate::pool::Pool;
 use std::fs;
 use std::io::{self, Read, Seek};
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicI64, AtomicU64, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::atomic::{AtomicI64, AtomicU64, AtomicUsize, Ordering};
+use std::sync::Arc;
 use std::time::Instant;
 
 /// Resolved path with branch information
@@ -536,8 +536,6 @@ fn evaluate_rules(
     source: &Path,
     dest: &Path,
     stats: &Arc<CopyStats>,
-    file_count: &Arc<Mutex<u64>>,
-    byte_count: &Arc<Mutex<u64>>,
 ) -> Result<RuleResult> {
     let cmp = FileComparison {
         hashes_match,
@@ -558,8 +556,7 @@ fn evaluate_rules(
                 }
                 RuleAction::DeleteDest => {
                     execute_action(RuleAction::DeleteDest, source, dest, config, stats, &reason)?;
-                    return process_file(source, dest, config, stats, file_count, byte_count)
-                        .map(|()| RuleResult::DeleteDest);
+                    return process_file(source, dest, config, stats).map(|()| RuleResult::DeleteDest);
                 }
                 RuleAction::DeleteSrc => {
                     execute_action(RuleAction::DeleteSrc, source, dest, config, stats, &reason)?;
@@ -583,6 +580,8 @@ pub struct CopyStats {
     pub errors: AtomicU64,
     pub sample_hashes: AtomicI64,
     pub full_hashes: AtomicI64,
+    pub files_reserved: AtomicU64,
+    pub bytes_reserved: AtomicU64,
 }
 
 /// Copy operation configuration
@@ -667,8 +666,6 @@ pub fn execute(
     let mut handles = Vec::new();
     let workers = config.workers;
     let active_workers = Arc::new(std::sync::atomic::AtomicUsize::new(0));
-    let file_count = Arc::new(Mutex::new(0_u64));
-    let byte_count = Arc::new(Mutex::new(0_u64));
 
     for source in sources {
         // Resolve source path (may have share: prefix) - for read (existing file)
@@ -700,8 +697,6 @@ pub fn execute(
 
         let stats_clone = Arc::clone(&stats);
         let config_clone = config.clone();
-        let file_count_clone = Arc::clone(&file_count);
-        let byte_count_clone = Arc::clone(&byte_count);
         let active_workers_clone = Arc::clone(&active_workers);
 
         // Simple worker limit: wait if too many threads
@@ -716,9 +711,7 @@ pub fn execute(
                 &final_dest,
                 &config_clone,
                 &stats_clone,
-                None, // share is not used in process_source
-                &file_count_clone,
-                &byte_count_clone,
+                &active_workers_clone,
             );
             active_workers_clone.fetch_sub(1, Ordering::Relaxed);
             if let Err(e) = result {
@@ -759,22 +752,15 @@ fn process_source(
     dest: &Path,
     config: &CopyConfig,
     stats: &Arc<CopyStats>,
-    _share: Option<&Pool>,
-    file_count: &Arc<Mutex<u64>>,
-    byte_count: &Arc<Mutex<u64>>,
+    active_workers: &Arc<AtomicUsize>,
 ) -> Result<()> {
     let source_is_dir = source.is_dir();
     let dest_exists = dest.exists();
 
     // Check limits
-    {
-        let count = *file_count
-            .lock()
-            .map_err(|e| NofsError::CopyMove(format!("Lock poisoning: {e}")))?;
-        if let Some(limit) = config.limit {
-            if count >= limit {
-                return Ok(());
-            }
+    if let Some(limit) = config.limit {
+        if stats.files_reserved.load(Ordering::Relaxed) >= limit {
+            return Ok(());
         }
     }
 
@@ -785,7 +771,7 @@ fn process_source(
             if !dest_is_dir {
                 // Folder over file conflict
                 stats.conflicts_resolved.fetch_add(1, Ordering::Relaxed);
-                return handle_folder_over_file(dest, source, config, stats, file_count, byte_count);
+                return handle_folder_over_file(dest, source, config, stats, active_workers);
             }
             // Folder over folder - merge
         } else {
@@ -799,58 +785,96 @@ fn process_source(
         // Recursively process directory contents
         let entries = fs::read_dir(source)?;
 
-        // Use a shared atomic for active workers across recursion
-        // Since we already have one from execute, we should pass it down.
-        // Wait, process_source signature doesn't have it. I should add it or use a global one.
-        // For now, I'll use a simpler approach: only parallelize top-level if needed,
-        // or just accept that this version only parallelizes top-level sources.
-        // Actually, let's try to parallelize one level deep if we have workers.
+        return std::thread::scope(|s| {
+            for entry_result in entries {
+                let entry = entry_result?;
+                let entry_path = entry.path();
+                let entry_name = entry.file_name();
+                let entry_dest = dest.join(&entry_name);
 
-        for entry_result in entries {
-            let entry = entry_result?;
-            let entry_path = entry.path();
-            let entry_name = entry.file_name();
-            let entry_dest = dest.join(&entry_name);
-
-            if let Err(e) = process_source(&entry_path, &entry_dest, config, stats, _share, file_count, byte_count) {
-                eprintln!(
-                    "Error processing {}: {}",
-                    shell_quote(entry_path.to_string_lossy().as_ref()),
-                    e
-                );
+                // If workers available, spawn a thread to handle this entry
+                if active_workers.load(Ordering::Relaxed) < config.workers {
+                    active_workers.fetch_add(1, Ordering::Relaxed);
+                    let active_workers_clone = Arc::clone(active_workers);
+                    let stats_clone = Arc::clone(stats);
+                    s.spawn(move || {
+                        if let Err(e) =
+                            process_source(&entry_path, &entry_dest, config, &stats_clone, &active_workers_clone)
+                        {
+                            eprintln!(
+                                "Error processing {}: {}",
+                                shell_quote(entry_path.to_string_lossy().as_ref()),
+                                e
+                            );
+                        }
+                        active_workers_clone.fetch_sub(1, Ordering::Relaxed);
+                    });
+                } else {
+                    // Process sequentially if all workers busy
+                    if let Err(e) = process_source(&entry_path, &entry_dest, config, stats, active_workers) {
+                        eprintln!(
+                            "Error processing {}: {}",
+                            shell_quote(entry_path.to_string_lossy().as_ref()),
+                            e
+                        );
+                    }
+                }
             }
-        }
-    } else {
-        // Handle file
-        // Check extension filter
-        if !config.extensions.is_empty() {
-            let ext = source.extension().and_then(|s| s.to_str()).unwrap_or("");
-            let matches = config.extensions.iter().any(|e| e.trim_start_matches('.') == ext);
-            if !matches {
-                return Ok(());
-            }
-        }
-
-        // Check if destination exists
-        if dest_exists {
-            let dest_is_dir = dest.is_dir();
-            if dest_is_dir {
-                // File over folder - apply strategy
-                stats.conflicts_resolved.fetch_add(1, Ordering::Relaxed);
-                return handle_file_over_folder(source, dest, config, stats, file_count, byte_count);
-            }
-            // File over file conflict
-            stats.conflicts_resolved.fetch_add(1, Ordering::Relaxed);
-            return handle_file_over_file(source, dest, config, stats, file_count, byte_count);
-        }
-
-        // No conflict - just copy/move
-        process_file(source, dest, config, stats, file_count, byte_count)?;
+            Ok(())
+        });
     }
+    // Handle file
+    // Check extension filter
+    if !config.extensions.is_empty() {
+        let ext = source.extension().and_then(|s| s.to_str()).unwrap_or("");
+        let matches = config.extensions.iter().any(|e| e.trim_start_matches('.') == ext);
+        if !matches {
+            return Ok(());
+        }
+    }
+
+    // Apply include/exclude filters
+    let file_name = source.file_name().unwrap_or(source.as_os_str());
+    let file_name_str = file_name.to_string_lossy();
+    if !config.include.is_empty() {
+        let matches = config.include.iter().any(|p| {
+            glob::Pattern::new(p)
+                .map(|pat| pat.matches(&file_name_str))
+                .unwrap_or(false)
+        });
+        if !matches {
+            return Ok(());
+        }
+    }
+    if !config.exclude.is_empty() {
+        let matches = config.exclude.iter().any(|p| {
+            glob::Pattern::new(p)
+                .map(|pat| pat.matches(&file_name_str))
+                .unwrap_or(false)
+        });
+        if matches {
+            return Ok(());
+        }
+    }
+
+    // Check if destination exists
+    if dest_exists {
+        let dest_is_dir = dest.is_dir();
+        if dest_is_dir {
+            // File over folder - apply strategy
+            stats.conflicts_resolved.fetch_add(1, Ordering::Relaxed);
+            return handle_file_over_folder(source, dest, config, stats);
+        }
+        // File over file conflict
+        stats.conflicts_resolved.fetch_add(1, Ordering::Relaxed);
+        return handle_file_over_file(source, dest, config, stats);
+    }
+
+    // No conflict - just copy/move
+    process_file(source, dest, config, stats)?;
 
     Ok(())
 }
-
 #[allow(clippy::too_many_lines)]
 /// Process a single file copy/move operation
 ///
@@ -859,39 +883,44 @@ fn process_source(
 /// # Errors
 ///
 /// Returns an error if the file cannot be read or written.
-fn process_file(
-    source: &Path,
-    dest: &Path,
-    config: &CopyConfig,
-    stats: &Arc<CopyStats>,
-    file_count: &Arc<Mutex<u64>>,
-    byte_count: &Arc<Mutex<u64>>,
-) -> Result<()> {
+fn process_file(source: &Path, dest: &Path, config: &CopyConfig, stats: &Arc<CopyStats>) -> Result<()> {
     let file_size = fs::metadata(source)?.len();
 
     // Check size limit
-    {
-        let mut bytes = byte_count
-            .lock()
-            .map_err(|e| NofsError::CopyMove(format!("Lock poisoning: {e}")))?;
-        if let Some(limit) = config.size_limit {
-            if bytes.checked_add(file_size).is_some_and(|sum| sum > limit) {
+    if let Some(limit) = config.size_limit {
+        let mut current = stats.bytes_reserved.load(Ordering::Relaxed);
+        loop {
+            if current.saturating_add(file_size) > limit {
                 return Ok(());
             }
-            *bytes = bytes.saturating_add(file_size);
+            match stats.bytes_reserved.compare_exchange(
+                current,
+                current.saturating_add(file_size),
+                Ordering::SeqCst,
+                Ordering::Relaxed,
+            ) {
+                Ok(_) => break,
+                Err(actual) => current = actual,
+            }
         }
     }
 
     // Check file count limit
-    {
-        let mut count = file_count
-            .lock()
-            .map_err(|e| NofsError::CopyMove(format!("Lock poisoning: {e}")))?;
-        if let Some(limit) = config.limit {
-            if *count >= limit {
+    if let Some(limit) = config.limit {
+        let mut current = stats.files_reserved.load(Ordering::Relaxed);
+        loop {
+            if current >= limit {
                 return Ok(());
             }
-            *count = count.saturating_add(1);
+            match stats.files_reserved.compare_exchange(
+                current,
+                current.saturating_add(1),
+                Ordering::SeqCst,
+                Ordering::Relaxed,
+            ) {
+                Ok(_) => break,
+                Err(actual) => current = actual,
+            }
         }
     }
 
@@ -976,14 +1005,7 @@ fn copy_file_contents(source: &Path, dest: &Path) -> Result<()> {
 /// # Errors
 ///
 /// Returns an error if file operations fail.
-fn handle_file_over_file(
-    source: &Path,
-    dest: &Path,
-    config: &CopyConfig,
-    stats: &Arc<CopyStats>,
-    file_count: &Arc<Mutex<u64>>,
-    byte_count: &Arc<Mutex<u64>>,
-) -> Result<()> {
+fn handle_file_over_file(source: &Path, dest: &Path, config: &CopyConfig, stats: &Arc<CopyStats>) -> Result<()> {
     let strategy = &config.file_over_file;
 
     // Get metadata for both files
@@ -1033,8 +1055,6 @@ fn handle_file_over_file(
         source,
         dest,
         stats,
-        file_count,
-        byte_count,
     )? {
         RuleResult::Skip | RuleResult::DeleteDest | RuleResult::DeleteSrc => return Ok(()),
         RuleResult::NoMatch => {
@@ -1043,7 +1063,7 @@ fn handle_file_over_file(
     }
 
     // Apply required fallback
-    apply_required_strategy(strategy, source, dest, config, stats, file_count, byte_count)
+    apply_required_strategy(strategy, source, dest, config, stats)
 }
 
 /// Apply the required file-over-file strategy when no optional conditions match
@@ -1057,8 +1077,6 @@ fn apply_required_strategy(
     dest: &Path,
     config: &CopyConfig,
     stats: &Arc<CopyStats>,
-    file_count: &Arc<Mutex<u64>>,
-    byte_count: &Arc<Mutex<u64>>,
 ) -> Result<()> {
     match strategy.required {
         FileOverFileMode::Skip => {
@@ -1083,7 +1101,7 @@ fn apply_required_strategy(
                 stats,
                 "strategy: delete-dest",
             )?;
-            return process_file(source, dest, config, stats, file_count, byte_count);
+            return process_file(source, dest, config, stats);
         }
         FileOverFileMode::RenameSrc => {
             let new_dest = get_unique_filename(dest);
@@ -1094,7 +1112,7 @@ fn apply_required_strategy(
                     shell_quote(new_dest.to_string_lossy().as_ref())
                 );
             }
-            return process_file(source, &new_dest, config, stats, file_count, byte_count);
+            return process_file(source, &new_dest, config, stats);
         }
         FileOverFileMode::RenameDest => {
             let renamed_dest = get_unique_filename(dest);
@@ -1110,7 +1128,7 @@ fn apply_required_strategy(
                 fs::rename(dest, &renamed_dest)?;
             }
             // Then copy/move source to original destination
-            return process_file(source, dest, config, stats, file_count, byte_count);
+            return process_file(source, dest, config, stats);
         }
     }
 
@@ -1122,14 +1140,7 @@ fn apply_required_strategy(
 /// # Errors
 ///
 /// Returns an error if file operations fail.
-fn handle_file_over_folder(
-    source: &Path,
-    dest: &Path,
-    config: &CopyConfig,
-    stats: &Arc<CopyStats>,
-    file_count: &Arc<Mutex<u64>>,
-    byte_count: &Arc<Mutex<u64>>,
-) -> Result<()> {
+fn handle_file_over_folder(source: &Path, dest: &Path, config: &CopyConfig, stats: &Arc<CopyStats>) -> Result<()> {
     match config.file_over_folder {
         FolderConflictMode::Skip => {
             if config.verbose {
@@ -1162,7 +1173,7 @@ fn handle_file_over_folder(
                 fs::remove_dir_all(dest)?;
             }
             // Now copy file to original path
-            return process_file(source, dest, config, stats, file_count, byte_count);
+            return process_file(source, dest, config, stats);
         }
         FolderConflictMode::RenameSrc => {
             let new_dest = get_unique_filename(dest);
@@ -1174,7 +1185,7 @@ fn handle_file_over_folder(
                 );
             }
             // Copy file with renamed path into the folder
-            return process_file(source, &new_dest, config, stats, file_count, byte_count);
+            return process_file(source, &new_dest, config, stats);
         }
         FolderConflictMode::RenameDest => {
             let renamed_dest = get_unique_folder_name(dest);
@@ -1189,7 +1200,7 @@ fn handle_file_over_folder(
                 fs::rename(dest, &renamed_dest)?;
             }
             // Copy file to original path
-            return process_file(source, dest, config, stats, file_count, byte_count);
+            return process_file(source, dest, config, stats);
         }
         FolderConflictMode::Merge => {
             // Move file into folder as folder/filename
@@ -1202,7 +1213,7 @@ fn handle_file_over_folder(
                     shell_quote(dest.to_string_lossy().as_ref())
                 );
             }
-            return process_file(source, &new_dest, config, stats, file_count, byte_count);
+            return process_file(source, &new_dest, config, stats);
         }
     }
 
@@ -1219,8 +1230,7 @@ fn handle_folder_over_file(
     source: &Path,
     config: &CopyConfig,
     stats: &Arc<CopyStats>,
-    file_count: &Arc<Mutex<u64>>,
-    byte_count: &Arc<Mutex<u64>>,
+    active_workers: &Arc<AtomicUsize>,
 ) -> Result<()> {
     match config.folder_over_file {
         FolderConflictMode::Skip => {
@@ -1230,6 +1240,7 @@ fn handle_folder_over_file(
                     shell_quote(source.to_string_lossy().as_ref())
                 );
             }
+            Ok(())
         }
         FolderConflictMode::DeleteSrc => {
             if config.verbose {
@@ -1241,6 +1252,7 @@ fn handle_folder_over_file(
             if !config.simulate {
                 fs::remove_dir_all(source)?;
             }
+            Ok(())
         }
         FolderConflictMode::DeleteDest => {
             if config.verbose {
@@ -1257,7 +1269,7 @@ fn handle_folder_over_file(
                 fs::create_dir_all(dest)?;
             }
             stats.folders_created.fetch_add(1, Ordering::Relaxed);
-            return process_source_contents(source, dest, config, stats, file_count, byte_count);
+            process_source_contents(source, dest, config, stats, active_workers)
         }
         FolderConflictMode::RenameSrc => {
             // Rename the source folder conceptually by copying to renamed path
@@ -1273,7 +1285,7 @@ fn handle_folder_over_file(
             }
             stats.folders_created.fetch_add(1, Ordering::Relaxed);
             // Process source contents into new destination
-            return process_source_contents(source, &new_dest, config, stats, file_count, byte_count);
+            process_source_contents(source, &new_dest, config, stats, active_workers)
         }
         FolderConflictMode::RenameDest => {
             let renamed_dest = get_unique_folder_name(dest);
@@ -1289,7 +1301,7 @@ fn handle_folder_over_file(
                 fs::create_dir_all(dest)?;
             }
             stats.folders_created.fetch_add(1, Ordering::Relaxed);
-            return process_source_contents(source, dest, config, stats, file_count, byte_count);
+            process_source_contents(source, dest, config, stats, active_workers)
         }
         FolderConflictMode::Merge => {
             // This case shouldn't happen (folder over file merge doesn't make sense)
@@ -1307,11 +1319,9 @@ fn handle_folder_over_file(
                 fs::create_dir_all(dest)?;
             }
             stats.folders_created.fetch_add(1, Ordering::Relaxed);
-            return process_source_contents(source, dest, config, stats, file_count, byte_count);
+            process_source_contents(source, dest, config, stats, active_workers)
         }
     }
-
-    Ok(())
 }
 
 /// Process directory contents recursively
@@ -1324,8 +1334,7 @@ fn process_source_contents(
     dest: &Path,
     config: &CopyConfig,
     stats: &Arc<CopyStats>,
-    file_count: &Arc<Mutex<u64>>,
-    byte_count: &Arc<Mutex<u64>>,
+    active_workers: &Arc<AtomicUsize>,
 ) -> Result<()> {
     let entries = fs::read_dir(source)?;
     for entry_result in entries {
@@ -1334,15 +1343,7 @@ fn process_source_contents(
         let entry_name = entry.file_name();
         let entry_dest = dest.join(&entry_name);
 
-        if let Err(e) = process_source(
-            &entry_path,
-            &entry_dest,
-            config,
-            stats,
-            None, // share not needed for already-resolved paths
-            file_count,
-            byte_count,
-        ) {
+        if let Err(e) = process_source(&entry_path, &entry_dest, config, stats, active_workers) {
             eprintln!(
                 "Error processing {}: {}",
                 shell_quote(entry_path.to_string_lossy().as_ref()),

@@ -4,7 +4,7 @@ A lightweight [shared filesystem](https://en.wikipedia.org/wiki/Clustered_file_s
 
 ## Overview
 
-**nofs** provides mergerfs-like functionality for combining multiple filesystems/directories into a unified view, but operates entirely in userspace via subcommands rather than as a FUSE filesystem. This makes it simpler, faster to query, and easier to integrate into scripts.
+**nofs** provides mergerfs-like functionality for combining multiple filesystems/directories into a unified view, but operates entirely in userspace via subcommands rather than as a FUSE filesystem. This makes it simpler, faster to get started, and easier to integrate into scripts.
 
 ## Features
 
@@ -352,13 +352,11 @@ EXAMPLES:
 
 **Good fit:**
 - Scripting and automation
-- Querying file locations
 - Batch operations across branches
-- Simple shares without FUSE complexity
-- Integration with existing tools
-- Multiple independent shares
+- A bit simpler and easier to understand
 
 **Consider mergerfs instead:**
 - Need transparent filesystem access
 - Require POSIX filesystem semantics
 - Want applications to see unified shares automatically
+- Many more features!
