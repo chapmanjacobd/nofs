@@ -680,77 +680,74 @@ pub fn execute(
     let (tx, work_channel) = std::sync::mpsc::channel::<(PathBuf, PathBuf)>();
     let work_rx = Arc::new(std::sync::Mutex::new(work_channel));
 
-    // Spawn worker threads
-    let mut worker_handles = Vec::new();
-    for _ in 0..workers {
-        let work_rx_clone = Arc::clone(&work_rx);
-        let stats_clone = Arc::clone(&stats);
-        let config_clone = config.clone();
+    // Spawn worker threads using scoped threads for automatic joining
+    std::thread::scope(|s| -> Result<()> {
+        for _ in 0..workers {
+            let work_rx_clone = Arc::clone(&work_rx);
+            let stats_clone = Arc::clone(&stats);
+            let config_clone = config.clone();
 
-        let handle = std::thread::spawn(move || {
-            loop {
-                // Try to receive work item
-                let work = {
-                    let Ok(guard) = work_rx_clone.lock() else {
-                        break; // Mutex poisoned, exit worker
+            s.spawn(move || {
+                loop {
+                    // Try to receive work item
+                    let work = {
+                        let Ok(guard) = work_rx_clone.lock() else {
+                            break; // Mutex poisoned, exit worker
+                        };
+                        guard.recv()
                     };
-                    guard.recv()
-                };
 
-                match work {
-                    Ok((source_path, final_dest)) => {
-                        if let Err(e) = process_source(&source_path, &final_dest, &config_clone, &stats_clone) {
-                            eprintln!("Error processing {}: {}", source_path.display(), e);
-                            stats_clone.errors.fetch_add(1, Ordering::Relaxed);
+                    match work {
+                        Ok((source_path, final_dest)) => {
+                            if let Err(e) = process_source(&source_path, &final_dest, &config_clone, &stats_clone) {
+                                eprintln!("Error processing {}: {}", source_path.display(), e);
+                                stats_clone.errors.fetch_add(1, Ordering::Relaxed);
+                            }
                         }
+                        Err(_) => break, // Channel closed, exit worker
                     }
-                    Err(_) => break, // Channel closed, exit worker
                 }
-            }
-        });
-        worker_handles.push(handle);
-    }
-
-    // Send work items to workers
-    for source in sources {
-        // Resolve source path (may have share: prefix) - for read (existing file)
-        let source_resolved = resolve_path(source, share, false, &cache)?;
-        let source_path = source_resolved.path;
-        let source_branch_index = source_resolved.branch_index;
-
-        if !source_path.exists() {
-            eprintln!("Source {} does not exist", shell_quote(source));
-            stats.errors.fetch_add(1, Ordering::Relaxed);
-            continue;
+            });
         }
 
-        // Determine final destination for this source
-        let final_dest = if sources.len() > 1 || (dest_exists && dest_is_dir) {
-            // Merge into destination directory
-            let source_name = source_path
-                .file_name()
-                .unwrap_or(source_path.as_os_str())
-                .to_os_string();
+        // Send work items to workers
+        for source in sources {
+            // Resolve source path (may have share: prefix) - for read (existing file)
+            let source_resolved = resolve_path(source, share, false, &cache)?;
+            let source_path = source_resolved.path;
+            let source_branch_index = source_resolved.branch_index;
 
-            // If destination is a share path, resolve it using the same branch as source
-            let dest_base = resolve_dest_path(destination, share, source_branch_index, &cache)?;
-            dest_base.join(source_name)
-        } else {
-            // Single file to single file - resolve destination preserving source branch
-            resolve_dest_path(destination, share, source_branch_index, &cache)?
-        };
+            if !source_path.exists() {
+                eprintln!("Source {} does not exist", shell_quote(source));
+                stats.errors.fetch_add(1, Ordering::Relaxed);
+                continue;
+            }
 
-        tx.send((source_path, final_dest))
-            .map_err(|e| NofsError::CopyMove(format!("Failed to send work item: {e}")))?;
-    }
+            // Determine final destination for this source
+            let final_dest = if sources.len() > 1 || (dest_exists && dest_is_dir) {
+                // Merge into destination directory
+                let source_name = source_path
+                    .file_name()
+                    .unwrap_or(source_path.as_os_str())
+                    .to_os_string();
 
-    // Drop sender to signal workers to finish
-    drop(tx);
+                // If destination is a share path, resolve it using the same branch as source
+                let dest_base = resolve_dest_path(destination, share, source_branch_index, &cache)?;
+                dest_base.join(source_name)
+            } else {
+                // Single file to single file - resolve destination preserving source branch
+                resolve_dest_path(destination, share, source_branch_index, &cache)?
+            };
 
-    // Wait for all workers to complete
-    for handle in worker_handles {
-        let _ = handle.join();
-    }
+            tx.send((source_path, final_dest))
+                .map_err(|e| NofsError::CopyMove(format!("Failed to send work item: {e}")))?;
+        }
+
+        // Drop sender to signal workers to finish
+        drop(tx);
+        // Workers automatically joined when scope ends
+        Ok(())
+    })?;
 
     if config.verbose {
         let elapsed = start_time.elapsed();
