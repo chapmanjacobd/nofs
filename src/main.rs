@@ -664,6 +664,36 @@ NOTES:
         verbose: bool,
     },
 
+    /// Show disk usage (recursive directory size calculation).
+    #[command(after_help = "\
+EXAMPLES:
+    nofs du media:/                  # Show disk usage for entire share
+    nofs du -H media:/photos         # Human-readable sizes
+    nofs du -a media:/docs           # Show all subdirectory sizes
+    nofs du --maxdepth 1 media:/     # Only show top-level directories
+
+OUTPUT:
+    Shows disk usage for the specified path across all branches.
+    With -a, shows sizes for all subdirectories.
+    With -H, sizes are shown in KB, MB, GB instead of bytes.")]
+    Du {
+        /// Path within the share (format: [context:]path).
+        #[arg(value_name = "PATH")]
+        path: String,
+
+        /// Show human-readable sizes (KB, MB, GB instead of bytes).
+        #[arg(short = 'H', long)]
+        human: bool,
+
+        /// Show all subdirectory sizes.
+        #[arg(short, long)]
+        all: bool,
+
+        /// Maximum directory traversal depth (0 = starting directory only).
+        #[arg(long, value_name = "N")]
+        maxdepth: Option<usize>,
+    },
+
     /// Generate shell completion scripts.
     ///
     /// Usage: nofs completions <SHELL> > completions.<shell>
@@ -712,7 +742,8 @@ fn main() -> Result<()> {
         | Commands::Rm { .. }
         | Commands::Mkdir { .. }
         | Commands::Rmdir { .. }
-        | Commands::Touch { .. } => {}
+        | Commands::Touch { .. }
+        | Commands::Du { .. } => {}
     }
 
     // Initialize the share manager based on config or ad-hoc paths
@@ -938,6 +969,15 @@ fn main() -> Result<()> {
         Commands::Touch { path, verbose } => {
             let (pool, pool_path) = pool_mgr.resolve_context_path(&path)?;
             commands::touch::execute(pool, pool_path, verbose || cli.verbose)?;
+        }
+        Commands::Du {
+            path,
+            human,
+            all,
+            maxdepth,
+        } => {
+            let (pool, pool_path) = pool_mgr.resolve_context_path(&path)?;
+            commands::du::execute(pool, pool_path, human, maxdepth, all, cli.json)?;
         }
         // These commands are handled earlier and don't reach here
         Commands::Completions { .. } | Commands::Manpage => unreachable!(),

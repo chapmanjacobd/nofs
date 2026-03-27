@@ -344,6 +344,192 @@ paths = ["{0}/disk1", "{0}/disk2"]
     }
 
     #[test]
+    fn du_command() {
+        let ctx = TestContext::new("cmd_du");
+
+        let _ = ctx.create_branch("disk1/dir", &["file1.txt", "file2.txt"]);
+        let _ = ctx.create_branch("disk2/dir", &["file3.txt"]);
+
+        let config = format!(
+            r#"
+[share.test]
+paths = ["{0}/disk1", "{0}/disk2"]
+"#,
+            ctx.root.display()
+        );
+
+        ctx.write_config(&config);
+
+        let output = ctx.run_nofs(&[
+            "--config",
+            ctx.config_path.to_str().unwrap(),
+            "du",
+            "test:dir",
+        ]);
+
+        assert!(output.success(), "Command failed: {}", output.stderr);
+        // Should show disk usage for the directory
+        assert!(output.stdout.contains(&ctx.root.display().to_string()));
+    }
+
+    #[test]
+    fn du_command_human_readable() {
+        let ctx = TestContext::new("cmd_du_human");
+
+        let _ = ctx.create_branch("disk1/dir", &["file1.txt", "file2.txt"]);
+
+        let config = format!(
+            r#"
+[share.test]
+paths = ["{0}/disk1"]
+"#,
+            ctx.root.display()
+        );
+
+        ctx.write_config(&config);
+
+        let output = ctx.run_nofs(&[
+            "--config",
+            ctx.config_path.to_str().unwrap(),
+            "du",
+            "-H",
+            "test:dir",
+        ]);
+
+        assert!(output.success(), "Command failed: {}", output.stderr);
+        // Human-readable output should contain size units
+        assert!(
+            output.stdout.contains('B')
+                || output.stdout.contains('K')
+                || output.stdout.contains('M')
+                || output.stdout.contains('G')
+        );
+    }
+
+    #[test]
+    fn du_command_all_subdirs() {
+        let ctx = TestContext::new("cmd_du_all");
+
+        let _ = ctx.create_branch("disk1/dir/subdir", &["file1.txt"]);
+        let _ = ctx.create_branch("disk1/dir", &["file2.txt"]);
+
+        let config = format!(
+            r#"
+[share.test]
+paths = ["{0}/disk1"]
+"#,
+            ctx.root.display()
+        );
+
+        ctx.write_config(&config);
+
+        let output = ctx.run_nofs(&[
+            "--config",
+            ctx.config_path.to_str().unwrap(),
+            "du",
+            "-a",
+            "test:dir",
+        ]);
+
+        assert!(output.success(), "Command failed: {}", output.stderr);
+        // Should show subdirectory
+        assert!(output.stdout.contains("subdir"));
+    }
+
+    #[test]
+    fn du_command_maxdepth() {
+        let ctx = TestContext::new("cmd_du_maxdepth");
+
+        let _ = ctx.create_branch("disk1/dir/subdir1/subdir2", &["file1.txt"]);
+
+        let config = format!(
+            r#"
+[share.test]
+paths = ["{0}/disk1"]
+"#,
+            ctx.root.display()
+        );
+
+        ctx.write_config(&config);
+
+        let output = ctx.run_nofs(&[
+            "--config",
+            ctx.config_path.to_str().unwrap(),
+            "du",
+            "-a",
+            "--maxdepth",
+            "1",
+            "test:dir",
+        ]);
+
+        assert!(output.success(), "Command failed: {}", output.stderr);
+        // Should show subdir1 but not subdir2
+        assert!(output.stdout.contains("subdir1"));
+    }
+
+    #[test]
+    fn du_command_json_output() {
+        let ctx = TestContext::new("cmd_du_json");
+
+        let _ = ctx.create_branch("disk1/dir", &["file1.txt"]);
+
+        let config = format!(
+            r#"
+[share.test]
+paths = ["{0}/disk1"]
+"#,
+            ctx.root.display()
+        );
+
+        ctx.write_config(&config);
+
+        let output = ctx.run_nofs(&[
+            "--config",
+            ctx.config_path.to_str().unwrap(),
+            "du",
+            "--json",
+            "test:dir",
+        ]);
+
+        assert!(output.success(), "Command failed: {}", output.stderr);
+        // JSON output should be valid JSON
+        assert!(output.stdout.contains('"'));
+        assert!(output.stdout.contains("path"));
+        assert!(output.stdout.contains("size"));
+    }
+
+    #[test]
+    fn du_command_multiple_branches() {
+        let ctx = TestContext::new("cmd_du_multi");
+
+        let branch1 = ctx.create_branch("disk1/dir", &["file1.txt", "file2.txt"]);
+        let branch2 = ctx.create_branch("disk2/dir", &["file3.txt", "file4.txt", "file5.txt"]);
+
+        let config = format!(
+            r#"
+[share.test]
+paths = ["{0}/disk1", "{0}/disk2"]
+"#,
+            ctx.root.display()
+        );
+
+        ctx.write_config(&config);
+
+        let output = ctx.run_nofs(&[
+            "--config",
+            ctx.config_path.to_str().unwrap(),
+            "du",
+            "-H",
+            "test:dir",
+        ]);
+
+        assert!(output.success(), "Command failed: {}", output.stderr);
+        // Should show both branch paths
+        assert!(output.stdout.contains(&branch1.display().to_string()));
+        assert!(output.stdout.contains(&branch2.display().to_string()));
+    }
+
+    #[test]
     fn info_command() {
         let ctx = TestContext::new("cmd_info");
 

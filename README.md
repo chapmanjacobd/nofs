@@ -315,6 +315,24 @@ OPTIONS:
     -v, --verbose    Verbose output
 ```
 
+### `du` - Show Disk Usage
+
+```bash
+nofs [OPTIONS] du [context:]path
+
+OPTIONS:
+    -H, --human          Show human-readable sizes (KB, MB, GB)
+    -a, --all            Show all subdirectory sizes
+    --maxdepth <N>       Maximum directory traversal depth
+    -v, --verbose        Verbose output
+
+EXAMPLES:
+    nofs du media:/                  # Show disk usage for entire share
+    nofs du -H media:/photos         # Human-readable sizes
+    nofs du -a media:/docs           # Show all subdirectory sizes
+    nofs du --maxdepth 1 media:/     # Only show top-level directories
+```
+
 ## Comparison with mergerfs
 
 | Feature | mergerfs | nofs |
