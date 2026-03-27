@@ -10,7 +10,7 @@ use crate::pool::Pool;
 use std::fs;
 use std::io::{self, Read, Seek};
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicI64, AtomicU64, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicI64, AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::Instant;
 
@@ -121,38 +121,45 @@ fn resolve_dest_path(
     source_branch_index: Option<usize>,
     cache: &OperationCache,
 ) -> Result<PathBuf> {
-    if let Some(colon_idx) = dest_str.find(':') {
-        let potential_prefix = &dest_str[..colon_idx];
-        if !potential_prefix.contains('/') {
-            let share_name = potential_prefix;
-            let relative_path = &dest_str[colon_idx + 1..];
+    // Check for share prefix format: "share_name:relative/path"
+    let Some(colon_idx) = dest_str.find(':') else {
+        // No share prefix, return as-is
+        return Ok(PathBuf::from(dest_str));
+    };
 
-            if let Some(pool) = share {
-                if pool.name == share_name {
-                    // If source was from this share, use the same branch
-                    if let Some(src_idx) = source_branch_index {
-                        if src_idx < pool.branches.len() {
-                            // Verify the branch is writable (not RO)
-                            let branch = &pool.branches[src_idx];
-                            if branch.can_create() {
-                                return Ok(branch.path.join(relative_path));
-                            }
-                        }
-                    }
+    let potential_prefix = &dest_str[..colon_idx];
+    // If prefix contains '/', it's not a share name (likely a Windows path like C:)
+    if potential_prefix.contains('/') {
+        return Ok(PathBuf::from(dest_str));
+    }
 
-                    // Otherwise, use policy-based selection
-                    let branch = select_branch_for_create(pool, Some(relative_path.as_ref()), cache)?;
-                    return Ok(branch.path.join(relative_path));
-                }
+    let share_name = potential_prefix;
+    let relative_path = &dest_str[colon_idx + 1..];
+    let Some(pool) = share else {
+        return Err(NofsError::CopyMove(format!(
+            "Share '{share_name}' not found or has no branches"
+        )));
+    };
+
+    if pool.name != share_name {
+        return Err(NofsError::CopyMove(format!(
+            "Share '{share_name}' not found or has no branches"
+        )));
+    }
+
+    // Try to use the same branch as the source (for efficient same-branch operations)
+    if let Some(src_idx) = source_branch_index {
+        if src_idx < pool.branches.len() {
+            let branch = &pool.branches[src_idx];
+            if branch.can_create() {
+                return Ok(branch.path.join(relative_path));
             }
-            return Err(NofsError::CopyMove(format!(
-                "Share '{share_name}' not found or has no branches"
-            )));
         }
     }
 
-    // No share prefix, return as-is
-    Ok(PathBuf::from(dest_str))
+    // Fallback: use policy-based branch selection
+    let branch = select_branch_for_create(pool, Some(relative_path.as_ref()), cache)?;
+    Ok(branch.path.join(relative_path))
 }
 
 /// Conflict resolution mode for file-over-file conflicts
@@ -626,6 +633,10 @@ impl Default for CopyConfig {
 /// # Errors
 ///
 /// Returns an error if sources are empty or if destination is invalid.
+///
+/// # Panics
+///
+/// May panic if mutex poisoning occurs during worker thread synchronization.
 #[allow(clippy::too_many_lines)]
 pub fn execute(
     sources: &[String],
@@ -662,11 +673,45 @@ pub fn execute(
         fs::create_dir_all(&dest_path)?;
     }
 
-    // Process each source
-    let mut handles = Vec::new();
+    // Process each source using a worker pool with proper synchronization
     let workers = config.workers;
-    let active_workers = Arc::new(std::sync::atomic::AtomicUsize::new(0));
 
+    // Create a channel for work items
+    let (tx, work_channel) = std::sync::mpsc::channel::<(PathBuf, PathBuf)>();
+    let work_rx = Arc::new(std::sync::Mutex::new(work_channel));
+
+    // Spawn worker threads
+    let mut worker_handles = Vec::new();
+    for _ in 0..workers {
+        let work_rx_clone = Arc::clone(&work_rx);
+        let stats_clone = Arc::clone(&stats);
+        let config_clone = config.clone();
+
+        let handle = std::thread::spawn(move || {
+            loop {
+                // Try to receive work item
+                let work = {
+                    let Ok(guard) = work_rx_clone.lock() else {
+                        break; // Mutex poisoned, exit worker
+                    };
+                    guard.recv()
+                };
+
+                match work {
+                    Ok((source_path, final_dest)) => {
+                        if let Err(e) = process_source(&source_path, &final_dest, &config_clone, &stats_clone) {
+                            eprintln!("Error processing {}: {}", source_path.display(), e);
+                            stats_clone.errors.fetch_add(1, Ordering::Relaxed);
+                        }
+                    }
+                    Err(_) => break, // Channel closed, exit worker
+                }
+            }
+        });
+        worker_handles.push(handle);
+    }
+
+    // Send work items to workers
     for source in sources {
         // Resolve source path (may have share: prefix) - for read (existing file)
         let source_resolved = resolve_path(source, share, false, &cache)?;
@@ -695,34 +740,15 @@ pub fn execute(
             resolve_dest_path(destination, share, source_branch_index, &cache)?
         };
 
-        let stats_clone = Arc::clone(&stats);
-        let config_clone = config.clone();
-        let active_workers_clone = Arc::clone(&active_workers);
-
-        // Simple worker limit: wait if too many threads
-        while active_workers.load(Ordering::Relaxed) >= workers {
-            std::thread::sleep(std::time::Duration::from_millis(10));
-        }
-
-        active_workers.fetch_add(1, Ordering::Relaxed);
-        let handle: std::thread::JoinHandle<()> = std::thread::spawn(move || {
-            let result = process_source(
-                &source_path,
-                &final_dest,
-                &config_clone,
-                &stats_clone,
-                &active_workers_clone,
-            );
-            active_workers_clone.fetch_sub(1, Ordering::Relaxed);
-            if let Err(e) = result {
-                eprintln!("Error processing {}: {}", source_path.display(), e);
-                stats_clone.errors.fetch_add(1, Ordering::Relaxed);
-            }
-        });
-        handles.push(handle);
+        tx.send((source_path, final_dest))
+            .map_err(|e| NofsError::CopyMove(format!("Failed to send work item: {e}")))?;
     }
 
-    for handle in handles {
+    // Drop sender to signal workers to finish
+    drop(tx);
+
+    // Wait for all workers to complete
+    for handle in worker_handles {
         let _ = handle.join();
     }
 
@@ -743,17 +769,13 @@ pub fn execute(
 /// Process a source path and copy/move to destination
 ///
 /// Recursively handles directories and applies conflict resolution strategies.
+/// Note: This runs in a worker thread from the pool, so recursive directory
+/// processing is done sequentially to avoid thread explosion.
 ///
 /// # Errors
 ///
 /// Returns an error if the file/folder cannot be copied or moved.
-fn process_source(
-    source: &Path,
-    dest: &Path,
-    config: &CopyConfig,
-    stats: &Arc<CopyStats>,
-    active_workers: &Arc<AtomicUsize>,
-) -> Result<()> {
+fn process_source(source: &Path, dest: &Path, config: &CopyConfig, stats: &Arc<CopyStats>) -> Result<()> {
     let source_is_dir = source.is_dir();
     let dest_exists = dest.exists();
 
@@ -771,7 +793,7 @@ fn process_source(
             if !dest_is_dir {
                 // Folder over file conflict
                 stats.conflicts_resolved.fetch_add(1, Ordering::Relaxed);
-                return handle_folder_over_file(dest, source, config, stats, active_workers);
+                return handle_folder_over_file(dest, source, config, stats);
             }
             // Folder over folder - merge
         } else {
@@ -782,46 +804,25 @@ fn process_source(
             stats.folders_created.fetch_add(1, Ordering::Relaxed);
         }
 
-        // Recursively process directory contents
+        // Recursively process directory contents sequentially
         let entries = fs::read_dir(source)?;
 
-        return std::thread::scope(|s| {
-            for entry_result in entries {
-                let entry = entry_result?;
-                let entry_path = entry.path();
-                let entry_name = entry.file_name();
-                let entry_dest = dest.join(&entry_name);
+        for entry_result in entries {
+            let entry = entry_result?;
+            let entry_path = entry.path();
+            let entry_name = entry.file_name();
+            let entry_dest = dest.join(&entry_name);
 
-                // If workers available, spawn a thread to handle this entry
-                if active_workers.load(Ordering::Relaxed) < config.workers {
-                    active_workers.fetch_add(1, Ordering::Relaxed);
-                    let active_workers_clone = Arc::clone(active_workers);
-                    let stats_clone = Arc::clone(stats);
-                    s.spawn(move || {
-                        if let Err(e) =
-                            process_source(&entry_path, &entry_dest, config, &stats_clone, &active_workers_clone)
-                        {
-                            eprintln!(
-                                "Error processing {}: {}",
-                                shell_quote(entry_path.to_string_lossy().as_ref()),
-                                e
-                            );
-                        }
-                        active_workers_clone.fetch_sub(1, Ordering::Relaxed);
-                    });
-                } else {
-                    // Process sequentially if all workers busy
-                    if let Err(e) = process_source(&entry_path, &entry_dest, config, stats, active_workers) {
-                        eprintln!(
-                            "Error processing {}: {}",
-                            shell_quote(entry_path.to_string_lossy().as_ref()),
-                            e
-                        );
-                    }
-                }
+            // Process sequentially - we're already in a worker thread
+            if let Err(e) = process_source(&entry_path, &entry_dest, config, stats) {
+                eprintln!(
+                    "Error processing {}: {}",
+                    shell_quote(entry_path.to_string_lossy().as_ref()),
+                    e
+                );
             }
-            Ok(())
-        });
+        }
+        return Ok(());
     }
     // Handle file
     // Check extension filter
@@ -1225,13 +1226,7 @@ fn handle_file_over_folder(source: &Path, dest: &Path, config: &CopyConfig, stat
 /// # Errors
 ///
 /// Returns an error if file operations fail.
-fn handle_folder_over_file(
-    dest: &Path,
-    source: &Path,
-    config: &CopyConfig,
-    stats: &Arc<CopyStats>,
-    active_workers: &Arc<AtomicUsize>,
-) -> Result<()> {
+fn handle_folder_over_file(dest: &Path, source: &Path, config: &CopyConfig, stats: &Arc<CopyStats>) -> Result<()> {
     match config.folder_over_file {
         FolderConflictMode::Skip => {
             if config.verbose {
@@ -1269,7 +1264,7 @@ fn handle_folder_over_file(
                 fs::create_dir_all(dest)?;
             }
             stats.folders_created.fetch_add(1, Ordering::Relaxed);
-            process_source_contents(source, dest, config, stats, active_workers)
+            process_source_contents(source, dest, config, stats)
         }
         FolderConflictMode::RenameSrc => {
             // Rename the source folder conceptually by copying to renamed path
@@ -1285,7 +1280,7 @@ fn handle_folder_over_file(
             }
             stats.folders_created.fetch_add(1, Ordering::Relaxed);
             // Process source contents into new destination
-            process_source_contents(source, &new_dest, config, stats, active_workers)
+            process_source_contents(source, &new_dest, config, stats)
         }
         FolderConflictMode::RenameDest => {
             let renamed_dest = get_unique_folder_name(dest);
@@ -1301,7 +1296,7 @@ fn handle_folder_over_file(
                 fs::create_dir_all(dest)?;
             }
             stats.folders_created.fetch_add(1, Ordering::Relaxed);
-            process_source_contents(source, dest, config, stats, active_workers)
+            process_source_contents(source, dest, config, stats)
         }
         FolderConflictMode::Merge => {
             // This case shouldn't happen (folder over file merge doesn't make sense)
@@ -1319,7 +1314,7 @@ fn handle_folder_over_file(
                 fs::create_dir_all(dest)?;
             }
             stats.folders_created.fetch_add(1, Ordering::Relaxed);
-            process_source_contents(source, dest, config, stats, active_workers)
+            process_source_contents(source, dest, config, stats)
         }
     }
 }
@@ -1329,13 +1324,7 @@ fn handle_folder_over_file(
 /// # Errors
 ///
 /// Returns an error if directory cannot be read or entries cannot be processed.
-fn process_source_contents(
-    source: &Path,
-    dest: &Path,
-    config: &CopyConfig,
-    stats: &Arc<CopyStats>,
-    active_workers: &Arc<AtomicUsize>,
-) -> Result<()> {
+fn process_source_contents(source: &Path, dest: &Path, config: &CopyConfig, stats: &Arc<CopyStats>) -> Result<()> {
     let entries = fs::read_dir(source)?;
     for entry_result in entries {
         let entry = entry_result?;
@@ -1343,7 +1332,7 @@ fn process_source_contents(
         let entry_name = entry.file_name();
         let entry_dest = dest.join(&entry_name);
 
-        if let Err(e) = process_source(&entry_path, &entry_dest, config, stats, active_workers) {
+        if let Err(e) = process_source(&entry_path, &entry_dest, config, stats) {
             eprintln!(
                 "Error processing {}: {}",
                 shell_quote(entry_path.to_string_lossy().as_ref()),

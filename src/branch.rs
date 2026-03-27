@@ -91,11 +91,16 @@ impl Branch {
         if let Some(opts) = options {
             for opt_str in opts.split(',') {
                 let opt = opt_str.trim();
-                if opt.chars().any(char::is_numeric) {
+                // Try to parse as BranchMode first, otherwise treat as minfreespace
+                if let Ok(parsed_mode) = BranchMode::from_str(opt) {
+                    mode = parsed_mode;
+                } else if opt.chars().any(char::is_numeric) {
                     // Treat as minfreespace value
                     minfreespace = Some(opt.to_string());
                 } else {
-                    mode = BranchMode::from_str(opt)?;
+                    return Err(NofsError::Branch(format!(
+                        "Invalid branch option: '{opt}'. Expected RW/RO/NC or a size value (e.g., 4G)"
+                    )));
                 }
             }
         }

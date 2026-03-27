@@ -183,25 +183,31 @@ impl ShareConfig {
 /// Try to find default config locations
 #[must_use]
 pub fn find_default_config() -> Option<PathBuf> {
-    // Check common locations
-    let locations = [
-        // Current directory
-        Some(PathBuf::from("nofs.toml")),
-        Some(PathBuf::from(".nofs.toml")),
-        // Home directory - prefer config.toml, but also support nofs.toml
-        dirs_home().map(|mut p| {
-            p.push(".config/nofs/config.toml");
-            p
-        }),
-        dirs_home().map(|mut p| {
-            p.push(".config/nofs/nofs.toml");
-            p
-        }),
-        // System wide
-        Some(PathBuf::from("/etc/nofs/config.toml")),
-    ];
+    // Check current directory first
+    let current_dir_configs = ["nofs.toml", ".nofs.toml"];
+    for loc in current_dir_configs {
+        let path = PathBuf::from(loc);
+        if path.exists() {
+            return Some(path);
+        }
+    }
 
-    locations.into_iter().flatten().find(|loc| loc.exists())
+    // Check home directory configs
+    if let Some(home) = dirs_home() {
+        let home_configs = [
+            home.join(".config/nofs/config.toml"),
+            home.join(".config/nofs/nofs.toml"),
+        ];
+        for path in home_configs {
+            if path.exists() {
+                return Some(path);
+            }
+        }
+    }
+
+    // Check system-wide config
+    let system_path = PathBuf::from("/etc/nofs/config.toml");
+    system_path.exists().then_some(system_path)
 }
 
 /// Get the home directory from HOME environment variable

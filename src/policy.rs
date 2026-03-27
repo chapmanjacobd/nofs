@@ -230,17 +230,26 @@ impl<'ctx> CreatePolicy<'ctx> {
         }
     }
 
-    /// Fallback policy selection when original policy cannot be applied
+    /// Fallback policy selection when original policy cannot be applied.
+    ///
+    /// This is called when a path-preserving policy (`Ep*`) cannot find any branches
+    /// where the path exists. In this case, we fall back to non-path-preserving behavior:
+    /// - `EpMfs` falls back to `Mfs` (select branch with most free space)
+    /// - All other policies fall back to "first eligible branch" (same as `Ff`)
     #[allow(clippy::unnecessary_wraps)]
     fn select_fallback(policy: Policy, eligible: &[(&'ctx Branch, u64)]) -> Result<&'ctx Branch> {
         match policy {
+            // EpMfs → Mfs: select branch with most free space
             Policy::EpMfs => eligible
                 .iter()
                 .max_by_key(|(_, space)| *space)
                 .map(|(b, _)| *b)
                 .ok_or(NofsError::NoSuitableBranch),
+
+            // All other policies → Ff: select first eligible branch
             Policy::EpFf
             | Policy::EpAll
+            | Policy::EpRand
             | Policy::Pfrd
             | Policy::Mfs
             | Policy::Ff
@@ -248,7 +257,6 @@ impl<'ctx> CreatePolicy<'ctx> {
             | Policy::Lfs
             | Policy::Lus
             | Policy::Lup
-            | Policy::EpRand
             | Policy::All => eligible.first().map(|(b, _)| *b).ok_or(NofsError::NoSuitableBranch),
         }
     }
@@ -411,6 +419,11 @@ impl<'ctx> SearchPolicy<'ctx> {
                     .map(|(b, _)| b)
                     .ok_or(NofsError::NoSuitableBranch)
             }
+            // For search operations, space-based and random policies fall back to "first found"
+            // since the file already exists and we just need to locate it.
+            // - Pfrd/Lus/Lup: Space metrics don't matter for existing files
+            // - Rand: Could randomly select, but first-found is more deterministic for reads
+            // - Ep*: Path-preserving policies don't apply to search (path already known)
             Policy::Pfrd | Policy::Rand | Policy::Lus | Policy::Lup | Policy::EpMfs | Policy::EpFf | Policy::EpRand => {
                 let matching: Vec<&Branch> = self.branches.iter().filter(|b| exists(b)).collect();
 

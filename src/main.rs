@@ -839,11 +839,9 @@ fn main() -> Result<()> {
             size_limit,
         } => {
             // Parse sources and destination
-            if paths.len() < 2 {
+            let Some((destination, sources)) = paths.split_last() else {
                 return Err(anyhow::anyhow!("At least one source and one destination are required"));
-            }
-            #[allow(clippy::expect_used)]
-            let (destination, sources) = paths.split_last().expect("paths must have at least 2 elements");
+            };
 
             // Parse size limit
             let parsed_size_limit = size_limit.as_ref().and_then(|s| parse_size(s).ok());
@@ -886,11 +884,9 @@ fn main() -> Result<()> {
             size_limit,
         } => {
             // Parse sources and destination
-            if paths.len() < 2 {
+            let Some((destination, sources)) = paths.split_last() else {
                 return Err(anyhow::anyhow!("At least one source and one destination are required"));
-            }
-            #[allow(clippy::expect_used)]
-            let (destination, sources) = paths.split_last().expect("paths must have at least 2 elements");
+            };
 
             // Parse size limit
             let parsed_size_limit = size_limit.as_ref().and_then(|s| parse_size(s).ok());
