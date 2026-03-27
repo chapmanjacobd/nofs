@@ -501,6 +501,381 @@ pub fn parse_size(s: &str) -> Result<u64> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::branch::BranchMode;
+    use std::fs;
+    use tempfile::TempDir;
+
+    fn create_test_branch(name: &str) -> (TempDir, Branch) {
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        let branch_path = temp_dir.path().join(name);
+        fs::create_dir_all(&branch_path).unwrap();
+        let branch = Branch {
+            path: branch_path,
+            mode: BranchMode::RW,
+            minfreespace: None,
+        };
+        (temp_dir, branch)
+    }
+
+    #[test]
+    fn test_policy_from_str() {
+        assert_eq!(Policy::from_str("pfrd").unwrap(), Policy::Pfrd);
+        assert_eq!(Policy::from_str("PFRD").unwrap(), Policy::Pfrd);
+        assert_eq!(Policy::from_str("mfs").unwrap(), Policy::Mfs);
+        assert_eq!(Policy::from_str("ff").unwrap(), Policy::Ff);
+        assert_eq!(Policy::from_str("rand").unwrap(), Policy::Rand);
+        assert_eq!(Policy::from_str("lfs").unwrap(), Policy::Lfs);
+        assert_eq!(Policy::from_str("lus").unwrap(), Policy::Lus);
+        assert_eq!(Policy::from_str("lup").unwrap(), Policy::Lup);
+        assert_eq!(Policy::from_str("epmfs").unwrap(), Policy::EpMfs);
+        assert_eq!(Policy::from_str("epff").unwrap(), Policy::EpFf);
+        assert_eq!(Policy::from_str("eprand").unwrap(), Policy::EpRand);
+        assert_eq!(Policy::from_str("epall").unwrap(), Policy::EpAll);
+        assert_eq!(Policy::from_str("all").unwrap(), Policy::All);
+        assert!(Policy::from_str("invalid").is_err());
+    }
+
+    #[test]
+    fn test_policy_display() {
+        assert_eq!(Policy::Pfrd.to_string(), "pfrd");
+        assert_eq!(Policy::Mfs.to_string(), "mfs");
+        assert_eq!(Policy::Ff.to_string(), "ff");
+        assert_eq!(Policy::Rand.to_string(), "rand");
+        assert_eq!(Policy::Lfs.to_string(), "lfs");
+        assert_eq!(Policy::Lus.to_string(), "lus");
+        assert_eq!(Policy::Lup.to_string(), "lup");
+        assert_eq!(Policy::EpMfs.to_string(), "epmfs");
+        assert_eq!(Policy::EpFf.to_string(), "epff");
+        assert_eq!(Policy::EpRand.to_string(), "eprand");
+        assert_eq!(Policy::EpAll.to_string(), "epall");
+        assert_eq!(Policy::All.to_string(), "all");
+    }
+
+    #[test]
+    fn test_policy_parse() {
+        assert_eq!(Policy::parse("mfs").unwrap(), Policy::Mfs);
+        assert!(Policy::parse("invalid").is_err());
+    }
+
+    #[test]
+    fn test_create_policy_new() {
+        let (_temp, branch) = create_test_branch("test");
+        let branches = vec![branch];
+        let policy = CreatePolicy::new(&branches, 1024);
+        assert_eq!(policy.minfreespace, 1024);
+        assert!(policy.cache.is_none());
+    }
+
+    #[test]
+    fn test_create_policy_with_cache() {
+        let (_temp, branch) = create_test_branch("test");
+        let branches = vec![branch];
+        let cache = OperationCache::new();
+        let policy = CreatePolicy::with_cache(&branches, 1024, &cache);
+        assert!(policy.cache.is_some());
+    }
+
+    #[test]
+    fn test_create_policy_select_mfs() {
+        let (temp1, branch1) = create_test_branch("disk1");
+        let (temp2, branch2) = create_test_branch("disk2");
+
+        // Create some files to differentiate the branches
+        fs::write(temp1.path().join("file.txt"), "small").unwrap();
+        fs::write(temp2.path().join("file.txt"), "larger content file").unwrap();
+
+        let branches = vec![branch1, branch2];
+        let policy = CreatePolicy::new(&branches, 0);
+
+        let selected = policy.select(Policy::Mfs, None).unwrap();
+        assert!(selected.can_create());
+    }
+
+    #[test]
+    fn test_create_policy_select_ff() {
+        let (_temp1, branch1) = create_test_branch("disk1");
+        let (_temp2, branch2) = create_test_branch("disk2");
+
+        let branches = vec![branch1, branch2];
+        let policy = CreatePolicy::new(&branches, 0);
+        
+        let selected = policy.select(Policy::Ff, None).unwrap();
+        assert_eq!(selected.path, branches.first().unwrap().path);
+    }
+
+    #[test]
+    fn test_create_policy_select_lfs() {
+        let (_temp1, branch1) = create_test_branch("disk1");
+        let (_temp2, branch2) = create_test_branch("disk2");
+
+        let branches = vec![branch1, branch2];
+        let policy = CreatePolicy::new(&branches, 0);
+
+        let selected = policy.select(Policy::Lfs, None).unwrap();
+        assert!(selected.can_create());
+    }
+
+    #[test]
+    fn test_create_policy_select_rand() {
+        let (_temp1, branch1) = create_test_branch("disk1");
+        let (_temp2, branch2) = create_test_branch("disk2");
+
+        let branches = vec![branch1, branch2];
+        let policy = CreatePolicy::new(&branches, 0);
+
+        // Run multiple times to ensure randomness doesn't crash
+        for _ in 0..5 {
+            let selected = policy.select(Policy::Rand, None).unwrap();
+            assert!(selected.can_create());
+        }
+    }
+
+    #[test]
+    fn test_create_policy_select_pfrd() {
+        let (_temp1, branch1) = create_test_branch("disk1");
+        let (_temp2, branch2) = create_test_branch("disk2");
+
+        let branches = vec![branch1, branch2];
+        let policy = CreatePolicy::new(&branches, 0);
+
+        let selected = policy.select(Policy::Pfrd, None).unwrap();
+        assert!(selected.can_create());
+    }
+
+    #[test]
+    fn test_create_policy_select_lus() {
+        let (_temp1, branch1) = create_test_branch("disk1");
+        let (_temp2, branch2) = create_test_branch("disk2");
+
+        let branches = vec![branch1, branch2];
+        let policy = CreatePolicy::new(&branches, 0);
+
+        let selected = policy.select(Policy::Lus, None).unwrap();
+        assert!(selected.can_create());
+    }
+
+    #[test]
+    fn test_create_policy_select_lup() {
+        let (_temp1, branch1) = create_test_branch("disk1");
+        let (_temp2, branch2) = create_test_branch("disk2");
+
+        let branches = vec![branch1, branch2];
+        let policy = CreatePolicy::new(&branches, 0);
+
+        let selected = policy.select(Policy::Lup, None).unwrap();
+        assert!(selected.can_create());
+    }
+
+    #[test]
+    fn test_create_policy_no_suitable_branch() {
+        let (_temp1, branch1) = create_test_branch("disk1");
+        let mut branch_ro = branch1;
+        branch_ro.mode = BranchMode::RO;
+
+        let branches = vec![branch_ro];
+        let policy = CreatePolicy::new(&branches, 0);
+        
+        let result = policy.select(Policy::Mfs, None);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_create_policy_with_minfreespace() {
+        let (_temp, branch) = create_test_branch("disk");
+        let branches = vec![branch];
+        let policy = CreatePolicy::new(&branches, u64::MAX);
+
+        let result = policy.select(Policy::Mfs, None);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_create_policy_epmfs_with_existing_path() {
+        let (_temp1, branch1) = create_test_branch("disk1");
+        let (_temp2, branch2) = create_test_branch("disk2");
+        
+        // Create file only in disk1's branch path
+        let file_path = branch1.path.join("existing.txt");
+        fs::write(&file_path, "content").unwrap();
+
+        let branches = vec![branch1, branch2];
+        let policy = CreatePolicy::new(&branches, 0);
+        
+        let selected = policy.select(Policy::EpMfs, Some(Path::new("existing.txt"))).unwrap();
+        assert!(selected.can_create());
+    }
+
+    #[test]
+    fn test_create_policy_epmfs_fallback() {
+        let (_temp1, branch1) = create_test_branch("disk1");
+        let (_temp2, branch2) = create_test_branch("disk2");
+
+        let branches = vec![branch1, branch2];
+        let policy = CreatePolicy::new(&branches, 0);
+
+        // Path doesn't exist anywhere, should fallback to Mfs
+        let selected = policy
+            .select(Policy::EpMfs, Some(Path::new("nonexistent.txt")))
+            .unwrap();
+        assert!(selected.can_create());
+    }
+
+    #[test]
+    fn test_create_policy_epff_with_existing_path() {
+        let (_temp1, branch1) = create_test_branch("disk1");
+        let (_temp2, branch2) = create_test_branch("disk2");
+        
+        fs::write(branch1.path.join("existing.txt"), "content").unwrap();
+
+        let branches = vec![branch1, branch2];
+        let policy = CreatePolicy::new(&branches, 0);
+        
+        let selected = policy.select(Policy::EpFf, Some(Path::new("existing.txt"))).unwrap();
+        assert_eq!(selected.path, branches.first().unwrap().path);
+    }
+
+    #[test]
+    fn test_create_policy_eprand_with_existing_path() {
+        let (_temp1, branch1) = create_test_branch("disk1");
+        let (_temp2, branch2) = create_test_branch("disk2");
+        
+        fs::write(branch1.path.join("existing.txt"), "content").unwrap();
+
+        let branches = vec![branch1, branch2];
+        let policy = CreatePolicy::new(&branches, 0);
+        
+        let selected = policy.select(Policy::EpRand, Some(Path::new("existing.txt"))).unwrap();
+        assert_eq!(selected.path, branches.first().unwrap().path);
+    }
+
+    #[test]
+    fn test_search_policy_new() {
+        let (_temp, branch) = create_test_branch("test");
+        let branches = vec![branch];
+        let policy = SearchPolicy::new(&branches);
+        assert!(policy.cache.is_none());
+    }
+
+    #[test]
+    fn test_search_policy_with_cache() {
+        let (_temp, branch) = create_test_branch("test");
+        let branches = vec![branch];
+        let cache = OperationCache::new();
+        let policy = SearchPolicy::with_cache(&branches, &cache);
+        assert!(policy.cache.is_some());
+    }
+
+    #[test]
+    fn test_search_policy_select_ff() {
+        let (_temp, branch) = create_test_branch("disk");
+        let file_path = branch.path.join("file.txt");
+        fs::write(&file_path, "content").unwrap();
+
+        let branches = vec![branch];
+        let policy = SearchPolicy::new(&branches);
+        
+        let selected = policy.select(Policy::Ff, Path::new("file.txt")).unwrap();
+        assert_eq!(selected.path, branches.first().unwrap().path);
+    }
+
+    #[test]
+    fn test_search_policy_select_ff_not_found() {
+        let (_temp, branch) = create_test_branch("disk");
+
+        let branches = vec![branch];
+        let policy = SearchPolicy::new(&branches);
+
+        let result = policy.select(Policy::Ff, Path::new("nonexistent.txt"));
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_search_policy_select_all() {
+        let (_temp, branch) = create_test_branch("disk");
+
+        let branches = vec![branch];
+        let policy = SearchPolicy::new(&branches);
+        
+        let selected = policy.select(Policy::All, Path::new("any.txt")).unwrap();
+        assert_eq!(selected.path, branches.first().unwrap().path);
+    }
+
+    #[test]
+    fn test_search_policy_select_epall() {
+        let (_temp, branch) = create_test_branch("disk");
+
+        let branches = vec![branch];
+        let policy = SearchPolicy::new(&branches);
+        
+        let selected = policy.select(Policy::EpAll, Path::new("any.txt")).unwrap();
+        assert_eq!(selected.path, branches.first().unwrap().path);
+    }
+
+    #[test]
+    fn test_search_policy_select_mfs() {
+        let (_temp, branch) = create_test_branch("disk");
+        let file_path = branch.path.join("file.txt");
+        fs::write(&file_path, "content").unwrap();
+
+        let branches = vec![branch];
+        let policy = SearchPolicy::new(&branches);
+        
+        let selected = policy.select(Policy::Mfs, Path::new("file.txt")).unwrap();
+        assert_eq!(selected.path, branches.first().unwrap().path);
+    }
+
+    #[test]
+    fn test_search_policy_select_lfs() {
+        let (_temp, branch) = create_test_branch("disk");
+        let file_path = branch.path.join("file.txt");
+        fs::write(&file_path, "content").unwrap();
+
+        let branches = vec![branch];
+        let policy = SearchPolicy::new(&branches);
+        
+        let selected = policy.select(Policy::Lfs, Path::new("file.txt")).unwrap();
+        assert_eq!(selected.path, branches.first().unwrap().path);
+    }
+
+    #[test]
+    fn test_search_policy_select_fallback() {
+        let (_temp, branch) = create_test_branch("disk");
+
+        let branches = vec![branch];
+        let policy = SearchPolicy::new(&branches);
+
+        // Lus/Lup/Rand should fall back to first found for search
+        let selected = policy.select(Policy::Lus, Path::new("nonexistent.txt"));
+        assert!(selected.is_err());
+    }
+
+    #[test]
+    fn test_search_policy_find_all() {
+        let (_temp1, branch1) = create_test_branch("disk1");
+        let (_temp2, branch2) = create_test_branch("disk2");
+        
+        // Create file in both branch paths
+        fs::write(branch1.path.join("shared.txt"), "content1").unwrap();
+        fs::write(branch2.path.join("shared.txt"), "content2").unwrap();
+
+        let branches = vec![branch1, branch2];
+        let policy = SearchPolicy::new(&branches);
+        
+        let found = policy.find_all(Path::new("shared.txt"));
+        assert_eq!(found.len(), 2);
+    }
+
+    #[test]
+    fn test_search_policy_find_all_none() {
+        let (_temp1, branch1) = create_test_branch("disk1");
+        let (_temp2, branch2) = create_test_branch("disk2");
+
+        let branches = vec![branch1, branch2];
+        let policy = SearchPolicy::new(&branches);
+
+        let found = policy.find_all(Path::new("nonexistent.txt"));
+        assert!(found.is_empty());
+    }
 
     #[test]
     fn test_parse_size() {

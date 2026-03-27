@@ -1,6 +1,6 @@
 [package]
 name = "nofs"
-version = "0.1.6"
+version = "0.1.7"
 edition = "2021"
 description = "A lightweight shared filesystem tool"
 repository = "https://github.com/chapmanjacobd/nofs"
@@ -48,6 +48,9 @@ unsafe_code = "allow"
 unused_crate_dependencies = "allow"
 unused_extern_crates = "deny"
 unused_import_braces = "deny"
+
+[dev-dependencies]
+tempfile = "3"
 
 [lints.clippy]
 # Groups

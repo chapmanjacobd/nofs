@@ -332,3 +332,348 @@ pub fn detect_single_file_conflict(
         Ok(None)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::branch::BranchMode;
+    use crate::utils::MB;
+    use std::fs;
+    use tempfile::TempDir;
+
+    fn create_test_branch(name: &str) -> (TempDir, Branch) {
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        let branch_path = temp_dir.path().join(name);
+        fs::create_dir_all(&branch_path).unwrap();
+        let branch = Branch {
+            path: branch_path,
+            mode: BranchMode::RW,
+            minfreespace: None,
+        };
+        (temp_dir, branch)
+    }
+
+    #[test]
+    fn test_branch_conflict_debug() {
+        let bc = BranchConflict {
+            branch_name: "test".to_string(),
+            path: "/test/path".to_string(),
+            size: 100,
+            hash: Some("abc123".to_string()),
+            mtime: Some(12345),
+            ctime: Some(12345),
+        };
+        let debug_str = format!("{bc:?}");
+        assert!(debug_str.contains("test"));
+        assert!(debug_str.contains("abc123"));
+    }
+
+    #[test]
+    fn test_file_conflict_debug() {
+        let fc = FileConflict {
+            name: "test.txt".to_string(),
+            branches: vec![],
+        };
+        let debug_str = format!("{fc:?}");
+        assert!(debug_str.contains("test.txt"));
+    }
+
+    #[test]
+    fn test_compute_file_hash_small() {
+        let temp_dir = TempDir::new().unwrap();
+        let file_path = temp_dir.path().join("small.txt");
+        fs::write(&file_path, "small content").unwrap();
+
+        let hash = compute_file_hash(&file_path).unwrap();
+        assert!(!hash.is_empty());
+        assert!(hash.chars().all(|c| c.is_ascii_hexdigit()));
+    }
+
+    #[test]
+    fn test_compute_file_hash_large() {
+        let temp_dir = TempDir::new().unwrap();
+        let file_path = temp_dir.path().join("large.txt");
+        
+        // Create a file larger than 1MB to trigger sampling
+        #[allow(clippy::cast_possible_truncation, clippy::as_conversions)]
+        let content = "x".repeat(2 * MB as usize);
+        fs::write(&file_path, &content).unwrap();
+
+        let hash = compute_file_hash(&file_path).unwrap();
+        assert!(!hash.is_empty());
+        assert!(hash.chars().all(|c| c.is_ascii_hexdigit()));
+    }
+
+    #[test]
+    fn test_compute_file_hash_nonexistent() {
+        let result = compute_file_hash(&PathBuf::from("/nonexistent/file.txt"));
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_files_differ_same_size_different_content() {
+        let temp_dir = TempDir::new().unwrap();
+        let file1 = temp_dir.path().join("file1.txt");
+        let file2 = temp_dir.path().join("file2.txt");
+
+        fs::write(&file1, "content A").unwrap();
+        fs::write(&file2, "content B").unwrap();
+
+        let bc1 = BranchConflict {
+            branch_name: "branch1".to_string(),
+            path: file1.to_string_lossy().to_string(),
+            size: 9,
+            hash: None,
+            mtime: None,
+            ctime: None,
+        };
+        let bc2 = BranchConflict {
+            branch_name: "branch2".to_string(),
+            path: file2.to_string_lossy().to_string(),
+            size: 9,
+            hash: None,
+            mtime: None,
+            ctime: None,
+        };
+
+        // Without hash, same size files are considered equal
+        assert!(!files_differ(&[bc1.clone(), bc2.clone()], false));
+
+        // With hash, they differ
+        assert!(files_differ(&[bc1, bc2], true));
+    }
+
+    #[test]
+    fn test_files_differ_different_size() {
+        let bc1 = BranchConflict {
+            branch_name: "branch1".to_string(),
+            path: "/path1".to_string(),
+            size: 100,
+            hash: None,
+            mtime: None,
+            ctime: None,
+        };
+        let bc2 = BranchConflict {
+            branch_name: "branch2".to_string(),
+            path: "/path2".to_string(),
+            size: 200,
+            hash: None,
+            mtime: None,
+            ctime: None,
+        };
+
+        assert!(files_differ(&[bc1, bc2], false));
+    }
+
+    #[test]
+    fn test_files_differ_single_file() {
+        let bc = BranchConflict {
+            branch_name: "branch1".to_string(),
+            path: "/path1".to_string(),
+            size: 100,
+            hash: None,
+            mtime: None,
+            ctime: None,
+        };
+        assert!(!files_differ(&[bc], false));
+    }
+
+    #[test]
+    fn test_files_differ_empty() {
+        assert!(!files_differ(&[], false));
+    }
+
+    #[test]
+    fn test_detect_conflicts_no_conflicts() {
+        let (temp1, branch1) = create_test_branch("disk1");
+        let (temp2, branch2) = create_test_branch("disk2");
+
+        // Same content in both
+        fs::write(temp1.path().join("same.txt"), "same content").unwrap();
+        fs::write(temp2.path().join("same.txt"), "same content").unwrap();
+
+        let branches = vec![&branch1, &branch2];
+        let conflicts = detect_conflicts(&branches, Path::new(""), false).unwrap();
+        assert!(conflicts.is_empty());
+    }
+
+    #[test]
+    fn test_detect_conflicts_with_conflicts() {
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        
+        // Create two branch directories
+        let dir1 = temp_dir.path().join("branch1");
+        let dir2 = temp_dir.path().join("branch2");
+        fs::create_dir_all(&dir1).unwrap();
+        fs::create_dir_all(&dir2).unwrap();
+        
+        // Create files with different content (different sizes) directly in branch dirs
+        fs::write(dir1.join("diff.txt"), "content AAAA").unwrap();
+        fs::write(dir2.join("diff.txt"), "content B").unwrap();
+
+        let branch1 = Branch {
+            path: dir1,
+            mode: BranchMode::RW,
+            minfreespace: None,
+        };
+        let branch2 = Branch {
+            path: dir2,
+            mode: BranchMode::RW,
+            minfreespace: None,
+        };
+
+        let branches = vec![&branch1, &branch2];
+        // Use empty path since files are at branch root
+        let conflicts = detect_conflicts(&branches, Path::new(""), false).unwrap();
+        assert_eq!(conflicts.len(), 1);
+        assert_eq!(conflicts.first().unwrap().name, "diff.txt");
+    }
+
+    #[test]
+    fn test_detect_conflicts_single_branch() {
+        let (_temp1, branch1) = create_test_branch("disk1");
+
+        let branches = vec![&branch1];
+        let conflicts = detect_conflicts(&branches, Path::new(""), false).unwrap();
+        assert!(conflicts.is_empty());
+    }
+
+    #[test]
+    fn test_detect_conflicts_nonexistent_dir() {
+        let (_temp1, branch1) = create_test_branch("disk1");
+        let (_temp2, branch2) = create_test_branch("disk2");
+
+        let branches = vec![&branch1, &branch2];
+        let conflicts = detect_conflicts(&branches, Path::new("nonexistent"), false).unwrap();
+        assert!(conflicts.is_empty());
+    }
+
+    #[test]
+    fn test_detect_single_file_conflict_no_conflict() {
+        let (temp1, branch1) = create_test_branch("disk1");
+        let (temp2, branch2) = create_test_branch("disk2");
+
+        fs::write(temp1.path().join("same.txt"), "same content").unwrap();
+        fs::write(temp2.path().join("same.txt"), "same content").unwrap();
+
+        let branches = vec![&branch1, &branch2];
+        let result = detect_single_file_conflict(&branches, Path::new("same.txt"), false).unwrap();
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_detect_single_file_conflict_with_conflict() {
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+
+        // Create two branch directories
+        let dir1 = temp_dir.path().join("branch1");
+        let dir2 = temp_dir.path().join("branch2");
+        fs::create_dir_all(&dir1).unwrap();
+        fs::create_dir_all(&dir2).unwrap();
+
+        // Create files with different content (different sizes)
+        fs::write(dir1.join("diff.txt"), "content AAAA").unwrap();
+        fs::write(dir2.join("diff.txt"), "content B").unwrap();
+
+        let branch1 = Branch {
+            path: dir1,
+            mode: BranchMode::RW,
+            minfreespace: None,
+        };
+        let branch2 = Branch {
+            path: dir2,
+            mode: BranchMode::RW,
+            minfreespace: None,
+        };
+
+        let branches = vec![&branch1, &branch2];
+        let result = detect_single_file_conflict(&branches, Path::new("diff.txt"), false).unwrap();
+        assert!(result.is_some());
+        let conflict = result.unwrap();
+        assert_eq!(conflict.name, "diff.txt");
+        assert_eq!(conflict.branches.len(), 2);
+    }
+
+    #[test]
+    fn test_detect_single_file_conflict_single_branch() {
+        let (_temp1, branch1) = create_test_branch("disk1");
+
+        let branches = vec![&branch1];
+        let result = detect_single_file_conflict(&branches, Path::new("file.txt"), false).unwrap();
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_detect_single_file_conflict_nonexistent() {
+        let (_temp1, branch1) = create_test_branch("disk1");
+        let (_temp2, branch2) = create_test_branch("disk2");
+
+        let branches = vec![&branch1, &branch2];
+        let result = detect_single_file_conflict(&branches, Path::new("nonexistent.txt"), false).unwrap();
+        assert!(result.is_none());
+    }
+
+    #[test]
+    #[allow(clippy::get_unwrap)]
+    fn test_detect_conflicts_sorted_output() {
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        
+        // Create two branch directories
+        let dir1 = temp_dir.path().join("branch1");
+        let dir2 = temp_dir.path().join("branch2");
+        fs::create_dir_all(&dir1).unwrap();
+        fs::create_dir_all(&dir2).unwrap();
+        
+        // Create files with different content (different sizes)
+        fs::write(dir1.join("zebra.txt"), "content AAAA").unwrap();
+        fs::write(dir2.join("zebra.txt"), "content B").unwrap();
+        fs::write(dir1.join("apple.txt"), "content XXXX").unwrap();
+        fs::write(dir2.join("apple.txt"), "content Y").unwrap();
+
+        let branch1 = Branch {
+            path: dir1,
+            mode: BranchMode::RW,
+            minfreespace: None,
+        };
+        let branch2 = Branch {
+            path: dir2,
+            mode: BranchMode::RW,
+            minfreespace: None,
+        };
+
+        let branches = vec![&branch1, &branch2];
+        let conflicts = detect_conflicts(&branches, Path::new(""), false).unwrap();
+        
+        // Should be sorted alphabetically
+        assert_eq!(conflicts.len(), 2);
+        assert_eq!(conflicts.first().unwrap().name, "apple.txt");
+        assert_eq!(conflicts.get(1).unwrap().name, "zebra.txt");
+    }
+
+    #[test]
+    fn test_branch_conflict_sorting_by_mtime() {
+        let bc1 = BranchConflict {
+            branch_name: "branch1".to_string(),
+            path: "/path1".to_string(),
+            size: 100,
+            hash: None,
+            mtime: Some(1000),
+            ctime: None,
+        };
+        let bc2 = BranchConflict {
+            branch_name: "branch2".to_string(),
+            path: "/path2".to_string(),
+            size: 100,
+            hash: None,
+            mtime: Some(2000),
+            ctime: None,
+        };
+
+        let mut conflicts = [bc1, bc2];
+        conflicts.sort_by(|a, b| b.mtime.cmp(&a.mtime).then_with(|| a.path.cmp(&b.path)));
+        
+        // Newest first
+        assert_eq!(conflicts.first().unwrap().mtime, Some(2000));
+        assert_eq!(conflicts.get(1).unwrap().mtime, Some(1000));
+    }
+}

@@ -243,3 +243,187 @@ impl Branch {
         exists
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+    use tempfile::TempDir;
+
+    fn create_temp_branch() -> (TempDir, Branch) {
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        let branch = Branch {
+            path: temp_dir.path().to_path_buf(),
+            mode: BranchMode::RW,
+            minfreespace: None,
+        };
+        (temp_dir, branch)
+    }
+
+    #[test]
+    fn test_branch_mode_from_str() {
+        assert_eq!(BranchMode::from_str("RW").unwrap(), BranchMode::RW);
+        assert_eq!(BranchMode::from_str("rw").unwrap(), BranchMode::RW);
+        assert_eq!(BranchMode::from_str("RO").unwrap(), BranchMode::RO);
+        assert_eq!(BranchMode::from_str("ro").unwrap(), BranchMode::RO);
+        assert_eq!(BranchMode::from_str("NC").unwrap(), BranchMode::NC);
+        assert_eq!(BranchMode::from_str("nc").unwrap(), BranchMode::NC);
+        assert!(BranchMode::from_str("INVALID").is_err());
+    }
+
+    #[test]
+    fn test_branch_mode_display() {
+        assert_eq!(BranchMode::RW.to_string(), "RW");
+        assert_eq!(BranchMode::RO.to_string(), "RO");
+        assert_eq!(BranchMode::NC.to_string(), "NC");
+    }
+
+    #[test]
+    fn test_branch_parse_simple_path() {
+        let (temp_dir, branch) = create_temp_branch();
+        let path_str = branch.path.to_str().unwrap();
+        let parsed = Branch::parse(path_str).unwrap();
+        assert_eq!(parsed.path, branch.path);
+        assert_eq!(parsed.mode, BranchMode::RW);
+        assert!(parsed.minfreespace.is_none());
+        drop(temp_dir);
+    }
+
+    #[test]
+    fn test_branch_parse_with_mode() {
+        let (temp_dir, _) = create_temp_branch();
+        let path_str = format!("{}=RO", temp_dir.path().display());
+        let parsed = Branch::parse(&path_str).unwrap();
+        assert_eq!(parsed.mode, BranchMode::RO);
+    }
+
+    #[test]
+    fn test_branch_parse_with_mode_and_minfreespace() {
+        let (temp_dir, _) = create_temp_branch();
+        let path_str = format!("{}=RW,1G", temp_dir.path().display());
+        let parsed = Branch::parse(&path_str).unwrap();
+        assert_eq!(parsed.mode, BranchMode::RW);
+        assert_eq!(parsed.minfreespace, Some("1G".to_string()));
+    }
+
+    #[test]
+    fn test_branch_parse_with_minfreespace_only() {
+        let (temp_dir, _) = create_temp_branch();
+        let path_str = format!("{}=512M", temp_dir.path().display());
+        let parsed = Branch::parse(&path_str).unwrap();
+        assert_eq!(parsed.mode, BranchMode::RW);
+        assert_eq!(parsed.minfreespace, Some("512M".to_string()));
+    }
+
+    #[test]
+    fn test_branch_parse_invalid_option() {
+        let (temp_dir, _) = create_temp_branch();
+        let path_str = format!("{}=INVALID", temp_dir.path().display());
+        let result = Branch::parse(&path_str);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Invalid branch option"));
+    }
+
+    #[test]
+    fn test_branch_parse_nonexistent_path() {
+        let result = Branch::parse("/nonexistent/path/that/does/not/exist");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("does not exist"));
+    }
+
+    #[test]
+    fn test_branch_can_create() {
+        let (temp_dir, _) = create_temp_branch();
+        let branch_rw = Branch {
+            path: temp_dir.path().to_path_buf(),
+            mode: BranchMode::RW,
+            minfreespace: None,
+        };
+        let branch_read_only = Branch {
+            path: temp_dir.path().to_path_buf(),
+            mode: BranchMode::RO,
+            minfreespace: None,
+        };
+        let branch_no_create = Branch {
+            path: temp_dir.path().to_path_buf(),
+            mode: BranchMode::NC,
+            minfreespace: None,
+        };
+
+        assert!(branch_rw.can_create());
+        assert!(!branch_read_only.can_create());
+        assert!(!branch_no_create.can_create());
+    }
+
+    #[test]
+    fn test_branch_can_action() {
+        let (temp_dir, _) = create_temp_branch();
+        let branch_rw = Branch {
+            path: temp_dir.path().to_path_buf(),
+            mode: BranchMode::RW,
+            minfreespace: None,
+        };
+        let branch_read_only = Branch {
+            path: temp_dir.path().to_path_buf(),
+            mode: BranchMode::RO,
+            minfreespace: None,
+        };
+        let branch_no_create = Branch {
+            path: temp_dir.path().to_path_buf(),
+            mode: BranchMode::NC,
+            minfreespace: None,
+        };
+
+        assert!(branch_rw.can_action());
+        assert!(!branch_read_only.can_action());
+        assert!(!branch_no_create.can_action());
+    }
+
+    #[test]
+    fn test_branch_space_methods() {
+        let (_temp_dir, branch) = create_temp_branch();
+
+        let available = branch.available_space();
+        assert!(available.is_ok());
+        assert!(available.unwrap() > 0);
+
+        let total = branch.total_space();
+        assert!(total.is_ok());
+        assert!(total.unwrap() > 0);
+
+        let used = branch.used_space();
+        assert!(used.is_ok());
+
+        let free_pct = branch.free_percentage();
+        assert!(free_pct.is_ok());
+        let free_val = free_pct.unwrap();
+        assert!((0.0..=100.0).contains(&free_val));
+
+        let used_pct = branch.used_percentage();
+        assert!(used_pct.is_ok());
+        let used_val = used_pct.unwrap();
+        assert!((0.0..=100.0).contains(&used_val));
+
+        assert!((free_val + used_val - 100.0).abs() < 0.1);
+    }
+
+    #[test]
+    fn test_branch_cached_methods() {
+        let (_temp_dir, branch) = create_temp_branch();
+        let cache = OperationCache::new();
+
+        let available_cached = branch.available_space_cached(&cache);
+        assert!(available_cached.is_ok());
+
+        let total_cached = branch.total_space_cached(&cache);
+        assert!(total_cached.is_ok());
+
+        let test_file = branch.path.join("test_file.txt");
+        fs::write(&test_file, "test").unwrap();
+        let relative = Path::new("test_file.txt");
+        assert!(branch.path_exists_cached(relative, &cache));
+
+        let non_existent = Path::new("non_existent.txt");
+        assert!(!branch.path_exists_cached(non_existent, &cache));
+    }
+}

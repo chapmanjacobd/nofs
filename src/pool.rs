@@ -440,3 +440,245 @@ impl Pool {
         self.branches.iter().any(|b| b.path_exists_cached(pool_path, cache))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::branch::BranchMode;
+    use std::fs;
+    use tempfile::TempDir;
+
+    fn create_test_pool() -> (TempDir, Pool) {
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        let branch_path = temp_dir.path().join("branch1");
+        fs::create_dir_all(&branch_path).unwrap();
+
+        let branch = Branch {
+            path: branch_path,
+            mode: BranchMode::RW,
+            minfreespace: None,
+        };
+
+        let pool = Pool {
+            name: "test_pool".to_string(),
+            branches: vec![branch],
+            create_policy: Policy::Mfs,
+            search_policy: Policy::Ff,
+            action_policy: Policy::EpAll,
+            minfreespace: 0,
+        };
+
+        (temp_dir, pool)
+    }
+
+    #[test]
+    fn test_pool_total_available_space() {
+        let (_temp, pool) = create_test_pool();
+        let space = pool.total_available_space();
+        assert!(space > 0);
+    }
+
+    #[test]
+    fn test_pool_total_space() {
+        let (_temp, pool) = create_test_pool();
+        let space = pool.total_space();
+        assert!(space > 0);
+    }
+
+    #[test]
+    fn test_pool_total_used_space() {
+        let (_temp, pool) = create_test_pool();
+        let used = pool.total_used_space();
+        // Note: used space can be 0 on empty filesystems
+        let _ = used;
+    }
+
+    #[test]
+    fn test_pool_branch_count() {
+        let (_temp, pool) = create_test_pool();
+        assert_eq!(pool.branch_count(), 1);
+    }
+
+    #[test]
+    fn test_pool_writable_branch_count() {
+        let (_temp, pool) = create_test_pool();
+        assert_eq!(pool.writable_branch_count(), 1);
+    }
+
+    #[test]
+    fn test_pool_writable_branch_count_with_ro() {
+        let (temp, mut pool) = create_test_pool();
+        let branch_path = temp.path().join("branch2");
+        fs::create_dir_all(&branch_path).unwrap();
+
+        pool.branches.push(Branch {
+            path: branch_path,
+            mode: BranchMode::RO,
+            minfreespace: None,
+        });
+
+        assert_eq!(pool.writable_branch_count(), 1);
+        assert_eq!(pool.branch_count(), 2);
+    }
+
+    #[test]
+    fn test_pool_find_branch() {
+        let (temp, pool) = create_test_pool();
+        let found = pool.find_branch(&temp.path().join("branch1"));
+        assert!(found.is_some());
+
+        let not_found = pool.find_branch(&PathBuf::from("/nonexistent"));
+        assert!(not_found.is_none());
+    }
+
+    #[test]
+    fn test_pool_resolve_path() {
+        let (temp, pool) = create_test_pool();
+        let file_path = temp.path().join("branch1").join("test.txt");
+        fs::write(&file_path, "content").unwrap();
+
+        let resolved = pool.resolve_path(Path::new("test.txt"));
+        assert_eq!(resolved.len(), 1);
+        assert!(resolved.first().unwrap().exists());
+    }
+
+    #[test]
+    fn test_pool_resolve_path_first() {
+        let (temp, pool) = create_test_pool();
+        let file_path = temp.path().join("branch1").join("test.txt");
+        fs::write(&file_path, "content").unwrap();
+
+        let resolved = pool.resolve_path_first(Path::new("test.txt"));
+        assert!(resolved.is_some());
+        assert!(resolved.unwrap().exists());
+    }
+
+    #[test]
+    fn test_pool_resolve_path_not_found() {
+        let (_temp, pool) = create_test_pool();
+        let resolved = pool.resolve_path(Path::new("nonexistent.txt"));
+        assert!(resolved.is_empty());
+
+        let resolved_first = pool.resolve_path_first(Path::new("nonexistent.txt"));
+        assert!(resolved_first.is_none());
+    }
+
+    #[test]
+    fn test_pool_select_create_branch() {
+        let (_temp, pool) = create_test_pool();
+        let branch = pool.select_create_branch(Path::new("newfile.txt"));
+        assert!(branch.is_ok());
+    }
+
+    #[test]
+    fn test_pool_find_all_branches() {
+        let (temp, pool) = create_test_pool();
+        let file_path = temp.path().join("branch1").join("test.txt");
+        fs::write(&file_path, "content").unwrap();
+
+        let branches = pool.find_all_branches(Path::new("test.txt"));
+        assert_eq!(branches.len(), 1);
+    }
+
+    #[test]
+    fn test_pool_exists() {
+        let (temp, pool) = create_test_pool();
+        let file_path = temp.path().join("branch1").join("test.txt");
+        fs::write(&file_path, "content").unwrap();
+
+        assert!(pool.exists(Path::new("test.txt")));
+        assert!(!pool.exists(Path::new("nonexistent.txt")));
+    }
+
+    #[test]
+    fn test_pool_cached_methods() {
+        let (temp, pool) = create_test_pool();
+        let cache = OperationCache::new();
+        
+        let file_path = temp.path().join("branch1").join("test.txt");
+        fs::write(&file_path, "content").unwrap();
+
+        let available = pool.total_available_space_cached(&cache);
+        assert!(available > 0);
+
+        let total = pool.total_space_cached(&cache);
+        assert!(total > 0);
+
+        let used = pool.total_used_space_cached(&cache);
+        // Note: used space can be 0 on empty filesystems
+        let _ = used;
+
+        let resolved = pool.resolve_path_cached(Path::new("test.txt"), &cache);
+        assert_eq!(resolved.len(), 1);
+
+        let resolved_first = pool.resolve_path_first_cached(Path::new("test.txt"), &cache);
+        assert!(resolved_first.is_some());
+
+        let exists = pool.exists_cached(Path::new("test.txt"), &cache);
+        assert!(exists);
+
+        let branches = pool.find_all_branches_cached(Path::new("test.txt"), &cache);
+        assert_eq!(branches.len(), 1);
+    }
+
+    #[test]
+    fn test_pool_manager_from_paths() {
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        let branch_path = temp_dir.path().join("branch1");
+        fs::create_dir_all(&branch_path).unwrap();
+
+        let paths_str = branch_path.to_str().unwrap();
+        let manager = PoolManager::from_paths(paths_str, "mfs", "0").unwrap();
+
+        assert_eq!(manager.pool_names().len(), 1);
+        let pool = manager.default_pool().unwrap();
+        assert_eq!(pool.name, "default");
+    }
+
+    #[test]
+    fn test_pool_manager_get_pool() {
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        let branch_path = temp_dir.path().join("branch1");
+        fs::create_dir_all(&branch_path).unwrap();
+
+        let paths_str = branch_path.to_str().unwrap();
+        let manager = PoolManager::from_paths(paths_str, "mfs", "0").unwrap();
+
+        let pool = manager.get_pool("default").unwrap();
+        assert_eq!(pool.name, "default");
+
+        let not_found = manager.get_pool("nonexistent");
+        assert!(not_found.is_err());
+    }
+
+    #[test]
+    fn test_pool_manager_resolve_context_path() {
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        let branch_path = temp_dir.path().join("branch1");
+        fs::create_dir_all(&branch_path).unwrap();
+
+        let paths_str = branch_path.to_str().unwrap();
+        let manager = PoolManager::from_paths(paths_str, "mfs", "0").unwrap();
+
+        let (pool, path) = manager.resolve_context_path("default:some/path.txt").unwrap();
+        assert_eq!(pool.name, "default");
+        assert_eq!(path, "some/path.txt");
+
+        let (pool2, path2) = manager.resolve_context_path("/some/path.txt").unwrap();
+        assert_eq!(pool2.name, "default");
+        assert_eq!(path2, "some/path.txt");
+    }
+
+    #[test]
+    fn test_pool_manager_resolve_context_path_not_found() {
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        let branch_path = temp_dir.path().join("branch1");
+        fs::create_dir_all(&branch_path).unwrap();
+
+        let paths_str = branch_path.to_str().unwrap();
+        let manager = PoolManager::from_paths(paths_str, "mfs", "0").unwrap();
+
+        let result = manager.resolve_context_path("nonexistent:path.txt");
+        assert!(result.is_err());
+    }
+}
