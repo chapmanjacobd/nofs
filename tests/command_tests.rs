@@ -622,7 +622,7 @@ paths = ["{0}/disk1"]
 
         let config = format!(
             r#"
-[share.test]
+[share.mvtest]
 paths = ["{0}/disk1", "{0}/disk2"]
 "#,
             ctx.root.display()
@@ -633,10 +633,14 @@ paths = ["{0}/disk1", "{0}/disk2"]
         let output = ctx.run_nofs(&[
             "--config",
             ctx.config_path.to_str().unwrap(),
+            "-v",
             "mv",
-            "test:source/file.txt",
-            "test:dest/",
+            "mvtest:source/file.txt",
+            "mvtest:dest/",
         ]);
+
+        eprintln!("mv stdout: {}", output.stdout);
+        eprintln!("mv stderr: {}", output.stderr);
 
         assert!(output.success(), "Command failed: {}\nstdout: {}\nstderr: {}", output.status, output.stdout, output.stderr);
         
@@ -661,7 +665,7 @@ paths = ["{0}/disk1", "{0}/disk2"]
 
         let config = format!(
             r#"
-[share.test]
+[share.cptest]
 paths = ["{0}/disk1", "{0}/disk2"]
 "#,
             ctx.root.display()
@@ -672,9 +676,10 @@ paths = ["{0}/disk1", "{0}/disk2"]
         let output = ctx.run_nofs(&[
             "--config",
             ctx.config_path.to_str().unwrap(),
+            "-v",
             "cp",
-            "test:source/file.txt",
-            "test:dest/",
+            "cptest:source/file.txt",
+            "cptest:dest/",
         ]);
 
         assert!(output.success(), "Command failed: {}\nstdout: {}\nstderr: {}", output.status, output.stdout, output.stderr);
