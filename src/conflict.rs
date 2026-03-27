@@ -203,7 +203,8 @@ pub fn compute_file_hash(path: &Path) -> Result<String> {
 
     // For larger files, sample beginning, middle, and end
     let mut hasher = DefaultHasher::new();
-    let mut buf = vec![0u8; (8 * crate::utils::KB) as usize];
+    let buf_size = usize::try_from(8 * crate::utils::KB).unwrap_or(8000);
+    let mut buf = vec![0u8; buf_size];
 
     // Sample beginning (first 8KB)
     let bytes_read = file
