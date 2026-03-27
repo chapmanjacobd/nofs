@@ -1,5 +1,6 @@
 //! du command - Disk usage analysis with recursive directory size calculation
 
+use crate::cache::OperationCache;
 use crate::error::Result;
 use crate::pool::Pool;
 use serde::Serialize;
@@ -48,8 +49,11 @@ pub fn execute(
     let normalized_path = normalize_pool_path(pool_path);
     let pool_path_obj = Path::new(&normalized_path);
 
-    // Resolve the path across all branches
-    let resolved_paths = pool.resolve_path(pool_path_obj);
+    // Create operation cache for this command execution
+    let cache = OperationCache::new();
+
+    // Resolve the path across all branches (cached)
+    let resolved_paths = pool.resolve_path_cached(pool_path_obj, &cache);
 
     if resolved_paths.is_empty() {
         return Err(crate::error::NofsError::Io(std::io::Error::new(

@@ -1,5 +1,6 @@
 //! rmdir command - Remove empty directories
 
+use crate::cache::OperationCache;
 use crate::error::{NofsError, Result};
 use crate::pool::Pool;
 use std::path::Path;
@@ -12,8 +13,11 @@ use std::path::Path;
 pub fn execute(pool: &Pool, path: &str, verbose: bool) -> Result<()> {
     let pool_path = Path::new(path);
 
-    // Find all branches containing this directory
-    let branches = pool.find_all_branches(pool_path);
+    // Create operation cache for this command execution
+    let cache = OperationCache::new();
+
+    // Find all branches containing this directory (cached)
+    let branches = pool.find_all_branches_cached(pool_path, &cache);
 
     if branches.is_empty() {
         return Err(NofsError::Command(format!(

@@ -1,5 +1,6 @@
 //! stat command - Show filesystem statistics
 
+use crate::cache::OperationCache;
 use crate::error::Result;
 use crate::output::{BranchStat, StatOutput};
 use crate::pool::Pool;
@@ -16,9 +17,12 @@ pub fn execute(pool: &Pool, human: bool, _verbose: bool, json: bool) -> Result<(
     let stdout = io::stdout();
     let mut handle = stdout.lock();
 
-    let total = pool.total_space();
-    let used = pool.total_used_space();
-    let available = pool.total_available_space();
+    // Create operation cache for this command execution
+    let cache = OperationCache::new();
+
+    let total = pool.total_space_cached(&cache);
+    let used = pool.total_used_space_cached(&cache);
+    let available = pool.total_available_space_cached(&cache);
 
     let use_percent = if total > 0 {
         #[allow(clippy::cast_precision_loss, clippy::as_conversions, clippy::float_arithmetic)]
@@ -34,9 +38,9 @@ pub fn execute(pool: &Pool, human: bool, _verbose: bool, json: bool) -> Result<(
         for branch in &pool.branches {
             // For stat display, we silently use 0 for branches that fail.
             // This allows the command to succeed even if some branches are inaccessible.
-            let branch_total = branch.total_space().unwrap_or(0);
-            let branch_used = branch.used_space().unwrap_or(0);
-            let branch_available = branch.available_space().unwrap_or(0);
+            let branch_total = branch.total_space_cached(&cache).unwrap_or(0);
+            let branch_available = branch.available_space_cached(&cache).unwrap_or(0);
+            let branch_used = branch_total.saturating_sub(branch_available);
 
             let percent = if branch_total > 0 {
                 #[allow(clippy::cast_precision_loss, clippy::as_conversions, clippy::float_arithmetic)]
@@ -104,9 +108,9 @@ pub fn execute(pool: &Pool, human: bool, _verbose: bool, json: bool) -> Result<(
         for branch in &pool.branches {
             // For stat display, we silently use 0 for branches that fail.
             // This allows the command to succeed even if some branches are inaccessible.
-            let branch_total = branch.total_space().unwrap_or(0);
-            let branch_used = branch.used_space().unwrap_or(0);
-            let branch_available = branch.available_space().unwrap_or(0);
+            let branch_total = branch.total_space_cached(&cache).unwrap_or(0);
+            let branch_available = branch.available_space_cached(&cache).unwrap_or(0);
+            let branch_used = branch_total.saturating_sub(branch_available);
 
             let percent = if branch_total > 0 {
                 #[allow(clippy::cast_precision_loss, clippy::as_conversions, clippy::float_arithmetic)]

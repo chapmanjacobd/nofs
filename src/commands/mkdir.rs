@@ -1,5 +1,6 @@
 //! mkdir command - Create directories
 
+use crate::cache::OperationCache;
 use crate::error::Result;
 use crate::pool::Pool;
 use std::path::Path;
@@ -12,9 +13,12 @@ use std::path::Path;
 pub fn execute(pool: &Pool, path: &str, parents: bool, verbose: bool) -> Result<()> {
     let pool_path = Path::new(path);
 
-    // Get the best branch for creating this path
+    // Create operation cache for this command execution
+    let cache = OperationCache::new();
+
+    // Get the best branch for creating this path (cached)
     let parent = pool_path.parent().unwrap_or_else(|| Path::new(""));
-    let branch = pool.select_create_branch(parent)?;
+    let branch = pool.select_create_branch_cached(parent, &cache)?;
 
     // Create the full path on the selected branch
     let full_path = branch.path.join(pool_path);
