@@ -1,17 +1,18 @@
 //! Per-operation caching for branch metadata
 //!
 //! Provides thread-safe caching of space information and existence checks
-//! to eliminate redundant statvfs and path.exists() calls within a single
+//! to eliminate redundant statvfs and `path.exists()` calls within a single
 //! command execution.
 
 use crate::branch::Branch;
 use crate::error::Result;
-use std::collections::HashMap;
+use dashmap::DashMap;
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
 
 /// Cached space information for a branch
 #[derive(Clone, Copy, Debug)]
+#[non_exhaustive]
 pub struct SpaceInfo {
     /// Available space in bytes
     pub available: u64,
@@ -21,8 +22,17 @@ pub struct SpaceInfo {
 
 /// Per-operation cache for branch metadata
 ///
-/// Thread-safe cache that eliminates redundant statvfs and exists() calls
-/// within a single command execution (e.g., cp with 100 files).
+/// Thread-safe cache using `DashMap` for fine-grained per-key locking.
+/// This eliminates redundant statvfs and `exists()` calls within a single
+/// command execution (e.g., cp with 100 files).
+///
+/// # Thread Safety
+///
+/// Unlike `RwLock<HashMap>`, `DashMap` provides per-key locking, meaning
+/// concurrent access to different keys does not block. Additionally,
+/// the `get_or_insert_*` methods provide atomic get-or-compute semantics,
+/// preventing TOCTOU race conditions where multiple threads might
+/// compute the same value simultaneously.
 ///
 /// # Example
 ///
@@ -35,9 +45,9 @@ pub struct SpaceInfo {
 #[derive(Default)]
 pub struct OperationCache {
     /// Cached space values per branch path
-    space_cache: RwLock<HashMap<PathBuf, SpaceInfo>>,
-    /// Cached existence checks: (branch_path, relative_path) -> exists
-    exists_cache: RwLock<HashMap<(PathBuf, PathBuf), bool>>,
+    space_cache: DashMap<PathBuf, SpaceInfo>,
+    /// Cached existence checks: (`branch_path`, `relative_path`) -> exists
+    exists_cache: DashMap<(PathBuf, PathBuf), bool>,
 }
 
 impl OperationCache {
@@ -47,7 +57,7 @@ impl OperationCache {
         Self::default()
     }
 
-    /// Create a new empty operation cache (alias for new())
+    /// Create a new empty operation cache (alias for `new()`)
     #[must_use]
     pub fn create() -> Self {
         Self::new()
@@ -56,14 +66,14 @@ impl OperationCache {
     /// Get cached space info, or None if not cached
     #[must_use]
     pub fn get_space<P: AsRef<Path>>(&self, branch_path: P) -> Option<SpaceInfo> {
-        let lock = self.space_cache.read().unwrap();
-        lock.get(branch_path.as_ref()).copied()
+        self.space_cache.get(branch_path.as_ref()).map(|r| *r)
     }
 
     /// Cache space info for a branch
+    ///
+    /// If the key already exists, the value is updated.
     pub fn set_space<P: Into<PathBuf>>(&self, branch_path: P, info: SpaceInfo) {
-        let mut lock = self.space_cache.write().unwrap();
-        lock.insert(branch_path.into(), info);
+        self.space_cache.insert(branch_path.into(), info);
     }
 
     /// Get cached existence check, or None if not cached
@@ -73,46 +83,93 @@ impl OperationCache {
         branch_path: B,
         relative_path: R,
     ) -> Option<bool> {
-        let lock = self.exists_cache.read().unwrap();
         let key = (
             branch_path.as_ref().to_path_buf(),
             relative_path.as_ref().to_path_buf(),
         );
-        lock.get(&key).copied()
+        self.exists_cache.get(&key).map(|r| *r)
     }
 
     /// Cache existence check result
+    ///
+    /// If the key already exists, the value is updated.
     pub fn set_exists<B: Into<PathBuf>, R: Into<PathBuf>>(
         &self,
         branch_path: B,
         relative_path: R,
         exists: bool,
     ) {
-        let mut lock = self.exists_cache.write().unwrap();
         let key = (branch_path.into(), relative_path.into());
-        lock.insert(key, exists);
+        self.exists_cache.insert(key, exists);
+    }
+
+    /// Atomically get or compute space info
+    ///
+    /// The `compute` closure is called at most once per key, even under
+    /// concurrent access from multiple threads. This prevents TOCTOU
+    /// race conditions where multiple threads might compute the same
+    /// value simultaneously.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use nofs::cache::OperationCache;
+    ///
+    /// let cache = OperationCache::new();
+    /// let info = cache.get_or_insert_space("/branch1", || {
+    ///     // Expensive computation here
+    ///     SpaceInfo { available: 1000, total: 2000 }
+    /// });
+    /// ```
+    pub fn get_or_insert_space<P, F>(&self, branch_path: P, compute: F) -> SpaceInfo
+    where
+        P: AsRef<Path> + Into<PathBuf> + Clone,
+        F: FnOnce() -> SpaceInfo,
+    {
+        *self
+            .space_cache
+            .entry(branch_path.into())
+            .or_insert_with(compute)
+    }
+
+    /// Atomically get or compute existence check
+    ///
+    /// The `compute` closure is called at most once per key, even under
+    /// concurrent access from multiple threads.
+    pub fn get_or_insert_exists<B, R, F>(
+        &self,
+        branch_path: B,
+        relative_path: R,
+        compute: F,
+    ) -> bool
+    where
+        B: AsRef<Path> + Into<PathBuf> + Clone,
+        R: AsRef<Path> + Into<PathBuf> + Clone,
+        F: FnOnce() -> bool,
+    {
+        let branch_key = branch_path.as_ref().to_path_buf();
+        let rel_key = relative_path.as_ref().to_path_buf();
+        let key = (branch_key, rel_key);
+
+        *self.exists_cache.entry(key).or_insert_with(compute)
     }
 
     /// Clear all cached data (optional, for explicit invalidation)
     pub fn clear(&self) {
-        let mut space_lock = self.space_cache.write().unwrap();
-        space_lock.clear();
-        let mut exists_lock = self.exists_cache.write().unwrap();
-        exists_lock.clear();
+        self.space_cache.clear();
+        self.exists_cache.clear();
     }
 
     /// Get number of cached space entries (for debugging/testing)
     #[must_use]
     pub fn space_cache_len(&self) -> usize {
-        let lock = self.space_cache.read().unwrap();
-        lock.len()
+        self.space_cache.len()
     }
 
     /// Get number of cached existence entries (for debugging/testing)
     #[must_use]
     pub fn exists_cache_len(&self) -> usize {
-        let lock = self.exists_cache.read().unwrap();
-        lock.len()
+        self.exists_cache.len()
     }
 }
 
@@ -131,45 +188,33 @@ pub trait CachedBranch {
 impl CachedBranch for Branch {
     /// Get available space, using cache if available
     fn available_space_cached(&self, cache: &OperationCache) -> Result<u64> {
-        if let Some(cached) = cache.get_space(&self.path) {
-            return Ok(cached.available);
-        }
-
-        let available = self.available_space()?;
-
-        // Update cache with full space info if we can get total too
-        if let Ok(total) = self.total_space() {
-            cache.set_space(self.path.clone(), SpaceInfo { available, total });
-        }
-
-        Ok(available)
+        let info = cache.get_or_insert_space(&self.path, || {
+            // This closure runs at most once per branch, even with concurrent access
+            let available = self.available_space().unwrap_or(0);
+            let total = self.total_space().unwrap_or(0);
+            SpaceInfo { available, total }
+        });
+        Ok(info.available)
     }
 
     /// Get total space, using cache if available
     fn total_space_cached(&self, cache: &OperationCache) -> Result<u64> {
-        if let Some(cached) = cache.get_space(&self.path) {
-            return Ok(cached.total);
-        }
-
-        let total = self.total_space()?;
-
-        // Update cache with full space info if we can get available too
-        if let Ok(available) = self.available_space() {
-            cache.set_space(self.path.clone(), SpaceInfo { available, total });
-        }
-
-        Ok(total)
+        let info = cache.get_or_insert_space(&self.path, || {
+            let available = self.available_space().unwrap_or(0);
+            let total = self.total_space().unwrap_or(0);
+            SpaceInfo { available, total }
+        });
+        Ok(info.total)
     }
 
     /// Check path existence with caching
     fn path_exists_cached(&self, relative_path: &Path, cache: &OperationCache) -> bool {
-        if let Some(cached) = cache.get_exists(&self.path, relative_path) {
-            return cached;
-        }
+        let branch_path = self.path.clone();
+        let rel_path = relative_path.to_path_buf();
 
-        let exists = self.path.join(relative_path).exists();
-        cache.set_exists(self.path.clone(), relative_path, exists);
-        exists
+        cache.get_or_insert_exists(&self.path, relative_path, || {
+            branch_path.join(&rel_path).exists()
+        })
     }
 }
 
@@ -324,5 +369,84 @@ mod tests {
 
         // Should have one entry (last write wins)
         assert_eq!(cache.space_cache_len(), 1);
+    }
+
+    #[test]
+    fn test_cache_get_or_insert_atomicity() {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        use std::thread;
+
+        let cache = Arc::new(OperationCache::new());
+        let test_path = PathBuf::from("/test/path");
+        let compute_count = Arc::new(AtomicUsize::new(0));
+
+        let mut handles = vec![];
+
+        // Spawn multiple threads that all try to compute the same value
+        for _ in 0..10 {
+            let cache_clone = Arc::clone(&cache);
+            let path_clone = test_path.clone();
+            let count_clone = Arc::clone(&compute_count);
+
+            let handle = thread::spawn(move || {
+                cache_clone.get_or_insert_space(path_clone, || {
+                    // Increment counter to track how many times compute is called
+                    count_clone.fetch_add(1, Ordering::SeqCst);
+                    SpaceInfo {
+                        available: 1000,
+                        total: 2000,
+                    }
+                })
+            });
+            handles.push(handle);
+        }
+
+        // Wait for all threads to complete
+        for handle in handles {
+            let _ = handle.join();
+        }
+
+        // The compute closure should have been called exactly once
+        // (DashMap's entry API ensures atomicity)
+        assert_eq!(compute_count.load(Ordering::SeqCst), 1);
+
+        // All threads should see the same value
+        assert_eq!(cache.get_space(&test_path).unwrap().available, 1000);
+    }
+
+    #[test]
+    fn test_cache_get_or_insert_exists_atomicity() {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        use std::thread;
+
+        let cache = Arc::new(OperationCache::new());
+        let branch_path = PathBuf::from("/branch1");
+        let rel_path = PathBuf::from("file.txt");
+        let compute_count = Arc::new(AtomicUsize::new(0));
+
+        let mut handles = vec![];
+
+        for _ in 0..10 {
+            let cache_clone = Arc::clone(&cache);
+            let branch_clone = branch_path.clone();
+            let rel_clone = rel_path.clone();
+            let count_clone = Arc::clone(&compute_count);
+
+            let handle = thread::spawn(move || {
+                cache_clone.get_or_insert_exists(branch_clone, rel_clone, || {
+                    count_clone.fetch_add(1, Ordering::SeqCst);
+                    true
+                })
+            });
+            handles.push(handle);
+        }
+
+        for handle in handles {
+            let _ = handle.join();
+        }
+
+        // The compute closure should have been called exactly once
+        assert_eq!(compute_count.load(Ordering::SeqCst), 1);
+        assert!(cache.get_exists(&branch_path, &rel_path).unwrap());
     }
 }

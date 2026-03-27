@@ -263,7 +263,7 @@ impl Branch {
 
     /// Check path existence with caching
     ///
-    /// This method checks the cache first before calling path.exists(),
+    /// This method checks the cache first before calling `path.exists()`,
     /// reducing redundant filesystem calls during batch operations.
     #[must_use]
     pub fn path_exists_cached(&self, relative_path: &Path, cache: &OperationCache) -> bool {

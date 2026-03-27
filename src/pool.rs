@@ -313,7 +313,11 @@ impl Pool {
 
     /// Find the first branch where a path exists (cached)
     #[must_use]
-    pub fn resolve_path_first_cached(&self, pool_path: &Path, cache: &OperationCache) -> Option<PathBuf> {
+    pub fn resolve_path_first_cached(
+        &self,
+        pool_path: &Path,
+        cache: &OperationCache,
+    ) -> Option<PathBuf> {
         self.branches
             .iter()
             .find(|b| b.path_exists_cached(pool_path, cache))

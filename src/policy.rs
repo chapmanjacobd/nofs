@@ -111,9 +111,13 @@ impl<'ctx> CreatePolicy<'ctx> {
         }
     }
 
-    /// Create a new CreatePolicy with cache support
+    /// Create a new `CreatePolicy` with cache support
     #[must_use]
-    pub fn with_cache(branches: &'ctx [Branch], minfreespace: u64, cache: &'ctx OperationCache) -> Self {
+    pub const fn with_cache(
+        branches: &'ctx [Branch],
+        minfreespace: u64,
+        cache: &'ctx OperationCache,
+    ) -> Self {
         CreatePolicy {
             branches,
             minfreespace,
@@ -175,11 +179,13 @@ impl<'ctx> CreatePolicy<'ctx> {
                 .ok_or(NofsError::NoSuitableBranch),
             Policy::Lus => {
                 // For Lus and Lup, we need to fetch used space separately
-                let eligible: Vec<&Branch> = eligible_with_space.into_iter().map(|(b, _)| b).collect();
+                let eligible: Vec<&Branch> =
+                    eligible_with_space.into_iter().map(|(b, _)| b).collect();
                 Self::select_lus(&eligible)
             }
             Policy::Lup => {
-                let eligible: Vec<&Branch> = eligible_with_space.into_iter().map(|(b, _)| b).collect();
+                let eligible: Vec<&Branch> =
+                    eligible_with_space.into_iter().map(|(b, _)| b).collect();
                 Self::select_lup(&eligible)
             }
             Policy::EpMfs | Policy::EpFf | Policy::EpRand | Policy::EpAll => {
@@ -227,10 +233,7 @@ impl<'ctx> CreatePolicy<'ctx> {
 
     /// Fallback policy selection when original policy cannot be applied
     #[allow(clippy::unnecessary_wraps)]
-    fn select_fallback(
-        policy: Policy,
-        eligible: &[(&'ctx Branch, u64)],
-    ) -> Result<&'ctx Branch> {
+    fn select_fallback(policy: Policy, eligible: &[(&'ctx Branch, u64)]) -> Result<&'ctx Branch> {
         match policy {
             Policy::EpMfs => eligible
                 .iter()
@@ -260,7 +263,10 @@ impl<'ctx> CreatePolicy<'ctx> {
         let total: u64 = eligible.iter().map(|(_, s)| s).sum();
 
         if total == 0 {
-            return eligible.first().map(|(b, _)| *b).ok_or(NofsError::NoSuitableBranch);
+            return eligible
+                .first()
+                .map(|(b, _)| *b)
+                .ok_or(NofsError::NoSuitableBranch);
         }
 
         // Select based on weighted random
@@ -275,7 +281,10 @@ impl<'ctx> CreatePolicy<'ctx> {
             }
         }
 
-        eligible.last().map(|(b, _)| *b).ok_or(NofsError::NoSuitableBranch)
+        eligible
+            .last()
+            .map(|(b, _)| *b)
+            .ok_or(NofsError::NoSuitableBranch)
     }
 
     /// Select a random branch from eligible branches with pre-fetched space
@@ -323,9 +332,9 @@ impl<'ctx> SearchPolicy<'ctx> {
         }
     }
 
-    /// Create a new SearchPolicy with cache support
+    /// Create a new `SearchPolicy` with cache support
     #[must_use]
-    pub fn with_cache(branches: &'ctx [Branch], cache: &'ctx OperationCache) -> Self {
+    pub const fn with_cache(branches: &'ctx [Branch], cache: &'ctx OperationCache) -> Self {
         SearchPolicy {
             branches,
             cache: Some(cache),
@@ -422,8 +431,7 @@ impl<'ctx> SearchPolicy<'ctx> {
             | Policy::EpMfs
             | Policy::EpFf
             | Policy::EpRand => {
-                let matching: Vec<&Branch> =
-                    self.branches.iter().filter(|b| exists(b)).collect();
+                let matching: Vec<&Branch> = self.branches.iter().filter(|b| exists(b)).collect();
 
                 if matching.is_empty() {
                     return Err(NofsError::PathNotFound(relative_path.display().to_string()));
