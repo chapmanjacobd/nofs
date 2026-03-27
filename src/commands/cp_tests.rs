@@ -620,10 +620,14 @@ fn test_global_file_limit() {
 
     assert!(result.is_ok());
     let stats = result.unwrap();
-    
+
     // If it's global, files_copied should be 2.
     // If it's per-source, it will be 4.
-    assert_eq!(stats.files_copied.load(std::sync::atomic::Ordering::Relaxed), 2, "Should have created only 2 files globally");
+    assert_eq!(
+        stats.files_copied.load(std::sync::atomic::Ordering::Relaxed),
+        2,
+        "Should have created only 2 files globally"
+    );
 
     cleanup_test_dir(&test_dir);
 }

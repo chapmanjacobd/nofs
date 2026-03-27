@@ -178,37 +178,41 @@ impl Pool {
     /// Get total available space across all RW branches
     #[must_use]
     pub fn total_available_space(&self) -> u64 {
-        let mut handles = Vec::new();
-        for branch_ref in &self.branches {
-            if branch_ref.can_create() {
-                let branch = branch_ref.clone();
-                handles.push(std::thread::spawn(move || branch.available_space().ok()));
+        std::thread::scope(|s| {
+            let mut handles = Vec::new();
+            for branch_ref in &self.branches {
+                if branch_ref.can_create() {
+                    let branch = branch_ref.clone();
+                    handles.push(s.spawn(move || branch.available_space().ok()));
+                }
             }
-        }
-        let mut total: u64 = 0;
-        for handle in handles {
-            if let Ok(Some(space)) = handle.join() {
-                total = total.saturating_add(space);
+            let mut total: u64 = 0;
+            for handle in handles {
+                if let Some(space) = handle.join().ok().flatten() {
+                    total = total.saturating_add(space);
+                }
             }
-        }
-        total
+            total
+        })
     }
 
     /// Get total space across all branches
     #[must_use]
     pub fn total_space(&self) -> u64 {
-        let mut handles = Vec::new();
-        for branch_ref in &self.branches {
-            let branch = branch_ref.clone();
-            handles.push(std::thread::spawn(move || branch.total_space().ok()));
-        }
-        let mut total: u64 = 0;
-        for handle in handles {
-            if let Ok(Some(space)) = handle.join() {
-                total = total.saturating_add(space);
+        std::thread::scope(|s| {
+            let mut handles = Vec::new();
+            for branch_ref in &self.branches {
+                let branch = branch_ref.clone();
+                handles.push(s.spawn(move || branch.total_space().ok()));
             }
-        }
-        total
+            let mut total: u64 = 0;
+            for handle in handles {
+                if let Some(space) = handle.join().ok().flatten() {
+                    total = total.saturating_add(space);
+                }
+            }
+            total
+        })
     }
 
     /// Get total used space across all branches
@@ -240,44 +244,46 @@ impl Pool {
     /// Returns all branches where the path exists
     #[must_use]
     pub fn resolve_path(&self, pool_path: &Path) -> Vec<PathBuf> {
-        let mut handles = Vec::new();
-        for branch_ref in &self.branches {
-            let branch = branch_ref.clone();
-            let p_path = pool_path.to_path_buf();
-            handles.push(std::thread::spawn(move || {
-                let full_path = branch.path.join(p_path);
-                full_path.exists().then_some(full_path)
-            }));
-        }
-
-        let mut results = Vec::new();
-        for handle in handles {
-            if let Ok(Some(path)) = handle.join() {
-                results.push(path);
+        std::thread::scope(|s| {
+            let mut handles = Vec::new();
+            for branch_ref in &self.branches {
+                let branch = branch_ref.clone();
+                handles.push(s.spawn(move || {
+                    let full_path = branch.path.join(pool_path);
+                    full_path.exists().then_some(full_path)
+                }));
             }
-        }
-        results
+
+            let mut results = Vec::new();
+            for handle in handles {
+                if let Some(path) = handle.join().ok().flatten() {
+                    results.push(path);
+                }
+            }
+            results
+        })
     }
 
     /// Find the first branch where a path exists
     #[must_use]
     pub fn resolve_path_first(&self, pool_path: &Path) -> Option<PathBuf> {
-        let mut handles = Vec::new();
-        for branch_ref in &self.branches {
-            let branch = branch_ref.clone();
-            let p_path = pool_path.to_path_buf();
-            handles.push(std::thread::spawn(move || {
-                let full_path = branch.path.join(p_path);
-                full_path.exists().then_some(full_path)
-            }));
-        }
-
-        for handle in handles {
-            if let Ok(Some(path)) = handle.join() {
-                return Some(path);
+        std::thread::scope(|s| {
+            let mut handles = Vec::new();
+            for branch_ref in &self.branches {
+                let branch = branch_ref.clone();
+                handles.push(s.spawn(move || {
+                    let full_path = branch.path.join(pool_path);
+                    full_path.exists().then_some(full_path)
+                }));
             }
-        }
-        None
+
+            for handle in handles {
+                if let Some(path) = handle.join().ok().flatten() {
+                    return Some(path);
+                }
+            }
+            None
+        })
     }
 
     /// Get the best branch for creating a file at the given path
@@ -310,47 +316,41 @@ impl Pool {
     /// Get total available space across all RW branches (cached)
     #[must_use]
     pub fn total_available_space_cached(&self, cache: &OperationCache) -> u64 {
-        let mut handles = Vec::new();
-        for branch_ref in &self.branches {
-            if branch_ref.can_create() {
-                let branch = branch_ref.clone();
-                let cache_ptr = std::ptr::from_ref::<OperationCache>(cache);
-                // Safety: OperationCache is thread-safe (uses DashMap) and we're
-                // only using it for the duration of this method. Since we're
-                // joining all threads before returning, the reference remains valid.
-                let cache_ref = unsafe { &*cache_ptr };
-                handles.push(std::thread::spawn(move || {
-                    branch.available_space_cached(cache_ref).ok()
-                }));
+        std::thread::scope(|s| {
+            let mut handles = Vec::new();
+            for branch_ref in &self.branches {
+                if branch_ref.can_create() {
+                    let branch = branch_ref.clone();
+                    handles.push(s.spawn(move || branch.available_space_cached(cache).ok()));
+                }
             }
-        }
-        let mut total: u64 = 0;
-        for handle in handles {
-            if let Ok(Some(space)) = handle.join() {
-                total = total.saturating_add(space);
+            let mut total: u64 = 0;
+            for handle in handles {
+                if let Some(space) = handle.join().ok().flatten() {
+                    total = total.saturating_add(space);
+                }
             }
-        }
-        total
+            total
+        })
     }
 
     /// Get total space across all branches (cached)
     #[must_use]
     pub fn total_space_cached(&self, cache: &OperationCache) -> u64 {
-        let mut handles = Vec::new();
-        for branch_ref in &self.branches {
-            let branch = branch_ref.clone();
-            let cache_ptr = std::ptr::from_ref::<OperationCache>(cache);
-            // Safety: Same as total_available_space_cached
-            let cache_ref = unsafe { &*cache_ptr };
-            handles.push(std::thread::spawn(move || branch.total_space_cached(cache_ref).ok()));
-        }
-        let mut total: u64 = 0;
-        for handle in handles {
-            if let Ok(Some(space)) = handle.join() {
-                total = total.saturating_add(space);
+        std::thread::scope(|s| {
+            let mut handles = Vec::new();
+            for branch_ref in &self.branches {
+                let branch = branch_ref.clone();
+                handles.push(s.spawn(move || branch.total_space_cached(cache).ok()));
             }
-        }
-        total
+            let mut total: u64 = 0;
+            for handle in handles {
+                if let Some(space) = handle.join().ok().flatten() {
+                    total = total.saturating_add(space);
+                }
+            }
+            total
+        })
     }
 
     /// Get total used space across all branches (cached)
@@ -365,48 +365,48 @@ impl Pool {
     /// Returns all branches where the path exists
     #[must_use]
     pub fn resolve_path_cached(&self, pool_path: &Path, cache: &OperationCache) -> Vec<PathBuf> {
-        let mut handles = Vec::new();
-        for branch_ref in &self.branches {
-            let branch = branch_ref.clone();
-            let p_path = pool_path.to_path_buf();
-            let cache_ptr = std::ptr::from_ref::<OperationCache>(cache);
-            // Safety: Same as total_available_space_cached
-            let cache_ref = unsafe { &*cache_ptr };
-            handles.push(std::thread::spawn(move || {
-                branch.path_exists_cached(&p_path, cache_ref).then_some(branch.path.join(p_path))
-            }));
-        }
-
-        let mut results = Vec::new();
-        for handle in handles {
-            if let Ok(Some(path)) = handle.join() {
-                results.push(path);
+        std::thread::scope(|s| {
+            let mut handles = Vec::new();
+            for branch_ref in &self.branches {
+                let branch = branch_ref.clone();
+                handles.push(s.spawn(move || {
+                    branch
+                        .path_exists_cached(pool_path, cache)
+                        .then(|| branch.path.join(pool_path))
+                }));
             }
-        }
-        results
+
+            let mut results = Vec::new();
+            for handle in handles {
+                if let Some(path) = handle.join().ok().flatten() {
+                    results.push(path);
+                }
+            }
+            results
+        })
     }
 
     /// Find the first branch where a path exists (cached)
     #[must_use]
     pub fn resolve_path_first_cached(&self, pool_path: &Path, cache: &OperationCache) -> Option<PathBuf> {
-        let mut handles = Vec::new();
-        for branch_ref in &self.branches {
-            let branch = branch_ref.clone();
-            let p_path = pool_path.to_path_buf();
-            let cache_ptr = std::ptr::from_ref::<OperationCache>(cache);
-            // Safety: Same as total_available_space_cached
-            let cache_ref = unsafe { &*cache_ptr };
-            handles.push(std::thread::spawn(move || {
-                branch.path_exists_cached(&p_path, cache_ref).then_some(branch.path.join(p_path))
-            }));
-        }
-
-        for handle in handles {
-            if let Ok(Some(path)) = handle.join() {
-                return Some(path);
+        std::thread::scope(|s| {
+            let mut handles = Vec::new();
+            for branch_ref in &self.branches {
+                let branch = branch_ref.clone();
+                handles.push(s.spawn(move || {
+                    branch
+                        .path_exists_cached(pool_path, cache)
+                        .then(|| branch.path.join(pool_path))
+                }));
             }
-        }
-        None
+
+            for handle in handles {
+                if let Some(path) = handle.join().ok().flatten() {
+                    return Some(path);
+                }
+            }
+            None
+        })
     }
 
     /// Get the best branch for creating a file at the given path (cached)
