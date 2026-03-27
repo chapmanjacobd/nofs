@@ -79,7 +79,7 @@ pub fn execute(
     if json {
         let mut entries: Vec<DuEntry> = Vec::new();
         for (path, data) in &branch_usage {
-            let size_human = human.then(|| format_size(data.total_size));
+            let size_human = human.then(|| crate::utils::format_size(data.total_size));
             entries.push(DuEntry {
                 path: path.display().to_string(),
                 size: data.total_size,
@@ -89,7 +89,7 @@ pub fn execute(
             // Add subdirectories if showing all
             if all {
                 for (subpath, size) in &data.subdirs {
-                    let subdir_size_human = human.then(|| format_size(*size));
+                    let subdir_size_human = human.then(|| crate::utils::format_size(*size));
                     entries.push(DuEntry {
                         path: subpath.display().to_string(),
                         size: *size,
@@ -103,7 +103,7 @@ pub fn execute(
         // Human-readable output format (similar to du command)
         for (path, data) in &branch_usage {
             let size_str = if human {
-                format_size(data.total_size)
+                crate::utils::format_size(data.total_size)
             } else {
                 data.total_size.to_string()
             };
@@ -115,7 +115,7 @@ pub fn execute(
                 sorted_subdirs.sort_by(|a, b| a.0.cmp(b.0));
                 for (subpath, size) in sorted_subdirs {
                     let subdir_size_str = if human {
-                        format_size(*size)
+                        crate::utils::format_size(*size)
                     } else {
                         size.to_string()
                     };
@@ -207,29 +207,4 @@ fn entry_path_components_count(entry: &walkdir::DirEntry) -> usize {
 fn normalize_pool_path(pool_path: &str) -> String {
     // Strip leading `/` characters to make the path relative
     pool_path.trim_start_matches('/').to_string()
-}
-
-/// Format size in human-readable format
-fn format_size(size: u64) -> String {
-    const KB: u64 = 1024;
-    const MB: u64 = KB * 1024;
-    const GB: u64 = MB * 1024;
-    const TB: u64 = GB * 1024;
-
-    #[allow(
-        clippy::cast_precision_loss,
-        clippy::as_conversions,
-        clippy::float_arithmetic
-    )]
-    if size >= TB {
-        format!("{:.1}T", size as f64 / TB as f64)
-    } else if size >= GB {
-        format!("{:.1}G", size as f64 / GB as f64)
-    } else if size >= MB {
-        format!("{:.1}M", size as f64 / MB as f64)
-    } else if size >= KB {
-        format!("{:.1}K", size as f64 / KB as f64)
-    } else {
-        format!("{size}B")
-    }
 }

@@ -223,6 +223,6 @@ create_policy = "mfs"
         ]);
 
         assert!(output.success(), "Command failed: {}", output.stderr);
-        assert!(output.stdout.contains("Min Free Space: 1073741824 bytes"));
+        assert!(output.stdout.contains("Min Free Space: 1000000000 bytes"));
     }
 }

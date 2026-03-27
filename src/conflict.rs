@@ -191,7 +191,7 @@ fn files_differ(branch_files: &[BranchConflict], use_hash: bool) -> bool {
 /// Returns an error if the file cannot be read.
 #[allow(clippy::missing_panics_doc, clippy::integer_division)]
 pub fn compute_file_hash(path: &Path) -> Result<String> {
-    const SMALL_FILE_THRESHOLD: u64 = 1024 * 1024; // 1MB
+    const SMALL_FILE_THRESHOLD: u64 = crate::utils::MB; // 1MB
 
     let mut file = File::open(path).map_err(|e| {
         NofsError::Conflict(format!("Failed to open file {}: {}", path.display(), e))
@@ -218,7 +218,7 @@ pub fn compute_file_hash(path: &Path) -> Result<String> {
 
     // For larger files, sample beginning, middle, and end
     let mut hasher = DefaultHasher::new();
-    let mut buf = vec![0u8; 8192];
+    let mut buf = vec![0u8; (8 * crate::utils::KB) as usize];
 
     // Sample beginning (first 8KB)
     let bytes_read = file.read(&mut buf).map_err(|e| {
@@ -243,7 +243,7 @@ pub fn compute_file_hash(path: &Path) -> Result<String> {
     }
 
     // Sample end (last 8KB)
-    let end_pos = file_size.saturating_sub(8192);
+    let end_pos = file_size.saturating_sub(8 * crate::utils::KB);
     file.seek(std::io::SeekFrom::Start(end_pos)).map_err(|e| {
         NofsError::Conflict(format!("Failed to seek in file {}: {}", path.display(), e))
     })?;

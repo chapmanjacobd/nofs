@@ -241,6 +241,32 @@ pub struct Rule {
     pub target: Target,
 }
 
+impl Rule {
+    #[must_use] 
+    pub fn display(&self) -> String {
+        match self.attribute {
+            Attribute::Hash => "hashes match".to_string(),
+            Attribute::Size => match self.comparison {
+                Comparison::Equal => "sizes match".to_string(),
+                Comparison::Greater => "source is larger than destination".to_string(),
+                Comparison::Less => "source is smaller than destination".to_string(),
+            },
+            Attribute::Modified => match self.comparison {
+                Comparison::Equal => "modification times match".to_string(),
+                Comparison::Greater => "source is newer than destination".to_string(),
+                Comparison::Less => "source is older than destination".to_string(),
+            },
+            Attribute::Created => match self.comparison {
+                Comparison::Equal => "creation times match".to_string(),
+                Comparison::Greater => {
+                    "source was created more recently than destination".to_string()
+                }
+                Comparison::Less => "source was created earlier than destination".to_string(),
+            },
+        }
+    }
+}
+
 /// File-over-file strategy with optional conditions
 #[non_exhaustive]
 #[derive(Debug, Clone)]
@@ -494,27 +520,80 @@ pub(crate) fn evaluate_rule(rule: &Rule, cmp: &FileComparison) -> bool {
             Comparison::Greater => cmp.src_size > cmp.dest_size,
             Comparison::Less => cmp.src_size < cmp.dest_size,
         },
-        Attribute::Modified => {
-            let (Some(src_m), Some(dest_m)) = (cmp.src_modified, cmp.dest_modified) else {
-                return false;
-            };
-            match rule.comparison {
-                Comparison::Equal => src_m == dest_m,
-                Comparison::Greater => src_m > dest_m,
-                Comparison::Less => src_m < dest_m,
+        Attribute::Modified => cmp_opt(cmp.src_modified, cmp.dest_modified, rule.comparison),
+        Attribute::Created => cmp_opt(cmp.src_created, cmp.dest_created, rule.comparison),
+    }
+}
+
+/// Compare two `Option<T>` values using the specified comparison operator.
+///
+/// Returns `true` if the comparison holds, `false` if either value is `None`
+/// or the comparison fails.
+#[must_use]
+fn cmp_opt<T: Ord>(a: Option<T>, b: Option<T>, cmp: Comparison) -> bool {
+    let (Some(a_val), Some(b_val)) = (a, b) else {
+        return false;
+    };
+    match cmp {
+        Comparison::Equal => a_val == b_val,
+        Comparison::Greater => a_val > b_val,
+        Comparison::Less => a_val < b_val,
+    }
+}
+
+/// Execute a rule action (Skip, `DeleteSrc`, `DeleteDest`) with common logic.
+///
+/// Handles logging, stat increment, and the actual delete operation.
+///
+/// # Errors
+///
+/// Returns an error if file deletion fails.
+fn execute_action(
+    action: RuleAction,
+    source: &Path,
+    dest: &Path,
+    config: &CopyConfig,
+    stats: &Arc<CopyStats>,
+    reason: &str,
+) -> Result<()> {
+    match action {
+        RuleAction::Skip => {
+            if config.verbose {
+                eprintln!(
+                    "Skipping {} ({})",
+                    shell_quote(source.to_string_lossy().as_ref()),
+                    reason
+                );
             }
+            stats.files_skipped.fetch_add(1, Ordering::Relaxed);
         }
-        Attribute::Created => {
-            let (Some(src_c), Some(dest_c)) = (cmp.src_created, cmp.dest_created) else {
-                return false;
-            };
-            match rule.comparison {
-                Comparison::Equal => src_c == dest_c,
-                Comparison::Greater => src_c > dest_c,
-                Comparison::Less => src_c < dest_c,
+        RuleAction::DeleteSrc => {
+            if config.verbose {
+                eprintln!(
+                    "Deleting source {} ({})",
+                    shell_quote(source.to_string_lossy().as_ref()),
+                    reason
+                );
+            }
+            if !config.simulate {
+                fs::remove_file(source)?;
+            }
+            stats.files_skipped.fetch_add(1, Ordering::Relaxed);
+        }
+        RuleAction::DeleteDest => {
+            if config.verbose {
+                eprintln!(
+                    "Deleting destination {} ({})",
+                    shell_quote(dest.to_string_lossy().as_ref()),
+                    reason
+                );
+            }
+            if !config.simulate {
+                fs::remove_file(dest)?;
             }
         }
     }
+    Ok(())
 }
 
 /// Result of evaluating rules
@@ -560,50 +639,19 @@ fn evaluate_rules(
     };
     for rule in &strategy.rules {
         if evaluate_rule(rule, &cmp) {
+            let reason = rule.display();
             match rule.action {
                 RuleAction::Skip => {
-                    if config.verbose {
-                        eprintln!(
-                            "Skipping {} (rule: {:?} {:?} {:?}",
-                            shell_quote(source.to_string_lossy().as_ref()),
-                            rule.attribute,
-                            rule.comparison,
-                            rule.target
-                        );
-                    }
-                    stats.files_skipped.fetch_add(1, Ordering::Relaxed);
+                    execute_action(RuleAction::Skip, source, dest, config, stats, &reason)?;
                     return Ok(RuleResult::Skip);
                 }
                 RuleAction::DeleteDest => {
-                    if config.verbose {
-                        eprintln!(
-                            "Deleting destination {} (rule: {:?} {:?} {:?}",
-                            shell_quote(dest.to_string_lossy().as_ref()),
-                            rule.attribute,
-                            rule.comparison,
-                            rule.target
-                        );
-                    }
-                    if !config.simulate {
-                        fs::remove_file(dest)?;
-                    }
+                    execute_action(RuleAction::DeleteDest, source, dest, config, stats, &reason)?;
                     return process_file(source, dest, config, stats, file_count, byte_count)
                         .map(|()| RuleResult::DeleteDest);
                 }
                 RuleAction::DeleteSrc => {
-                    if config.verbose {
-                        eprintln!(
-                            "Deleting source {} (rule: {:?} {:?} {:?}",
-                            shell_quote(source.to_string_lossy().as_ref()),
-                            rule.attribute,
-                            rule.comparison,
-                            rule.target
-                        );
-                    }
-                    if !config.simulate {
-                        fs::remove_file(source)?;
-                    }
-                    stats.files_skipped.fetch_add(1, Ordering::Relaxed);
+                    execute_action(RuleAction::DeleteSrc, source, dest, config, stats, &reason)?;
                     return Ok(RuleResult::DeleteSrc);
                 }
             }
@@ -922,7 +970,7 @@ fn process_file(
                 action,
                 shell_quote(source.to_string_lossy().as_ref()),
                 shell_quote(dest.to_string_lossy().as_ref()),
-                format_size(file_size)
+                crate::utils::format_size(file_size)
             );
         }
         return Ok(());
@@ -954,7 +1002,7 @@ fn process_file(
             action,
             shell_quote(source.to_string_lossy().as_ref()),
             shell_quote(dest.to_string_lossy().as_ref()),
-            format_size(file_size)
+            crate::utils::format_size(file_size)
         );
     }
 
@@ -1087,36 +1135,34 @@ fn apply_required_strategy(
 ) -> Result<()> {
     match strategy.required {
         FileOverFileMode::Skip => {
-            if config.verbose {
-                eprintln!(
-                    "Skipping {} (strategy: skip)",
-                    shell_quote(source.to_string_lossy().as_ref())
-                );
-            }
-            stats.files_skipped.fetch_add(1, Ordering::Relaxed);
+            execute_action(
+                RuleAction::Skip,
+                source,
+                dest,
+                config,
+                stats,
+                "strategy: skip",
+            )?;
         }
         FileOverFileMode::DeleteSrc => {
-            if config.verbose {
-                eprintln!(
-                    "Deleting source {} (strategy: delete-src)",
-                    shell_quote(source.to_string_lossy().as_ref())
-                );
-            }
-            if !config.simulate {
-                fs::remove_file(source)?;
-            }
-            stats.files_skipped.fetch_add(1, Ordering::Relaxed);
+            execute_action(
+                RuleAction::DeleteSrc,
+                source,
+                dest,
+                config,
+                stats,
+                "strategy: delete-src",
+            )?;
         }
         FileOverFileMode::DeleteDest => {
-            if config.verbose {
-                eprintln!(
-                    "Replacing {} (strategy: delete-dest)",
-                    shell_quote(dest.to_string_lossy().as_ref())
-                );
-            }
-            if !config.simulate {
-                fs::remove_file(dest)?;
-            }
+            execute_action(
+                RuleAction::DeleteDest,
+                source,
+                dest,
+                config,
+                stats,
+                "strategy: delete-dest",
+            )?;
             return process_file(source, dest, config, stats, file_count, byte_count);
         }
         FileOverFileMode::RenameSrc => {
@@ -1483,11 +1529,13 @@ fn sample_hash(path: &Path, stats: &CopyStats) -> Result<String> {
     use std::collections::hash_map::DefaultHasher;
     use std::hash::{Hash, Hasher};
 
+    use crate::utils::KB;
+
     let metadata = fs::metadata(path)?;
     let size = metadata.len();
 
     // For small files, hash the entire content
-    if size <= 640 * 1024 {
+    if size <= 640 * KB {
         let mut hasher = DefaultHasher::new();
         fs::read(path)?.hash(&mut hasher);
         stats.full_hashes.fetch_add(1, Ordering::Relaxed);
@@ -1497,7 +1545,7 @@ fn sample_hash(path: &Path, stats: &CopyStats) -> Result<String> {
     // For larger files, sample at multiple positions
     let mut file = fs::File::open(path)?;
     let mut hasher = DefaultHasher::new();
-    let chunk_size: u64 = 64 * 1024;
+    let chunk_size: u64 = 64 * KB;
     let num_samples: u64 = 10;
 
     stats.sample_hashes.fetch_add(1, Ordering::Relaxed);
@@ -1517,28 +1565,6 @@ fn sample_hash(path: &Path, stats: &CopyStats) -> Result<String> {
     }
 
     Ok(format!("{:x}", hasher.finish()))
-}
-
-#[must_use]
-#[allow(
-    clippy::cast_precision_loss,
-    clippy::float_arithmetic,
-    clippy::as_conversions
-)]
-pub fn format_size(bytes: u64) -> String {
-    const KB: u64 = 1000;
-    const MB: u64 = KB * 1000;
-    const GB: u64 = MB * 1000;
-
-    if bytes >= GB {
-        format!("{:.1} GB", bytes as f64 / GB as f64)
-    } else if bytes >= MB {
-        format!("{:.1} MB", bytes as f64 / MB as f64)
-    } else if bytes >= KB {
-        format!("{:.1} KB", bytes as f64 / KB as f64)
-    } else {
-        format!("{bytes} B")
-    }
 }
 
 /// Quote a string for shell usage
@@ -1573,7 +1599,7 @@ fn print_stats(stats: &CopyStats) {
     );
     eprintln!(
         "  {} bytes copied",
-        format_size(stats.bytes_copied.load(Ordering::Relaxed))
+        crate::utils::format_size(stats.bytes_copied.load(Ordering::Relaxed))
     );
     eprintln!(
         "  {} files skipped",

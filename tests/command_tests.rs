@@ -530,6 +530,114 @@ paths = ["{0}/disk1", "{0}/disk2"]
     }
 
     #[test]
+    fn du_command_share_root_with_slash() {
+        let ctx = TestContext::new("cmd_du_slash");
+
+        let branch_path = ctx.create_branch("disk1", &["file1.txt"]);
+
+        let config = format!(
+            r#"
+[share.test]
+paths = ["{0}/disk1"]
+"#,
+            ctx.root.display()
+        );
+
+        ctx.write_config(&config);
+
+        // Test with leading slash (should be treated as share root, not filesystem root)
+        let output = ctx.run_nofs(&[
+            "--config",
+            ctx.config_path.to_str().unwrap(),
+            "du",
+            "-H",
+            "test:/",
+        ]);
+
+        assert!(output.success(), "Command failed: {}", output.stderr);
+        // Should show disk1 path, not filesystem root
+        assert!(output.stdout.contains(&branch_path.display().to_string()));
+        assert!(!output.stdout.contains("/afs/"));
+        assert!(!output.stdout.contains("/bin/"));
+    }
+
+    #[test]
+    fn ls_command_share_root_with_slash() {
+        let ctx = TestContext::new("cmd_ls_slash");
+
+        let _ = ctx.create_branch("disk1", &["file1.txt", "file2.txt"]);
+
+        let config = format!(
+            r#"
+[share.test]
+paths = ["{0}/disk1"]
+"#,
+            ctx.root.display()
+        );
+
+        ctx.write_config(&config);
+
+        // Test with leading slash (should be treated as share root)
+        let output = ctx.run_nofs(&[
+            "--config",
+            ctx.config_path.to_str().unwrap(),
+            "ls",
+            "test:/",
+        ]);
+
+        assert!(output.success(), "Command failed: {}", output.stderr);
+        // Should show contents of disk1, not filesystem root
+        assert!(output.stdout.contains("file1.txt"));
+        assert!(output.stdout.contains("file2.txt"));
+        assert!(!output.stdout.contains("afs/"));
+        assert!(!output.stdout.contains("bin/"));
+    }
+
+    #[test]
+    fn ls_command_share_root_with_slash_adhoc() {
+        let ctx = TestContext::new("cmd_ls_slash_adhoc");
+
+        let branch_path = ctx.create_branch("disk1", &["file1.txt", "file2.txt"]);
+
+        // Test with ad-hoc mode and leading slash
+        let output = ctx.run_nofs(&[
+            "--paths",
+            &branch_path.display().to_string(),
+            "ls",
+            "/",
+        ]);
+
+        assert!(output.success(), "Command failed: {}", output.stderr);
+        // Should show contents of disk1, not filesystem root
+        assert!(output.stdout.contains("file1.txt"));
+        assert!(output.stdout.contains("file2.txt"));
+        assert!(!output.stdout.contains("afs/"));
+        assert!(!output.stdout.contains("bin/"));
+    }
+
+    #[test]
+    fn du_command_share_root_adhoc() {
+        let ctx = TestContext::new("cmd_du_slash_adhoc");
+
+        let branch_path = ctx.create_branch("disk1", &["file1.txt"]);
+
+        // Test with ad-hoc mode and leading slash
+        let output = ctx.run_nofs(&[
+            "--paths",
+            &branch_path.display().to_string(),
+            "du",
+            "-H",
+            "/",
+        ]);
+
+        assert!(output.success(), "Command failed: {}", output.stderr);
+        // Should show disk1 path, not filesystem root
+        assert!(output.stdout.contains(&branch_path.display().to_string()));
+        assert!(!output.stdout.contains("/afs/"));
+        assert!(!output.stdout.contains("/bin/"));
+    }
+
+    #[test]
     fn info_command() {
         let ctx = TestContext::new("cmd_info");
 

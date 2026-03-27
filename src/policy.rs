@@ -463,6 +463,8 @@ impl<'ctx> SearchPolicy<'ctx> {
     }
 }
 
+use crate::utils::{GB, KB, MB, PB, TB};
+
 /// Parse human-readable size string to bytes
 ///
 /// # Errors
@@ -499,10 +501,16 @@ pub fn parse_size(s: &str) -> Result<u64> {
 
     let multiplier = match suffix.as_str() {
         "" | "B" => 1_u64,
-        "K" | "KB" | "KIB" => 1024,
-        "M" | "MB" | "MIB" => 1024 * 1024,
-        "G" | "GB" | "GIB" => 1024 * 1024 * 1024,
-        "T" | "TB" | "TIB" => 1024 * 1024 * 1024 * 1024,
+        "K" | "KB" => KB,
+        "M" | "MB" => MB,
+        "G" | "GB" => GB,
+        "T" | "TB" => TB,
+        "P" | "PB" => PB,
+        "KIB" => 1024,
+        "MIB" => 1024 * 1024,
+        "GIB" => 1024 * 1024 * 1024,
+        "TIB" => 1024 * 1024 * 1024 * 1024,
+        "PIB" => 1024 * 1024 * 1024 * 1024 * 1024,
         _ => return Err(NofsError::Parse(format!("Invalid size suffix: {s}"))),
     };
 
@@ -512,4 +520,43 @@ pub fn parse_size(s: &str) -> Result<u64> {
         clippy::float_arithmetic
     )]
     Ok((num * multiplier as f64) as u64)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_size() {
+        // Plain bytes
+        assert_eq!(parse_size("1024").unwrap(), 1024);
+        assert_eq!(parse_size("1000").unwrap(), 1000);
+
+        // SI units
+        assert_eq!(parse_size("1K").unwrap(), 1000);
+        assert_eq!(parse_size("1KB").unwrap(), 1000);
+        assert_eq!(parse_size("1M").unwrap(), 1_000_000);
+        assert_eq!(parse_size("1MB").unwrap(), 1_000_000);
+        assert_eq!(parse_size("1G").unwrap(), 1_000_000_000);
+        assert_eq!(parse_size("1GB").unwrap(), 1_000_000_000);
+        assert_eq!(parse_size("1T").unwrap(), 1_000_000_000_000);
+        assert_eq!(parse_size("1TB").unwrap(), 1_000_000_000_000);
+        assert_eq!(parse_size("1P").unwrap(), 1_000_000_000_000_000);
+        assert_eq!(parse_size("1PB").unwrap(), 1_000_000_000_000_000);
+
+        // IEC units
+        assert_eq!(parse_size("1KIB").unwrap(), 1024);
+        assert_eq!(parse_size("1MIB").unwrap(), 1024 * 1024);
+        assert_eq!(parse_size("1GIB").unwrap(), 1024 * 1024 * 1024);
+        assert_eq!(parse_size("1TIB").unwrap(), 1024 * 1024 * 1024 * 1024);
+        assert_eq!(parse_size("1PIB").unwrap(), 1024 * 1024 * 1024 * 1024 * 1024);
+
+        // Floats
+        assert_eq!(parse_size("1.5K").unwrap(), 1500);
+        assert_eq!(parse_size("1.5M").unwrap(), 1_500_000);
+
+        // Error cases
+        assert!(parse_size("1X").is_err());
+        assert!(parse_size("abc").is_err());
+    }
 }

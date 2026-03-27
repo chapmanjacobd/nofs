@@ -169,13 +169,16 @@ impl PoolManager {
     ) -> Result<(&'ctx Pool, &'ctx str)> {
         if let Some(colon_idx) = input.find(':') {
             let context = &input[..colon_idx];
-            let path = &input[colon_idx + 1..];
+            // Strip leading `/` to make path relative to share root
+            let path = input[colon_idx + 1..].trim_start_matches('/');
             let pool = self.get_pool(context)?;
             Ok((pool, path))
         } else {
             // No context specified, use default pool
+            // Strip leading `/` to make path relative to share root
             let pool = self.default_pool()?;
-            Ok((pool, input))
+            let path = input.trim_start_matches('/');
+            Ok((pool, path))
         }
     }
 }

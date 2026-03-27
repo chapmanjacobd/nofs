@@ -264,37 +264,37 @@ CONFLICT RESOLUTION OPTIONS:
             Handle file-over-file conflicts. Format: \"[CONDITIONS...] MODE\"
 
             MODE (required, default: delete-dest):
-              skip          Skip copying the source file
-              rename-src    Rename source file with _N suffix
-              rename-dest   Rename destination file with _N suffix, then copy
-              delete-src    Delete source file, skip copy
-              delete-dest   Delete destination file, then copy source
+              skip                      Skip copying the source file
+              rename-src                Rename source file with _N suffix
+              rename-dest               Rename destination file with _N suffix, then copy
+              delete-src                Delete source file, skip copy
+              delete-dest               Delete destination file, then copy source
 
             CONDITIONS (optional, checked before MODE):
-              skip-hash          Skip if file hashes match
-              skip-size          Skip if file sizes match
-              skip-larger        Skip if source is larger than dest
-              skip-smaller       Skip if source is smaller than dest
-              skip-modified-newer Skip if source modified time is newer
-              skip-modified-older Skip if source modified time is older
-              skip-created-newer  Skip if source created time is newer
-              skip-created-older  Skip if source created time is older
-              delete-dest-hash   Delete dest if hashes match, then copy
-              delete-dest-size   Delete dest if sizes match, then copy
-              delete-dest-larger Delete dest if source is larger, then copy
-              delete-dest-smaller Delete dest if source is smaller, then copy
-              delete-dest-modified-newer Delete dest if src modified newer
-              delete-dest-modified-older Delete dest if src modified older
-              delete-dest-created-newer  Delete dest if src created newer
-              delete-dest-created-older  Delete dest if src created older
-              delete-src-hash    Delete src if hashes match, skip copy
-              delete-src-size    Delete src if sizes match, skip copy
-              delete-src-larger  Delete src if source is larger, skip copy
-              delete-src-smaller Delete src if source is smaller, skip copy
-              delete-src-modified-newer Delete src if src modified newer
-              delete-src-modified-older Delete src if src modified older
-              delete-src-created-newer  Delete src if src created newer
-              delete-src-created-older  Delete src if src created older
+              skip-hash                 Skip if file hashes match
+              skip-size                 Skip if file sizes match
+              skip-larger               Skip if source is larger than dest
+              skip-smaller              Skip if source is smaller than dest
+              skip-modified-newer       Skip if source modified time is newer
+              skip-modified-older       Skip if source modified time is older
+              skip-created-newer        Skip if source created time is newer
+              skip-created-older        Skip if source created time is older
+              delete-dest-hash          Delete dest if hashes match, then copy
+              delete-dest-size          Delete dest if sizes match, then copy
+              delete-dest-larger        Delete dest if source is larger, then copy
+              delete-dest-smaller       Delete dest if source is smaller, then copy
+              delete-dest-modified-newer  Delete dest if src modified newer
+              delete-dest-modified-older  Delete dest if src modified older
+              delete-dest-created-newer   Delete dest if src created newer
+              delete-dest-created-older   Delete dest if src created older
+              delete-src-hash           Delete src if hashes match, skip copy
+              delete-src-size           Delete src if sizes match, skip copy
+              delete-src-larger         Delete src if source is larger, skip copy
+              delete-src-smaller        Delete src if source is smaller, skip copy
+              delete-src-modified-newer   Delete src if src modified newer
+              delete-src-modified-older   Delete src if src modified older
+              delete-src-created-newer    Delete src if src created newer
+              delete-src-created-older    Delete src if src created older
 
             Examples:
               \"skip-hash\" - Skip if hashes match, otherwise delete-dest and copy
@@ -425,37 +425,37 @@ CONFLICT RESOLUTION OPTIONS:
             Handle file-over-file conflicts. Format: \"[CONDITIONS...] MODE\"
 
             MODE (required, default: delete-dest):
-              skip          Skip moving the source file
-              rename-src    Rename source file with _N suffix
-              rename-dest   Rename destination file with _N suffix, then move
-              delete-src    Delete source file, skip move
-              delete-dest   Delete destination file, then move source
+              skip                      Skip moving the source file
+              rename-src                Rename source file with _N suffix
+              rename-dest               Rename destination file with _N suffix, then move
+              delete-src                Delete source file, skip move
+              delete-dest               Delete destination file, then move source
 
             CONDITIONS (optional, checked before MODE):
-              skip-hash          Skip if file hashes match
-              skip-size          Skip if file sizes match
-              skip-larger        Skip if source is larger than dest
-              skip-smaller       Skip if source is smaller than dest
-              skip-modified-newer Skip if source modified time is newer
-              skip-modified-older Skip if source modified time is older
-              skip-created-newer  Skip if source created time is newer
-              skip-created-older  Skip if source created time is older
-              delete-dest-hash   Delete dest if hashes match, then move
-              delete-dest-size   Delete dest if sizes match, then move
-              delete-dest-larger Delete dest if source is larger, then move
-              delete-dest-smaller Delete dest if source is smaller, then move
-              delete-dest-modified-newer Delete dest if src modified newer
-              delete-dest-modified-older Delete dest if src modified older
-              delete-dest-created-newer  Delete dest if src created newer
-              delete-dest-created-older  Delete dest if src created older
-              delete-src-hash    Delete src if hashes match, skip move
-              delete-src-size    Delete src if sizes match, skip move
-              delete-src-larger  Delete src if source is larger, skip move
-              delete-src-smaller Delete src if source is smaller, skip move
-              delete-src-modified-newer Delete src if src modified newer
-              delete-src-modified-older Delete src if src modified older
-              delete-src-created-newer  Delete src if src created newer
-              delete-src-created-older  Delete src if src created older
+              skip-hash                 Skip if file hashes match
+              skip-size                 Skip if file sizes match
+              skip-larger               Skip if source is larger than dest
+              skip-smaller              Skip if source is smaller than dest
+              skip-modified-newer       Skip if source modified time is newer
+              skip-modified-older       Skip if source modified time is older
+              skip-created-newer        Skip if source created time is newer
+              skip-created-older        Skip if source created time is older
+              delete-dest-hash          Delete dest if hashes match, then move
+              delete-dest-size          Delete dest if sizes match, then move
+              delete-dest-larger        Delete dest if source is larger, then move
+              delete-dest-smaller       Delete dest if source is smaller, then move
+              delete-dest-modified-newer  Delete dest if src modified newer
+              delete-dest-modified-older  Delete dest if src modified older
+              delete-dest-created-newer   Delete dest if src created newer
+              delete-dest-created-older   Delete dest if src created older
+              delete-src-hash           Delete src if hashes match, skip move
+              delete-src-size           Delete src if sizes match, skip move
+              delete-src-larger         Delete src if source is larger, skip move
+              delete-src-smaller        Delete src if source is smaller, skip move
+              delete-src-modified-newer   Delete src if src modified newer
+              delete-src-modified-older   Delete src if src modified older
+              delete-src-created-newer    Delete src if src created newer
+              delete-src-created-older    Delete src if src created older
 
             Examples:
               \"skip-hash\" - Skip if hashes match, otherwise delete-dest and move

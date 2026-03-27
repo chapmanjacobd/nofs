@@ -53,4 +53,4 @@ install-manpage: manpage
 	install -m 644 man/nofs.1 $(DESTDIR)/usr/share/man/man1/nofs.1
 
 release:
-	cargo release
+	cargo release --execute

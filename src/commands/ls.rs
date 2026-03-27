@@ -206,7 +206,7 @@ fn output_text(
                     "{} {} {:>8} {}{}",
                     file_type,
                     permissions,
-                    human_size(size),
+                    crate::utils::format_size(size),
                     conflict_marker,
                     file_name
                 )?;
@@ -324,29 +324,4 @@ fn format_permissions(mode: u32) -> String {
     result.push(if mode & 0o001 != 0 { 'x' } else { '-' });
 
     result
-}
-
-/// Format size in human-readable format
-fn human_size(size: u64) -> String {
-    const KB: u64 = 1024;
-    const MB: u64 = KB * 1024;
-    const GB: u64 = MB * 1024;
-    const TB: u64 = GB * 1024;
-
-    #[allow(
-        clippy::cast_precision_loss,
-        clippy::as_conversions,
-        clippy::float_arithmetic
-    )]
-    if size >= TB {
-        format!("{:.1}T", size as f64 / TB as f64)
-    } else if size >= GB {
-        format!("{:.1}G", size as f64 / GB as f64)
-    } else if size >= MB {
-        format!("{:.1}M", size as f64 / MB as f64)
-    } else if size >= KB {
-        format!("{:.1}K", size as f64 / KB as f64)
-    } else {
-        format!("{size}B")
-    }
 }

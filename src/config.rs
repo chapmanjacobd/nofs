@@ -193,9 +193,13 @@ pub fn find_default_config() -> Option<PathBuf> {
         // Current directory
         Some(PathBuf::from("nofs.toml")),
         Some(PathBuf::from(".nofs.toml")),
-        // Home directory
+        // Home directory - prefer config.toml, but also support nofs.toml
         dirs_home().map(|mut p| {
             p.push(".config/nofs/config.toml");
+            p
+        }),
+        dirs_home().map(|mut p| {
+            p.push(".config/nofs/nofs.toml");
             p
         }),
         // System wide

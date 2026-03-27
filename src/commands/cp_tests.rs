@@ -930,7 +930,7 @@ fn test_rule_evaluation_created() {
 
 #[test]
 fn test_format_size() {
-    use crate::commands::cp::format_size;
+    use crate::utils::format_size;
 
     assert_eq!(format_size(0), "0 B");
     assert_eq!(format_size(500), "500 B");

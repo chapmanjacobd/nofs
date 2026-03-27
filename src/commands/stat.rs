@@ -85,9 +85,13 @@ pub fn execute(pool: &Pool, human: bool, _verbose: bool, json: bool) -> Result<(
         writeln!(handle)?;
 
         if human {
-            writeln!(handle, "Total:     {}", format_size(total))?;
-            writeln!(handle, "Used:      {}", format_size(used))?;
-            writeln!(handle, "Available: {}", format_size(available))?;
+            writeln!(handle, "Total:     {}", crate::utils::format_size(total))?;
+            writeln!(handle, "Used:      {}", crate::utils::format_size(used))?;
+            writeln!(
+                handle,
+                "Available: {}",
+                crate::utils::format_size(available)
+            )?;
         } else {
             writeln!(handle, "Total:     {total} bytes")?;
             writeln!(handle, "Used:      {used} bytes")?;
@@ -133,9 +137,9 @@ pub fn execute(pool: &Pool, human: bool, _verbose: bool, json: bool) -> Result<(
                     handle,
                     "{:<40} {:>12} {:>12} {:>12} {:>7.1}%",
                     truncate_path(&path_str, 40),
-                    format_size(branch_total),
-                    format_size(branch_used),
-                    format_size(branch_available),
+                    crate::utils::format_size(branch_total),
+                    crate::utils::format_size(branch_used),
+                    crate::utils::format_size(branch_available),
                     percent
                 )?;
             } else {
@@ -153,31 +157,6 @@ pub fn execute(pool: &Pool, human: bool, _verbose: bool, json: bool) -> Result<(
     }
 
     Ok(())
-}
-
-/// Format size in human-readable format
-fn format_size(size: u64) -> String {
-    const KB: u64 = 1024;
-    const MB: u64 = KB * 1024;
-    const GB: u64 = MB * 1024;
-    const TB: u64 = GB * 1024;
-
-    #[allow(
-        clippy::cast_precision_loss,
-        clippy::as_conversions,
-        clippy::float_arithmetic
-    )]
-    if size >= TB {
-        format!("{:.1}T", size as f64 / TB as f64)
-    } else if size >= GB {
-        format!("{:.1}G", size as f64 / GB as f64)
-    } else if size >= MB {
-        format!("{:.1}M", size as f64 / MB as f64)
-    } else if size >= KB {
-        format!("{:.1}K", size as f64 / KB as f64)
-    } else {
-        format!("{size}B")
-    }
 }
 
 /// Truncate a path string to a maximum length
