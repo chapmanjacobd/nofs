@@ -71,7 +71,7 @@ CONFLICT DETECTION:
     --conflicts
         Detect files with the same name but different content across branches.
         Files are marked in output when conflicts are found.
-    
+
     --hash
         Use full file hash comparison instead of size/mtime for conflict detection.
         More accurate but slower on large files. Requires --conflicts flag.")]
@@ -108,10 +108,10 @@ EXAMPLES:
 OPTIONS:
     --name <PATTERN>
         Glob pattern to match filenames. Supports * (any chars) and ** (any path).
-    
+
     --type <TYPE>
         Filter by type: 'f' for files, 'd' for directories.
-    
+
     --maxdepth <N>
         Limit directory traversal depth. 0 = only the starting directory.")]
     Find {
@@ -149,7 +149,7 @@ CONFLICT DETECTION:
     --conflicts
         Check if file exists in multiple branches with different content.
         Reports conflicts when file content differs between branches.
-    
+
     --hash
         Use full file hash comparison for conflict detection.
         More accurate but slower. Requires --conflicts flag."
@@ -264,37 +264,37 @@ CONFLICT RESOLUTION OPTIONS:
             Handle file-over-file conflicts. Format: \"[CONDITIONS...] MODE\"
 
             MODE (required, default: delete-dest):
-              skip                      Skip copying the source file
-              rename-src                Rename source file with _N suffix
-              rename-dest               Rename destination file with _N suffix, then copy
-              delete-src                Delete source file, skip copy
-              delete-dest               Delete destination file, then copy source
+              skip          Skip copying the source file
+              rename-src    Rename source file with _N suffix
+              rename-dest   Rename destination file with _N suffix, then copy
+              delete-src    Delete source file, skip copy
+              delete-dest   Delete destination file, then copy source
 
             CONDITIONS (optional, checked before MODE):
-              skip-hash                 Skip if file hashes match
-              skip-size                 Skip if file sizes match
-              skip-larger               Skip if source is larger than dest
-              skip-smaller              Skip if source is smaller than dest
-              skip-modified-newer       Skip if source modified time is newer
-              skip-modified-older       Skip if source modified time is older
-              skip-created-newer        Skip if source created time is newer
-              skip-created-older        Skip if source created time is older
-              delete-dest-hash          Delete dest if hashes match, then copy
-              delete-dest-size          Delete dest if sizes match, then copy
-              delete-dest-larger        Delete dest if source is larger, then copy
-              delete-dest-smaller       Delete dest if source is smaller, then copy
-              delete-dest-modified-newer  Delete dest if src modified newer
-              delete-dest-modified-older  Delete dest if src modified older
-              delete-dest-created-newer   Delete dest if src created newer
-              delete-dest-created-older   Delete dest if src created older
-              delete-src-hash           Delete src if hashes match, skip copy
-              delete-src-size           Delete src if sizes match, skip copy
-              delete-src-larger         Delete src if source is larger, skip copy
-              delete-src-smaller        Delete src if source is smaller, skip copy
-              delete-src-modified-newer   Delete src if src modified newer
-              delete-src-modified-older   Delete src if src modified older
-              delete-src-created-newer    Delete src if src created newer
-              delete-src-created-older    Delete src if src created older
+              skip-hash                    Skip if file hashes match
+              skip-size                    Skip if file sizes match
+              skip-larger                  Skip if source is larger than dest
+              skip-smaller                 Skip if source is smaller than dest
+              skip-modified-newer          Skip if source modified time is newer
+              skip-modified-older          Skip if source modified time is older
+              skip-created-newer           Skip if source created time is newer
+              skip-created-older           Skip if source created time is older
+              delete-dest-hash             Delete dest if hashes match, then copy
+              delete-dest-size             Delete dest if sizes match, then copy
+              delete-dest-larger           Delete dest if source is larger, then copy
+              delete-dest-smaller          Delete dest if source is smaller, then copy
+              delete-dest-modified-newer   Delete dest if src modified newer
+              delete-dest-modified-older   Delete dest if src modified older
+              delete-dest-created-newer    Delete dest if src created newer
+              delete-dest-created-older    Delete dest if src created older
+              delete-src-hash              Delete src if hashes match, skip copy
+              delete-src-size              Delete src if sizes match, skip copy
+              delete-src-larger            Delete src if source is larger, skip copy
+              delete-src-smaller           Delete src if source is smaller, skip copy
+              delete-src-modified-newer    Delete src if src modified newer
+              delete-src-modified-older    Delete src if src modified older
+              delete-src-created-newer     Delete src if src created newer
+              delete-src-created-older     Delete src if src created older
 
             Examples:
               \"skip-hash\" - Skip if hashes match, otherwise delete-dest and copy
@@ -476,7 +476,7 @@ CONFLICT RESOLUTION OPTIONS:
 
     --folder-over-file <MODE>
             Handle folder-over-file conflicts (default: merge)
-            
+
             skip          Skip the folder
             rename-src    Rename folder to unique name
             rename-dest   Rename file to unique name, create folder
