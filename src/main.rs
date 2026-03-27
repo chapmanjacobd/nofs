@@ -14,9 +14,8 @@ pub mod policy;
 pub mod pool;
 pub mod utils;
 
-use anyhow::Result;
 use clap::Parser;
-use error::NofsError;
+use error::{NofsError, Result};
 
 /// Command-line interface for nofs
 #[derive(Parser, Debug)]
@@ -728,7 +727,7 @@ fn main() -> Result<()> {
             use clap::CommandFactory;
             let man = clap_mangen::Man::new(Cli::command());
             man.render(&mut std::io::stdout())
-                .map_err(|e| anyhow::anyhow!("Failed to render man page: {e}"))?;
+                .map_err(|e| NofsError::Command(format!("Failed to render man page: {e}")))?;
             return Ok(());
         }
         Commands::Ls { .. }
@@ -841,7 +840,9 @@ fn main() -> Result<()> {
         } => {
             // Parse sources and destination
             let Some((destination, sources)) = paths.split_last() else {
-                return Err(anyhow::anyhow!("At least one source and one destination are required"));
+                return Err(NofsError::Config(
+                    "At least one source and one destination are required".to_string(),
+                ));
             };
 
             // Parse size limit
@@ -867,7 +868,7 @@ fn main() -> Result<()> {
 
             let stats = commands::cp::execute(sources, destination, &config, share)?;
             if stats.errors.load(std::sync::atomic::Ordering::Relaxed) > 0 {
-                return Err(NofsError::Command("Some copy operations failed".to_string()).into());
+                return Err(NofsError::Command("Some copy operations failed".to_string()));
             }
         }
         Commands::Mv {
@@ -886,9 +887,9 @@ fn main() -> Result<()> {
         } => {
             // Parse sources and destination
             let Some((destination, sources)) = paths.split_last() else {
-                return Err(
-                    NofsError::CopyMove("At least one source and one destination are required".to_string()).into(),
-                );
+                return Err(NofsError::CopyMove(
+                    "At least one source and one destination are required".to_string(),
+                ));
             };
 
             // Parse size limit
@@ -915,7 +916,7 @@ fn main() -> Result<()> {
             )?;
 
             if stats.errors.load(std::sync::atomic::Ordering::Relaxed) > 0 {
-                return Err(NofsError::Command("Some move operations failed".to_string()).into());
+                return Err(NofsError::Command("Some move operations failed".to_string()));
             }
         }
         Commands::Rm {
@@ -932,7 +933,7 @@ fn main() -> Result<()> {
                 }
             }
             if any_failed {
-                return Err(NofsError::Command("Some removal operations failed".to_string()).into());
+                return Err(NofsError::Command("Some removal operations failed".to_string()));
             }
         }
         Commands::Mkdir { path, parents, verbose } => {
@@ -963,14 +964,14 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-/// Parse human-readable size string to bytes
+/// Parse a size string (e.g., "1K", "1.5M", "2G") into bytes
 ///
 /// # Errors
 ///
 /// Returns an error if the size string cannot be parsed.
 fn parse_size(s: &str) -> Result<u64> {
     use crate::policy::parse_size as policy_parse_size;
-    policy_parse_size(s).map_err(|e| NofsError::Parse(format!("Parse error: {e}")).into())
+    policy_parse_size(s)
 }
 
 /// Try to extract a share from paths that contain context prefixes

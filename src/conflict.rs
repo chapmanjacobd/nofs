@@ -52,10 +52,14 @@ pub fn detect_conflicts(branches: &[&Branch], relative_path: &Path, use_hash: bo
     // Collect all files from all branches
     let file_map: dashmap::DashMap<String, Vec<BranchConflict>> = dashmap::DashMap::new();
 
+    // Collect errors/warnings for reporting
+    let errors: dashmap::DashMap<String, Vec<String>> = dashmap::DashMap::new();
+
     std::thread::scope(|s| {
         for branch_ref in branches {
             let branch = (*branch_ref).clone();
             let map_ref = &file_map;
+            let err_ref = &errors;
 
             s.spawn(move || {
                 let branch_path = branch.path.join(relative_path);
@@ -65,6 +69,10 @@ pub fn detect_conflicts(branches: &[&Branch], relative_path: &Path, use_hash: bo
                 }
 
                 let Ok(entries) = fs::read_dir(&branch_path) else {
+                    err_ref
+                        .entry(branch.path.to_string_lossy().to_string())
+                        .or_default()
+                        .push(format!("Failed to read directory: {}", branch_path.display()));
                     return;
                 };
 
@@ -78,6 +86,10 @@ pub fn detect_conflicts(branches: &[&Branch], relative_path: &Path, use_hash: bo
                     }
 
                     let Ok(metadata) = entry.metadata() else {
+                        err_ref
+                            .entry(branch.path.to_string_lossy().to_string())
+                            .or_default()
+                            .push(format!("Failed to read metadata: {}", entry.path().display()));
                         continue;
                     };
 
@@ -127,6 +139,21 @@ pub fn detect_conflicts(branches: &[&Branch], relative_path: &Path, use_hash: bo
                 name,
                 branches: branch_files,
             });
+        }
+    }
+
+    // Report any errors encountered during scanning
+    if !errors.is_empty() {
+        use std::io::Write;
+        let stderr = std::io::stderr();
+        let mut h = stderr.lock();
+        let _ = writeln!(h, "Warning: Some files could not be read during conflict detection:");
+        for r in errors {
+            let (branch_path, issues) = (r.0, r.1);
+            let _ = writeln!(h, "  Branch {branch_path}: ");
+            for issue in issues {
+                let _ = writeln!(h, "    - {issue}");
+            }
         }
     }
 

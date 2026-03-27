@@ -10,6 +10,33 @@ use std::path::Path;
 use std::str::FromStr;
 
 /// Available policies for branch selection
+///
+/// Policies determine which branch (underlying filesystem/directory) is selected
+/// for various operations. They fall into three categories:
+///
+/// ## Create Policies
+/// Used when creating new files/directories:
+/// - `Pfrd` - Percentage free random distribution
+/// - `Mfs` - Most free space (selects branch with maximum available space)
+/// - `Ff` - First found (selects first eligible branch)
+/// - `Rand` - Random selection
+/// - `Lfs` - Least free space
+/// - `Lus` - Least used space (by bytes)
+/// - `Lup` - Least used percentage (by usage percentage)
+///
+/// ## Search Policies
+/// Used when locating existing files:
+/// - `Ff` - First found (returns first branch containing the file)
+/// - `All` - All branches (for operations that query all locations)
+///
+/// ## Action/Path-Preserving Policies (Ep*)
+/// Used for operations on existing paths where the target branch is determined
+/// by where the file already exists:
+/// - `EpMfs` - Existing path, most free space (for writes to existing files)
+/// - `EpFf` - Existing path, first found
+/// - `EpRand` - Existing path, random
+/// - `EpAll` - Existing path, all (returns first branch; used when the operation
+///   should proceed with a single branch but the path already exists)
 #[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Policy {
@@ -393,6 +420,10 @@ impl<'ctx> SearchPolicy<'ctx> {
     /// # Errors
     ///
     /// Returns an error if no suitable branch is found for the operation.
+    ///
+    /// # Panics
+    ///
+    /// Panics if internal consistency checks fail (should never happen in practice).
     #[allow(clippy::too_many_lines)]
     pub fn select(&self, policy: Policy, relative_path: &Path) -> Result<&'ctx Branch> {
         // Helper to check existence with or without cache
@@ -438,11 +469,13 @@ impl<'ctx> SearchPolicy<'ctx> {
                 if matching_with_space.is_empty() {
                     return Err(NofsError::PathNotFound(relative_path.display().to_string()));
                 }
-                matching_with_space
+                // Safe: we just checked that matching_with_space is not empty
+                #[allow(clippy::unwrap_used)]
+                Ok(matching_with_space
                     .into_iter()
                     .max_by_key(|(_, space)| *space)
                     .map(|(b, _)| b)
-                    .ok_or(NofsError::NoSuitableBranch)
+                    .unwrap())
             }
             Policy::Lfs => {
                 let matching_with_space: Vec<(&Branch, u64)> = self
@@ -464,11 +497,13 @@ impl<'ctx> SearchPolicy<'ctx> {
                 if matching_with_space.is_empty() {
                     return Err(NofsError::PathNotFound(relative_path.display().to_string()));
                 }
-                matching_with_space
+                // Safe: we just checked that matching_with_space is not empty
+                #[allow(clippy::unwrap_used)]
+                Ok(matching_with_space
                     .into_iter()
                     .min_by_key(|(_, space)| *space)
                     .map(|(b, _)| b)
-                    .ok_or(NofsError::NoSuitableBranch)
+                    .unwrap())
             }
             // For search operations, space-based and random policies fall back to "first found"
             // since the file already exists and we just need to locate it.
@@ -481,7 +516,9 @@ impl<'ctx> SearchPolicy<'ctx> {
                 if matching.is_empty() {
                     return Err(NofsError::PathNotFound(relative_path.display().to_string()));
                 }
-                matching.first().copied().ok_or(NofsError::NoSuitableBranch)
+                // Safe: we just checked that matching is not empty
+                #[allow(clippy::unwrap_used)]
+                Ok(matching.first().copied().unwrap())
             }
         }
     }
@@ -587,9 +624,11 @@ pub fn parse_size(s: &str) -> Result<u64> {
         _ => return Err(NofsError::Parse(format!("Invalid size suffix: {s}"))),
     };
 
-    let result = num.saturating_mul(multiplier);
+    let result = num
+        .checked_mul(multiplier)
+        .ok_or_else(|| NofsError::Parse(format!("Size {s} exceeds maximum value ({})", u64::MAX)))?;
 
-    // Check for overflow
+    // Check for overflow beyond u64::MAX
     if result > u128::from(u64::MAX) {
         return Err(NofsError::Parse(format!(
             "Size {s} exceeds maximum value ({})",

@@ -55,12 +55,10 @@ fn resolve_path(
                         select_branch_for_read(pool, Path::new(relative_path), cache)?
                     };
 
-                    // Get branch index once
+                    // Get branch index using O(1) HashMap lookup
                     let branch_idx = pool
-                        .branches
-                        .iter()
-                        .position(|b| b.path == branch.path)
-                        .ok_or_else(|| NofsError::CopyMove("Branch path not found in pool".to_string()))?;
+                        .get_branch_index(&branch.path)
+                        .map_err(|e| NofsError::CopyMove(format!("Failed to resolve branch: {e}")))?;
 
                     return Ok(ResolvedPath {
                         path: branch.path.join(relative_path),
@@ -1699,6 +1697,12 @@ fn files_match_by_hash(source: &Path, dest: &Path, stats: &CopyStats) -> Result<
 
 /// Compute a hash of a file, using sampling for large files
 ///
+/// For files larger than 640KB, samples 10 chunks of 64KB each at evenly
+/// distributed positions. This provides a fast approximation for conflict
+/// detection - files with different sampled hashes definitely differ, while
+/// matching hashes indicate likely-identical files (with a small false-positive
+/// rate acceptable for conflict detection purposes).
+///
 /// # Errors
 ///
 /// Returns an error if the file cannot be read.
@@ -1708,11 +1712,16 @@ fn sample_hash(path: &Path, stats: &CopyStats) -> Result<String> {
 
     use crate::utils::KB;
 
-    /// Files <= this size are hashed entirely
+    /// Files <= this size are hashed entirely.
+    /// Chosen to balance performance (small files hash quickly) with accuracy
+    /// (640KB is large enough to catch most differences).
     const SMALL_FILE_THRESHOLD: u64 = 640 * KB;
-    /// Size of each chunk to sample in large files
+    /// Size of each chunk to sample in large files.
+    /// 64KB provides good coverage while keeping I/O minimal.
     const SAMPLE_CHUNK_SIZE: u64 = 64 * KB;
-    /// Number of samples to take from large files
+    /// Number of samples to take from large files.
+    /// 10 samples distributed across the file provides reasonable confidence
+    /// for detecting differences while maintaining performance.
     const NUM_SAMPLES: u64 = 10;
 
     let metadata = fs::metadata(path)?;

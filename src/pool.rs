@@ -30,12 +30,42 @@ pub struct Pool {
 
     /// Minimum free space threshold
     pub minfreespace: u64,
+
+    /// Index mapping branch paths to their indices for O(1) lookup
+    #[doc(hidden)]
+    branch_path_index: HashMap<String, usize>,
 }
 
 /// Pool manager - holds multiple named pools
 pub struct PoolManager {
     /// Map of pool names to pool instances
     pools: HashMap<String, Pool>,
+}
+
+impl Pool {
+    /// Build the branch path index for O(1) lookup
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if duplicate branch paths are detected.
+    fn build_branch_path_index(branches: &[Branch]) -> Result<HashMap<String, usize>> {
+        let mut index = HashMap::with_capacity(branches.len());
+
+        for (idx, branch) in branches.iter().enumerate() {
+            let path_str = branch.path.to_string_lossy().to_string();
+
+            // Check for duplicate paths
+            if let Some(existing_idx) = index.get(&path_str) {
+                return Err(NofsError::Config(
+                    format!("Duplicate branch path detected: '{path_str}' appears at both index {existing_idx} and {idx}. Each branch must have a unique path.")
+                ));
+            }
+
+            index.insert(path_str, idx);
+        }
+
+        Ok(index)
+    }
 }
 
 impl PoolManager {
@@ -75,6 +105,7 @@ impl PoolManager {
             return Err(NofsError::Config("No branches provided".to_string()));
         }
 
+        let branch_path_index = Pool::build_branch_path_index(&branches)?;
         let pool = Pool {
             name: "default".to_string(),
             branches,
@@ -82,6 +113,7 @@ impl PoolManager {
             search_policy: Policy::Ff,
             action_policy: Policy::EpAll,
             minfreespace: crate::policy::parse_size(minfreespace)?,
+            branch_path_index,
         };
 
         let mut pools = HashMap::new();
@@ -101,6 +133,7 @@ impl PoolManager {
                 return Err(NofsError::Config(format!("No branches defined in share '{name}'")));
             }
 
+            let branch_path_index = Pool::build_branch_path_index(&branches)?;
             let pool = Pool {
                 name: name.clone(),
                 branches,
@@ -108,6 +141,7 @@ impl PoolManager {
                 search_policy: share_config.search_policy()?,
                 action_policy: share_config.action_policy()?,
                 minfreespace: share_config.minfreespace_bytes()?,
+                branch_path_index,
             };
 
             pools.insert(name.clone(), pool);
@@ -232,6 +266,22 @@ impl Pool {
     #[must_use]
     pub fn writable_branch_count(&self) -> usize {
         self.branches.iter().filter(|b| b.can_create()).count()
+    }
+
+    /// Get the index of a branch by its path
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the branch path is not found in the pool.
+    pub fn get_branch_index(&self, branch_path: &Path) -> Result<usize> {
+        let path_str = branch_path.to_string_lossy();
+        self.branch_path_index.get(path_str.as_ref()).copied().ok_or_else(|| {
+            NofsError::Branch(format!(
+                "Branch path '{}' not found in pool '{}'",
+                branch_path.display(),
+                self.name
+            ))
+        })
     }
 
     /// Find a branch by path
@@ -465,6 +515,8 @@ mod tests {
             minfreespace: None,
         };
 
+        let branch_path_index =
+            Pool::build_branch_path_index(std::slice::from_ref(&branch)).expect("Failed to build index");
         let pool = Pool {
             name: "test_pool".to_string(),
             branches: vec![branch],
@@ -472,6 +524,7 @@ mod tests {
             search_policy: Policy::Ff,
             action_policy: Policy::EpAll,
             minfreespace: 0,
+            branch_path_index,
         };
 
         (temp_dir, pool)
