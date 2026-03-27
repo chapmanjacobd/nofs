@@ -1294,7 +1294,11 @@ fn sample_hash(path: &Path, stats: &CopyStats) -> Result<String> {
 }
 
 #[must_use]
-#[allow(clippy::cast_precision_loss, clippy::float_arithmetic, clippy::as_conversions)]
+#[allow(
+    clippy::cast_precision_loss,
+    clippy::float_arithmetic,
+    clippy::as_conversions
+)]
 pub fn format_size(bytes: u64) -> String {
     const KB: u64 = 1000;
     const MB: u64 = KB * 1000;

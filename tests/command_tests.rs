@@ -461,8 +461,14 @@ paths = ["{0}/disk1"]
             dest_dir.to_str().unwrap(),
         ]);
 
-        assert!(output.success(), "Command failed: {}\nstdout: {}\nstderr: {}", output.status, output.stdout, output.stderr);
-        
+        assert!(
+            output.success(),
+            "Command failed: {}\nstdout: {}\nstderr: {}",
+            output.status,
+            output.stdout,
+            output.stderr
+        );
+
         // Verify file was copied
         let copied_file = dest_dir.join("file.txt");
         assert!(copied_file.exists(), "File should be copied to destination");
@@ -497,11 +503,20 @@ paths = ["{0}/disk1"]
             "test:dest/",
         ]);
 
-        assert!(output.success(), "Command failed: {}\nstdout: {}\nstderr: {}", output.status, output.stdout, output.stderr);
-        
+        assert!(
+            output.success(),
+            "Command failed: {}\nstdout: {}\nstderr: {}",
+            output.status,
+            output.stdout,
+            output.stderr
+        );
+
         // Verify file was copied to share
         let copied_file = ctx.root.join("disk1/dest/source.txt");
-        assert!(copied_file.exists(), "File should be copied to share destination");
+        assert!(
+            copied_file.exists(),
+            "File should be copied to share destination"
+        );
     }
 
     #[test]
@@ -530,8 +545,14 @@ paths = ["{0}/disk1"]
             "test:dest/",
         ]);
 
-        assert!(output.success(), "Command failed: {}\nstdout: {}\nstderr: {}", output.status, output.stdout, output.stderr);
-        
+        assert!(
+            output.success(),
+            "Command failed: {}\nstdout: {}\nstderr: {}",
+            output.status,
+            output.stdout,
+            output.stderr
+        );
+
         // Verify file was copied within share
         let copied_file = ctx.root.join("disk1/dest/file.txt");
         assert!(copied_file.exists(), "File should be copied within share");
@@ -565,8 +586,14 @@ paths = ["{0}/disk1"]
             dest_dir.to_str().unwrap(),
         ]);
 
-        assert!(output.success(), "Command failed: {}\nstdout: {}\nstderr: {}", output.status, output.stdout, output.stderr);
-        
+        assert!(
+            output.success(),
+            "Command failed: {}\nstdout: {}\nstderr: {}",
+            output.status,
+            output.stdout,
+            output.stderr
+        );
+
         // Verify directory structure was copied
         let copied_file1 = dest_dir.join("source/subdir/file1.txt");
         let copied_file2 = dest_dir.join("source/subdir/file2.txt");
@@ -602,13 +629,22 @@ paths = ["{0}/disk1"]
             dest_dir.to_str().unwrap(),
         ]);
 
-        assert!(output.success(), "Command failed: {}\nstdout: {}\nstderr: {}", output.status, output.stdout, output.stderr);
-        
+        assert!(
+            output.success(),
+            "Command failed: {}\nstdout: {}\nstderr: {}",
+            output.status,
+            output.stdout,
+            output.stderr
+        );
+
         // Verify file was moved (exists at dest, not at source)
         let copied_file = dest_dir.join("file.txt");
         let original_file = ctx.root.join("disk1/source/file.txt");
         assert!(copied_file.exists(), "File should be moved to destination");
-        assert!(!original_file.exists(), "Original file should be removed after move");
+        assert!(
+            !original_file.exists(),
+            "Original file should be removed after move"
+        );
     }
 
     #[test]
@@ -644,15 +680,27 @@ paths = ["{0}/branch1", "{0}/branch2"]
             "mvtest:renamed.txt",
         ]);
 
-        assert!(output.success(), "Command failed: {}\nstdout: {}\nstderr: {}", output.status, output.stdout, output.stderr);
+        assert!(
+            output.success(),
+            "Command failed: {}\nstdout: {}\nstderr: {}",
+            output.status,
+            output.stdout,
+            output.stderr
+        );
 
         // File should be moved within branch1 (same branch as source)
         let moved_file = ctx.root.join("branch1/renamed.txt");
         let original_file = ctx.root.join("branch1/file.txt");
         let wrong_branch_file = ctx.root.join("branch2/renamed.txt");
 
-        assert!(moved_file.exists(), "File should be moved to branch1/renamed.txt");
-        assert!(!original_file.exists(), "Original file should be removed after move");
+        assert!(
+            moved_file.exists(),
+            "File should be moved to branch1/renamed.txt"
+        );
+        assert!(
+            !original_file.exists(),
+            "Original file should be removed after move"
+        );
         assert!(!wrong_branch_file.exists(), "File should NOT be on branch2");
     }
 
@@ -686,16 +734,31 @@ paths = ["{0}/disk1", "{0}/disk2"]
             "mvtest2:dest/",
         ]);
 
-        assert!(output.success(), "Command failed: {}\nstdout: {}\nstderr: {}", output.status, output.stdout, output.stderr);
+        assert!(
+            output.success(),
+            "Command failed: {}\nstdout: {}\nstderr: {}",
+            output.status,
+            output.stdout,
+            output.stderr
+        );
 
         // Verify file was moved within disk1 (same branch)
         let moved_file = ctx.root.join("disk1/dest/file.txt");
         let original_file = ctx.root.join("disk1/source/file.txt");
         let wrong_branch_file = ctx.root.join("disk2/dest/file.txt");
 
-        assert!(moved_file.exists(), "File should be moved to disk1/dest (same branch as source)");
-        assert!(!original_file.exists(), "Original file should be removed after move");
-        assert!(!wrong_branch_file.exists(), "File should NOT be on disk2 (different branch)");
+        assert!(
+            moved_file.exists(),
+            "File should be moved to disk1/dest (same branch as source)"
+        );
+        assert!(
+            !original_file.exists(),
+            "Original file should be removed after move"
+        );
+        assert!(
+            !wrong_branch_file.exists(),
+            "File should NOT be on disk2 (different branch)"
+        );
     }
 
     #[test]
@@ -727,15 +790,27 @@ paths = ["{0}/branch1", "{0}/branch2"]
             "cptest:copied.txt",
         ]);
 
-        assert!(output.success(), "Command failed: {}\nstdout: {}\nstderr: {}", output.status, output.stdout, output.stderr);
+        assert!(
+            output.success(),
+            "Command failed: {}\nstdout: {}\nstderr: {}",
+            output.status,
+            output.stdout,
+            output.stderr
+        );
 
         // File should be copied within branch1 (same branch as source)
         let copied_file = ctx.root.join("branch1/copied.txt");
         let original_file = ctx.root.join("branch1/file.txt");
         let wrong_branch_file = ctx.root.join("branch2/copied.txt");
 
-        assert!(copied_file.exists(), "File should be copied to branch1/copied.txt");
-        assert!(original_file.exists(), "Original file should still exist after copy");
+        assert!(
+            copied_file.exists(),
+            "File should be copied to branch1/copied.txt"
+        );
+        assert!(
+            original_file.exists(),
+            "Original file should still exist after copy"
+        );
         assert!(!wrong_branch_file.exists(), "File should NOT be on branch2");
     }
 
@@ -769,15 +844,30 @@ paths = ["{0}/disk1", "{0}/disk2"]
             "cptest2:dest/",
         ]);
 
-        assert!(output.success(), "Command failed: {}\nstdout: {}\nstderr: {}", output.status, output.stdout, output.stderr);
+        assert!(
+            output.success(),
+            "Command failed: {}\nstdout: {}\nstderr: {}",
+            output.status,
+            output.stdout,
+            output.stderr
+        );
 
         // Verify file was copied within disk1 (same branch)
         let copied_file = ctx.root.join("disk1/dest/file.txt");
         let original_file = ctx.root.join("disk1/source/file.txt");
         let wrong_branch_file = ctx.root.join("disk2/dest/file.txt");
 
-        assert!(copied_file.exists(), "File should be copied to disk1/dest (same branch as source)");
-        assert!(original_file.exists(), "Original file should still exist after copy");
-        assert!(!wrong_branch_file.exists(), "File should NOT be on disk2 (different branch)");
+        assert!(
+            copied_file.exists(),
+            "File should be copied to disk1/dest (same branch as source)"
+        );
+        assert!(
+            original_file.exists(),
+            "Original file should still exist after copy"
+        );
+        assert!(
+            !wrong_branch_file.exists(),
+            "File should NOT be on disk2 (different branch)"
+        );
     }
 }
