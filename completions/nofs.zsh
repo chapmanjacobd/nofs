@@ -43,10 +43,10 @@ _arguments "${_arguments_options[@]}" : \
 '--paths=[Comma-separated list of branch paths (ad-hoc mode) Format\: /path1,/path2 or /path1=RW,/path2=RO]:PATHS:_default' \
 '--policy=[Policy to use for branch selection]:POLICY:_default' \
 '--minfreespace=[Minimum free space required on branch (e.g., "4G", "100M")]:MINFREESPACE:_default' \
-'-l[Show detailed information]' \
-'--long[Show detailed information]' \
-'-a[Show hidden files]' \
-'--all[Show hidden files]' \
+'-l[Show detailed information (permissions, size, modification time)]' \
+'--long[Show detailed information (permissions, size, modification time)]' \
+'-a[Show hidden files (files starting with .)]' \
+'--all[Show hidden files (files starting with .)]' \
 '--conflicts[Detect and report conflicts (files with same name but different content)]' \
 '--hash[Use hash comparison for conflict detection (slower but more accurate)]' \
 '-v[Verbose output (print decision steps to stderr)]' \
@@ -61,9 +61,9 @@ _arguments "${_arguments_options[@]}" : \
 ;;
 (find)
 _arguments "${_arguments_options[@]}" : \
-'--name=[Filename pattern (glob)]:NAME:_default' \
-'--type=[File type\: f=file, d=directory]:TYPE:_default' \
-'--maxdepth=[Maximum depth]:MAXDEPTH:_default' \
+'--name=[Filename pattern (glob syntax\: *.txt, **/logs/*)]:PATTERN:_default' \
+'--type=[File type\: '\''f'\'' for files, '\''d'\'' for directories]:TYPE:_default' \
+'--maxdepth=[Maximum directory traversal depth (0 = starting directory only)]:N:_default' \
 '-c+[Path to configuration file]:CONFIG:_default' \
 '--config=[Path to configuration file]:CONFIG:_default' \
 '--paths=[Comma-separated list of branch paths (ad-hoc mode) Format\: /path1,/path2 or /path1=RW,/path2=RO]:PATHS:_default' \
@@ -86,8 +86,8 @@ _arguments "${_arguments_options[@]}" : \
 '--paths=[Comma-separated list of branch paths (ad-hoc mode) Format\: /path1,/path2 or /path1=RW,/path2=RO]:PATHS:_default' \
 '--policy=[Policy to use for branch selection]:POLICY:_default' \
 '--minfreespace=[Minimum free space required on branch (e.g., "4G", "100M")]:MINFREESPACE:_default' \
-'-a[Show all branches containing the file]' \
-'--all[Show all branches containing the file]' \
+'-a[Show all branches containing the file (not just the first)]' \
+'--all[Show all branches containing the file (not just the first)]' \
 '--conflicts[Detect and report conflicts (files with same name but different content)]' \
 '--hash[Use hash comparison for conflict detection (slower but more accurate)]' \
 '-v[Verbose output (print decision steps to stderr)]' \
@@ -124,8 +124,8 @@ _arguments "${_arguments_options[@]}" : \
 '--paths=[Comma-separated list of branch paths (ad-hoc mode) Format\: /path1,/path2 or /path1=RW,/path2=RO]:PATHS:_default' \
 '--policy=[Policy to use for branch selection]:POLICY:_default' \
 '--minfreespace=[Minimum free space required on branch (e.g., "4G", "100M")]:MINFREESPACE:_default' \
-'-H[Show human-readable sizes]' \
-'--human[Show human-readable sizes]' \
+'-H[Show human-readable sizes (KB, MB, GB instead of bytes)]' \
+'--human[Show human-readable sizes (KB, MB, GB instead of bytes)]' \
 '-v[Verbose output (print decision steps to stderr)]' \
 '--verbose[Verbose output (print decision steps to stderr)]' \
 '--json[Output in JSON format (for scripting/automation)]' \
@@ -150,7 +150,7 @@ _arguments "${_arguments_options[@]}" : \
 '--help[Print help]' \
 '-V[Print version]' \
 '--version[Print version]' \
-'::context -- Context name (optional, shows all if not specified):_default' \
+'::context -- Context name (optional, shows all shares if not specified):_default' \
 && ret=0
 ;;
 (exists)
@@ -189,22 +189,22 @@ _arguments "${_arguments_options[@]}" : \
 ;;
 (cp)
 _arguments "${_arguments_options[@]}" : \
-'--file-over-file=[File-over-file conflict strategy (e.g., "skip-hash rename-dest")]:FILE_OVER_FILE:_default' \
-'--file-over-folder=[File-over-folder conflict strategy]:FILE_OVER_FOLDER:_default' \
-'--folder-over-file=[Folder-over-file conflict strategy]:FOLDER_OVER_FILE:_default' \
-'-j+[Number of parallel workers]:WORKERS:_default' \
-'--workers=[Number of parallel workers]:WORKERS:_default' \
+'--file-over-file=[File-over-file conflict strategy]:STRATEGY:_default' \
+'--file-over-folder=[File-over-folder conflict strategy\: skip, rename-src, rename-dest, delete-src, delete-dest, merge]:MODE:_default' \
+'--folder-over-file=[Folder-over-file conflict strategy\: skip, rename-src, rename-dest, delete-src, delete-dest, merge]:MODE:_default' \
+'-j+[Number of parallel workers]:N:_default' \
+'--workers=[Number of parallel workers]:N:_default' \
 '*-e+[Filter by file extensions (e.g., .mkv, .jpg)]:EXT:_default' \
 '*--ext=[Filter by file extensions (e.g., .mkv, .jpg)]:EXT:_default' \
-'*-E+[Exclude patterns (glob)]:EXCLUDE:_default' \
-'*--exclude=[Exclude patterns (glob)]:EXCLUDE:_default' \
-'*-I+[Include patterns (glob)]:INCLUDE:_default' \
-'*--include=[Include patterns (glob)]:INCLUDE:_default' \
+'*-E+[Exclude files matching glob pattern]:PATTERN:_default' \
+'*--exclude=[Exclude files matching glob pattern]:PATTERN:_default' \
+'*-I+[Include only files matching glob pattern]:PATTERN:_default' \
+'*--include=[Include only files matching glob pattern]:PATTERN:_default' \
 '*-S+[Filter by file size (e.g., +5M, -10M)]:SIZE:_default' \
 '*--size=[Filter by file size (e.g., +5M, -10M)]:SIZE:_default' \
-'-l+[Limit number of files transferred]:LIMIT:_default' \
-'--limit=[Limit number of files transferred]:LIMIT:_default' \
-'--size-limit=[Limit total size transferred (e.g., 100M, 1G)]:SIZE_LIMIT:_default' \
+'-l+[Limit number of files transferred]:N:_default' \
+'--limit=[Limit number of files transferred]:N:_default' \
+'--size-limit=[Limit total size transferred (e.g., 100M, 1G)]:SIZE:_default' \
 '-c+[Path to configuration file]:CONFIG:_default' \
 '--config=[Path to configuration file]:CONFIG:_default' \
 '--policy=[Policy to use for branch selection]:POLICY:_default' \
@@ -214,8 +214,8 @@ _arguments "${_arguments_options[@]}" : \
 '-v[Verbose output (print decision steps to stderr)]' \
 '--verbose[Verbose output (print decision steps to stderr)]' \
 '--json[Output in JSON format (for scripting/automation)]' \
-'-h[Print help]' \
-'--help[Print help]' \
+'-h[Print help (see more with '\''--help'\'')]' \
+'--help[Print help (see more with '\''--help'\'')]' \
 '-V[Print version]' \
 '--version[Print version]' \
 '*::paths -- Source paths \[...\] and destination (last argument). Format\: \[context\:\]path or regular path:_default' \
@@ -223,22 +223,22 @@ _arguments "${_arguments_options[@]}" : \
 ;;
 (mv)
 _arguments "${_arguments_options[@]}" : \
-'--file-over-file=[File-over-file conflict strategy (e.g., "skip-hash rename-dest")]:FILE_OVER_FILE:_default' \
-'--file-over-folder=[File-over-folder conflict strategy]:FILE_OVER_FOLDER:_default' \
-'--folder-over-file=[Folder-over-file conflict strategy]:FOLDER_OVER_FILE:_default' \
-'-j+[Number of parallel workers]:WORKERS:_default' \
-'--workers=[Number of parallel workers]:WORKERS:_default' \
+'--file-over-file=[File-over-file conflict strategy]:STRATEGY:_default' \
+'--file-over-folder=[File-over-folder conflict strategy\: skip, rename-src, rename-dest, delete-src, delete-dest, merge]:MODE:_default' \
+'--folder-over-file=[Folder-over-file conflict strategy\: skip, rename-src, rename-dest, delete-src, delete-dest, merge]:MODE:_default' \
+'-j+[Number of parallel workers]:N:_default' \
+'--workers=[Number of parallel workers]:N:_default' \
 '*-e+[Filter by file extensions (e.g., .mkv, .jpg)]:EXT:_default' \
 '*--ext=[Filter by file extensions (e.g., .mkv, .jpg)]:EXT:_default' \
-'*-E+[Exclude patterns (glob)]:EXCLUDE:_default' \
-'*--exclude=[Exclude patterns (glob)]:EXCLUDE:_default' \
-'*-I+[Include patterns (glob)]:INCLUDE:_default' \
-'*--include=[Include patterns (glob)]:INCLUDE:_default' \
+'*-E+[Exclude files matching glob pattern]:PATTERN:_default' \
+'*--exclude=[Exclude files matching glob pattern]:PATTERN:_default' \
+'*-I+[Include only files matching glob pattern]:PATTERN:_default' \
+'*--include=[Include only files matching glob pattern]:PATTERN:_default' \
 '*-S+[Filter by file size (e.g., +5M, -10M)]:SIZE:_default' \
 '*--size=[Filter by file size (e.g., +5M, -10M)]:SIZE:_default' \
-'-l+[Limit number of files transferred]:LIMIT:_default' \
-'--limit=[Limit number of files transferred]:LIMIT:_default' \
-'--size-limit=[Limit total size transferred (e.g., 100M, 1G)]:SIZE_LIMIT:_default' \
+'-l+[Limit number of files moved]:N:_default' \
+'--limit=[Limit number of files moved]:N:_default' \
+'--size-limit=[Limit total size moved (e.g., 100M, 1G)]:SIZE:_default' \
 '-c+[Path to configuration file]:CONFIG:_default' \
 '--config=[Path to configuration file]:CONFIG:_default' \
 '--policy=[Policy to use for branch selection]:POLICY:_default' \
@@ -248,8 +248,8 @@ _arguments "${_arguments_options[@]}" : \
 '-v[Verbose output (print decision steps to stderr)]' \
 '--verbose[Verbose output (print decision steps to stderr)]' \
 '--json[Output in JSON format (for scripting/automation)]' \
-'-h[Print help]' \
-'--help[Print help]' \
+'-h[Print help (see more with '\''--help'\'')]' \
+'--help[Print help (see more with '\''--help'\'')]' \
 '-V[Print version]' \
 '--version[Print version]' \
 '*::paths -- Source paths \[...\] and destination (last argument). Format\: \[context\:\]path or regular path:_default' \
@@ -263,14 +263,14 @@ _arguments "${_arguments_options[@]}" : \
 '--minfreespace=[Minimum free space required on branch (e.g., "4G", "100M")]:MINFREESPACE:_default' \
 '-r[Remove directories and their contents recursively]' \
 '--recursive[Remove directories and their contents recursively]' \
-'-v[Verbose output]' \
-'--verbose[Verbose output]' \
+'-v[Print each file/directory as it is removed]' \
+'--verbose[Print each file/directory as it is removed]' \
 '--json[Output in JSON format (for scripting/automation)]' \
 '-h[Print help]' \
 '--help[Print help]' \
 '-V[Print version]' \
 '--version[Print version]' \
-'*::paths -- Path(s) within the share (format\: \[context\:\]path):_default' \
+'*::paths -- Path(s) within the share (format\: \[context\:\]path). Supports glob patterns:_default' \
 && ret=0
 ;;
 (mkdir)
@@ -282,8 +282,8 @@ _arguments "${_arguments_options[@]}" : \
 '--minfreespace=[Minimum free space required on branch (e.g., "4G", "100M")]:MINFREESPACE:_default' \
 '-p[Create parent directories as needed]' \
 '--parents[Create parent directories as needed]' \
-'-v[Verbose output]' \
-'--verbose[Verbose output]' \
+'-v[Print each directory as it is created]' \
+'--verbose[Print each directory as it is created]' \
 '--json[Output in JSON format (for scripting/automation)]' \
 '-h[Print help]' \
 '--help[Print help]' \
@@ -299,8 +299,8 @@ _arguments "${_arguments_options[@]}" : \
 '--paths=[Comma-separated list of branch paths (ad-hoc mode) Format\: /path1,/path2 or /path1=RW,/path2=RO]:PATHS:_default' \
 '--policy=[Policy to use for branch selection]:POLICY:_default' \
 '--minfreespace=[Minimum free space required on branch (e.g., "4G", "100M")]:MINFREESPACE:_default' \
-'-v[Verbose output]' \
-'--verbose[Verbose output]' \
+'-v[Print the directory as it is removed]' \
+'--verbose[Print the directory as it is removed]' \
 '--json[Output in JSON format (for scripting/automation)]' \
 '-h[Print help]' \
 '--help[Print help]' \
@@ -316,8 +316,30 @@ _arguments "${_arguments_options[@]}" : \
 '--paths=[Comma-separated list of branch paths (ad-hoc mode) Format\: /path1,/path2 or /path1=RW,/path2=RO]:PATHS:_default' \
 '--policy=[Policy to use for branch selection]:POLICY:_default' \
 '--minfreespace=[Minimum free space required on branch (e.g., "4G", "100M")]:MINFREESPACE:_default' \
-'-v[Verbose output]' \
-'--verbose[Verbose output]' \
+'-v[Print the file path after creation/update]' \
+'--verbose[Print the file path after creation/update]' \
+'--json[Output in JSON format (for scripting/automation)]' \
+'-h[Print help]' \
+'--help[Print help]' \
+'-V[Print version]' \
+'--version[Print version]' \
+':path -- Path within the share (format\: \[context\:\]path):_default' \
+&& ret=0
+;;
+(du)
+_arguments "${_arguments_options[@]}" : \
+'--maxdepth=[Maximum directory traversal depth (0 = starting directory only)]:N:_default' \
+'-c+[Path to configuration file]:CONFIG:_default' \
+'--config=[Path to configuration file]:CONFIG:_default' \
+'--paths=[Comma-separated list of branch paths (ad-hoc mode) Format\: /path1,/path2 or /path1=RW,/path2=RO]:PATHS:_default' \
+'--policy=[Policy to use for branch selection]:POLICY:_default' \
+'--minfreespace=[Minimum free space required on branch (e.g., "4G", "100M")]:MINFREESPACE:_default' \
+'-H[Show human-readable sizes (KB, MB, GB instead of bytes)]' \
+'--human[Show human-readable sizes (KB, MB, GB instead of bytes)]' \
+'-a[Show all subdirectory sizes]' \
+'--all[Show all subdirectory sizes]' \
+'-v[Verbose output (print decision steps to stderr)]' \
+'--verbose[Verbose output (print decision steps to stderr)]' \
 '--json[Output in JSON format (for scripting/automation)]' \
 '-h[Print help]' \
 '--help[Print help]' \
@@ -427,6 +449,10 @@ _arguments "${_arguments_options[@]}" : \
 _arguments "${_arguments_options[@]}" : \
 && ret=0
 ;;
+(du)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
 (completions)
 _arguments "${_arguments_options[@]}" : \
 && ret=0
@@ -465,6 +491,7 @@ _nofs_commands() {
 'mkdir:Create directories' \
 'rmdir:Remove empty directories' \
 'touch:Create or update files' \
+'du:Show disk usage (recursive directory size calculation)' \
 'completions:Generate shell completion scripts' \
 'manpage:Generate man page' \
 'help:Print this message or the help of the given subcommand(s)' \
@@ -490,6 +517,11 @@ _nofs__cp_commands() {
 _nofs__create_commands() {
     local commands; commands=()
     _describe -t commands 'nofs create commands' commands "$@"
+}
+(( $+functions[_nofs__du_commands] )) ||
+_nofs__du_commands() {
+    local commands; commands=()
+    _describe -t commands 'nofs du commands' commands "$@"
 }
 (( $+functions[_nofs__exists_commands] )) ||
 _nofs__exists_commands() {
@@ -518,6 +550,7 @@ _nofs__help_commands() {
 'mkdir:Create directories' \
 'rmdir:Remove empty directories' \
 'touch:Create or update files' \
+'du:Show disk usage (recursive directory size calculation)' \
 'completions:Generate shell completion scripts' \
 'manpage:Generate man page' \
 'help:Print this message or the help of the given subcommand(s)' \
@@ -543,6 +576,11 @@ _nofs__help__cp_commands() {
 _nofs__help__create_commands() {
     local commands; commands=()
     _describe -t commands 'nofs help create commands' commands "$@"
+}
+(( $+functions[_nofs__help__du_commands] )) ||
+_nofs__help__du_commands() {
+    local commands; commands=()
+    _describe -t commands 'nofs help du commands' commands "$@"
 }
 (( $+functions[_nofs__help__exists_commands] )) ||
 _nofs__help__exists_commands() {

@@ -28,6 +28,9 @@ _nofs() {
             nofs,create)
                 cmd="nofs__create"
                 ;;
+            nofs,du)
+                cmd="nofs__du"
+                ;;
             nofs,exists)
                 cmd="nofs__exists"
                 ;;
@@ -79,6 +82,9 @@ _nofs() {
             nofs__help,create)
                 cmd="nofs__help__create"
                 ;;
+            nofs__help,du)
+                cmd="nofs__help__du"
+                ;;
             nofs__help,exists)
                 cmd="nofs__help__exists"
                 ;;
@@ -125,7 +131,7 @@ _nofs() {
 
     case "${cmd}" in
         nofs)
-            opts="-c -v -h -V --config --paths --policy --minfreespace --verbose --json --help --version ls find which create stat info exists cat cp mv rm mkdir rmdir touch completions manpage help"
+            opts="-c -v -h -V --config --paths --policy --minfreespace --verbose --json --help --version ls find which create stat info exists cat cp mv rm mkdir rmdir touch du completions manpage help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 1 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -354,6 +360,44 @@ _nofs() {
             COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
             return 0
             ;;
+        nofs__du)
+            opts="-H -a -c -v -h -V --human --all --maxdepth --config --paths --policy --minfreespace --verbose --json --help --version <PATH>"
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                --maxdepth)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --config)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                -c)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --paths)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --policy)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --minfreespace)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
         nofs__exists)
             opts="-c -v -h -V --config --paths --policy --minfreespace --verbose --json --help --version <PATH>"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
@@ -435,7 +479,7 @@ _nofs() {
             return 0
             ;;
         nofs__help)
-            opts="ls find which create stat info exists cat cp mv rm mkdir rmdir touch completions manpage help"
+            opts="ls find which create stat info exists cat cp mv rm mkdir rmdir touch du completions manpage help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -491,6 +535,20 @@ _nofs() {
             return 0
             ;;
         nofs__help__create)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        nofs__help__du)
             opts=""
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )

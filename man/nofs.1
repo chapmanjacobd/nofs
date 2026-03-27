@@ -1,6 +1,6 @@
 .ie \n(.g .ds Aq \(aq
 .el .ds Aq '
-.TH nofs 1  "nofs 0.1.1" 
+.TH nofs 1  "nofs 0.1.6" 
 .SH NAME
 nofs \- A lightweight shared filesystem tool
 .SH SYNOPSIS
@@ -9,29 +9,32 @@ nofs \- A lightweight shared filesystem tool
 A lightweight shared filesystem tool
 .SH OPTIONS
 .TP
+\fB\-h\fR, \fB\-\-help\fR
+Print help
+.TP
+\fB\-V\fR, \fB\-\-version\fR
+Print version
+.SH CONFIGURATION
+.TP
 \fB\-c\fR, \fB\-\-config\fR \fI<CONFIG>\fR
 Path to configuration file
 .TP
 \fB\-\-paths\fR \fI<PATHS>\fR
 Comma\-separated list of branch paths (ad\-hoc mode) Format: /path1,/path2 or /path1=RW,/path2=RO
+.SH POLICY
 .TP
 \fB\-\-policy\fR \fI<POLICY>\fR [default: pfrd]
 Policy to use for branch selection
 .TP
 \fB\-\-minfreespace\fR \fI<MINFREESPACE>\fR [default: 4G]
 Minimum free space required on branch (e.g., "4G", "100M")
+.SH OUTPUT
 .TP
 \fB\-v\fR, \fB\-\-verbose\fR
 Verbose output (print decision steps to stderr)
 .TP
 \fB\-\-json\fR
 Output in JSON format (for scripting/automation)
-.TP
-\fB\-h\fR, \fB\-\-help\fR
-Print help
-.TP
-\fB\-V\fR, \fB\-\-version\fR
-Print version
 .SH SUBCOMMANDS
 .TP
 nofs\-ls(1)
@@ -76,6 +79,9 @@ Remove empty directories
 nofs\-touch(1)
 Create or update files
 .TP
+nofs\-du(1)
+Show disk usage (recursive directory size calculation)
+.TP
 nofs\-completions(1)
 Generate shell completion scripts
 .TP
@@ -85,4 +91,4 @@ Generate man page
 nofs\-help(1)
 Print this message or the help of the given subcommand(s)
 .SH VERSION
-v0.1.1
+v0.1.6

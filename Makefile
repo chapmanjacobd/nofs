@@ -40,7 +40,7 @@ manpage: build
 	mkdir -p man
 	./target/debug/nofs manpage > man/nofs.1
 
-install-completions: completions
+install-completions:
 	install -d $(DESTDIR)/usr/share/bash-completion/completions
 	install -m 644 completions/nofs.bash $(DESTDIR)/usr/share/bash-completion/completions/nofs
 	install -d $(DESTDIR)/usr/share/zsh/site-functions
@@ -48,7 +48,7 @@ install-completions: completions
 	install -d $(DESTDIR)/usr/share/fish/vendor_completions.d
 	install -m 644 completions/nofs.fish $(DESTDIR)/usr/share/fish/vendor_completions.d/nofs.fish
 
-install-manpage: manpage
+install-manpage:
 	install -d $(DESTDIR)/usr/share/man/man1
 	install -m 644 man/nofs.1 $(DESTDIR)/usr/share/man/man1/nofs.1
 
