@@ -3,6 +3,7 @@
 //! Implements cp/mv-like functionality with support for nofs context paths,
 //! conflict resolution strategies, and parallel operations.
 
+use crate::branch::Branch;
 use crate::error::{NofsError, Result};
 use crate::pool::Pool;
 use std::fs;
@@ -12,7 +13,7 @@ use std::sync::atomic::{AtomicI64, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
-/// Resolved path with branch information for same-share operations
+/// Resolved path with branch information
 struct ResolvedPath {
     path: PathBuf,
     /// Branch index in the share (if resolved from a share path)
@@ -22,41 +23,47 @@ struct ResolvedPath {
 /// Resolve a path that may have a share: prefix
 ///
 /// If the path has a share prefix (e.g., <media:/path>), it will be resolved
-/// using the provided share. Otherwise, the path is returned as-is.
+/// using the provided share. For existing files, finds the branch containing
+/// the file. For new paths, uses policy-based branch selection.
+/// Otherwise, the path is returned as-is.
 ///
 /// # Errors
 ///
 /// Returns an error if the share is not found or if path resolution fails.
 #[allow(clippy::arithmetic_side_effects)]
-fn resolve_path(path_str: &str, share: Option<&Pool>) -> Result<ResolvedPath> {
+fn resolve_path(path_str: &str, share: Option<&Pool>, for_create: bool) -> Result<ResolvedPath> {
     if let Some(colon_idx) = path_str.find(':') {
-        // Check if this looks like a share prefix (no slashes before colon)
         let potential_prefix = &path_str[..colon_idx];
         if !potential_prefix.contains('/') {
-            // This is a share prefix
             let share_name = potential_prefix;
             let relative_path = &path_str[colon_idx + 1..];
 
-            // Get the branch path from the share
             if let Some(pool) = share {
                 if pool.name == share_name {
-                    // Use the first writable branch for simplicity
-                    // TODO: Use policy-based branch selection
-                    for (idx, branch) in pool.branches.iter().enumerate() {
-                        if branch.can_create() {
-                            return Ok(ResolvedPath {
-                                path: branch.path.join(relative_path),
-                                branch_index: Some(idx),
-                            });
-                        }
-                    }
-                    // No writable branch found, use first branch
-                    if let Some(branch) = pool.branches.first() {
-                        return Ok(ResolvedPath {
-                            path: branch.path.join(relative_path),
-                            branch_index: Some(0),
-                        });
-                    }
+                    let (branch, branch_idx) = if for_create {
+                        // For create operations, use policy-based selection
+                        let branch = select_branch_for_create(pool, Some(relative_path.as_ref()))?;
+                        let idx = pool
+                            .branches
+                            .iter()
+                            .position(|b| b.path == branch.path)
+                            .unwrap_or(0);
+                        (branch, idx)
+                    } else {
+                        // For existing files, find the branch containing the file
+                        let branch = select_branch_for_read(pool, Path::new(relative_path))?;
+                        let idx = pool
+                            .branches
+                            .iter()
+                            .position(|b| b.path == branch.path)
+                            .unwrap_or(0);
+                        (branch, idx)
+                    };
+
+                    return Ok(ResolvedPath {
+                        path: branch.path.join(relative_path),
+                        branch_index: Some(branch_idx),
+                    });
                 }
             }
             return Err(NofsError::CopyMove(format!(
@@ -70,6 +77,35 @@ fn resolve_path(path_str: &str, share: Option<&Pool>) -> Result<ResolvedPath> {
         path: PathBuf::from(path_str),
         branch_index: None,
     })
+}
+
+/// Select a branch for create operations using the pool's create policy
+fn select_branch_for_create<'a>(
+    pool: &'a Pool,
+    relative_path: Option<&Path>,
+) -> Result<&'a Branch> {
+    use crate::policy::CreatePolicy;
+
+    let policy_executor = CreatePolicy::new(&pool.branches, pool.minfreespace);
+    policy_executor
+        .select(pool.create_policy, relative_path)
+        .map_err(|e| NofsError::CopyMove(format!("No suitable branch: {e}")))
+}
+
+/// Select a branch for read operations (finds the branch containing the file)
+fn select_branch_for_read<'a>(pool: &'a Pool, relative_path: &Path) -> Result<&'a Branch> {
+    // For reads, find the branch that has the file
+    // Prefer RW branches, then NC, then RO
+    for branch in &pool.branches {
+        if branch.path.join(relative_path).exists() {
+            return Ok(branch);
+        }
+    }
+    // File not found in any branch
+    Err(NofsError::CopyMove(format!(
+        "File not found in share '{}'",
+        pool.name
+    )))
 }
 
 /// Resolve a destination path, preferring the same branch as the source
@@ -98,19 +134,16 @@ fn resolve_dest_path(
                     // If source was from this share, use the same branch
                     if let Some(src_idx) = source_branch_index {
                         if src_idx < pool.branches.len() {
-                            return Ok(pool.branches[src_idx].path.join(relative_path));
+                            // Verify the branch is writable (not RO)
+                            if pool.branches[src_idx].can_create() {
+                                return Ok(pool.branches[src_idx].path.join(relative_path));
+                            }
                         }
                     }
 
-                    // Otherwise, use the first writable branch
-                    for branch in &pool.branches {
-                        if branch.can_create() {
-                            return Ok(branch.path.join(relative_path));
-                        }
-                    }
-                    if let Some(branch) = pool.branches.first() {
-                        return Ok(branch.path.join(relative_path));
-                    }
+                    // Otherwise, use policy-based selection
+                    let branch = select_branch_for_create(pool, Some(relative_path.as_ref()))?;
+                    return Ok(branch.path.join(relative_path));
                 }
             }
             return Err(NofsError::CopyMove(format!(
@@ -314,8 +347,8 @@ pub fn execute(
         ));
     }
 
-    // Resolve destination path (may have share: prefix)
-    let dest_path = resolve_path(destination, share)?.path;
+    // Resolve destination path (may have share: prefix) - for create
+    let dest_path = resolve_path(destination, share, true)?.path;
 
     // Check if destination exists
     let dest_exists = dest_path.exists();
@@ -335,8 +368,8 @@ pub fn execute(
 
     // Process each source
     for source in sources {
-        // Resolve source path (may have share: prefix)
-        let source_resolved = resolve_path(source, share)?;
+        // Resolve source path (may have share: prefix) - for read (existing file)
+        let source_resolved = resolve_path(source, share, false)?;
         let source_path = &source_resolved.path;
         let source_branch_index = source_resolved.branch_index;
 

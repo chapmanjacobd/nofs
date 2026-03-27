@@ -4,8 +4,7 @@
      - Proper handling of NC (no-create) branches
 
 
-     1. No actual file operations - The create command only returns the best branch path for creating a file, but doesn't actually create files. Similarly, there's no cp, mv, rm, mkdir,
-        touch, or write commands.
+We need rm, mkdir, rmdir, touch subcommands
 
      2. No shell integration/completion - Missing shell completion scripts (bash, zsh, fish) and no man page generation.
 
