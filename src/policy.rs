@@ -195,11 +195,10 @@ impl<'ctx> CreatePolicy<'ctx> {
                         .iter()
                         .copied()
                         .filter(|(b, _)| {
-                            if let Some(cache) = self.cache {
-                                b.path_exists_cached(rel_path, cache)
-                            } else {
-                                b.path.join(rel_path).exists()
-                            }
+                            self.cache.map_or_else(
+                                || b.path.join(rel_path).exists(),
+                                |cache| b.path_exists_cached(rel_path, cache),
+                            )
                         })
                         .collect();
 
@@ -219,7 +218,15 @@ impl<'ctx> CreatePolicy<'ctx> {
                             .map(|(b, _)| *b)
                             .ok_or(NofsError::NoSuitableBranch),
                         Policy::EpRand => Ok(Self::select_rand_with_space(&with_path)),
-                        _ => eligible_with_space
+                        Policy::Pfrd
+                        | Policy::Mfs
+                        | Policy::Ff
+                        | Policy::Rand
+                        | Policy::Lfs
+                        | Policy::Lus
+                        | Policy::Lup
+                        | Policy::EpAll
+                        | Policy::All => eligible_with_space
                             .first()
                             .map(|(b, _)| *b)
                             .ok_or(NofsError::NoSuitableBranch),
@@ -249,7 +256,8 @@ impl<'ctx> CreatePolicy<'ctx> {
             | Policy::Lfs
             | Policy::Lus
             | Policy::Lup
-            | _ => eligible
+            | Policy::EpRand
+            | Policy::All => eligible
                 .first()
                 .map(|(b, _)| *b)
                 .ok_or(NofsError::NoSuitableBranch),
@@ -350,11 +358,10 @@ impl<'ctx> SearchPolicy<'ctx> {
     pub fn select(&self, policy: Policy, relative_path: &Path) -> Result<&'ctx Branch> {
         // Helper to check existence with or without cache
         let exists = |b: &Branch| -> bool {
-            if let Some(cache) = self.cache {
-                b.path_exists_cached(relative_path, cache)
-            } else {
-                b.path.join(relative_path).exists()
-            }
+            self.cache.map_or_else(
+                || b.path.join(relative_path).exists(),
+                |cache| b.path_exists_cached(relative_path, cache),
+            )
         };
 
         match policy {
@@ -447,11 +454,10 @@ impl<'ctx> SearchPolicy<'ctx> {
         self.branches
             .iter()
             .filter(|b| {
-                if let Some(cache) = self.cache {
-                    b.path_exists_cached(relative_path, cache)
-                } else {
-                    b.path.join(relative_path).exists()
-                }
+                self.cache.map_or_else(
+                    || b.path.join(relative_path).exists(),
+                    |cache| b.path_exists_cached(relative_path, cache),
+                )
             })
             .collect()
     }

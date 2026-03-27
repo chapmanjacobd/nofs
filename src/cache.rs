@@ -138,13 +138,13 @@ impl OperationCache {
     /// concurrent access from multiple threads.
     pub fn get_or_insert_exists<B, R, F>(
         &self,
-        branch_path: B,
-        relative_path: R,
+        branch_path: &B,
+        relative_path: &R,
         compute: F,
     ) -> bool
     where
-        B: AsRef<Path> + Into<PathBuf> + Clone,
-        R: AsRef<Path> + Into<PathBuf> + Clone,
+        B: AsRef<Path> + ?Sized,
+        R: AsRef<Path> + ?Sized,
         F: FnOnce() -> bool,
     {
         let branch_key = branch_path.as_ref().to_path_buf();
@@ -176,9 +176,17 @@ impl OperationCache {
 /// Helper trait for cache-aware branch operations
 pub trait CachedBranch {
     /// Get available space, using cache if available
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the space cannot be determined.
     fn available_space_cached(&self, cache: &OperationCache) -> Result<u64>;
 
     /// Get total space, using cache if available
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the space cannot be determined.
     fn total_space_cached(&self, cache: &OperationCache) -> Result<u64>;
 
     /// Check path existence with caching
@@ -209,11 +217,8 @@ impl CachedBranch for Branch {
 
     /// Check path existence with caching
     fn path_exists_cached(&self, relative_path: &Path, cache: &OperationCache) -> bool {
-        let branch_path = self.path.clone();
-        let rel_path = relative_path.to_path_buf();
-
         cache.get_or_insert_exists(&self.path, relative_path, || {
-            branch_path.join(&rel_path).exists()
+            self.path.join(relative_path).exists()
         })
     }
 }
@@ -433,7 +438,7 @@ mod tests {
             let count_clone = Arc::clone(&compute_count);
 
             let handle = thread::spawn(move || {
-                cache_clone.get_or_insert_exists(branch_clone, rel_clone, || {
+                cache_clone.get_or_insert_exists(&branch_clone, &rel_clone, || {
                     count_clone.fetch_add(1, Ordering::SeqCst);
                     true
                 })
