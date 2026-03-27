@@ -214,10 +214,9 @@ impl Pool {
     pub fn total_available_space(&self) -> u64 {
         std::thread::scope(|s| {
             let mut handles = Vec::new();
-            for branch_ref in &self.branches {
-                if branch_ref.can_create() {
-                    let branch = branch_ref.clone();
-                    handles.push(s.spawn(move || branch.available_space().ok()));
+            for branch in &self.branches {
+                if branch.can_create() {
+                    handles.push(s.spawn(|| branch.available_space().ok()));
                 }
             }
             let mut total: u64 = 0;
@@ -235,9 +234,8 @@ impl Pool {
     pub fn total_space(&self) -> u64 {
         std::thread::scope(|s| {
             let mut handles = Vec::new();
-            for branch_ref in &self.branches {
-                let branch = branch_ref.clone();
-                handles.push(s.spawn(move || branch.total_space().ok()));
+            for branch in &self.branches {
+                handles.push(s.spawn(|| branch.total_space().ok()));
             }
             let mut total: u64 = 0;
             for handle in handles {
@@ -251,9 +249,8 @@ impl Pool {
 
     /// Get total used space across all branches
     #[must_use]
-    #[allow(clippy::arithmetic_side_effects)]
     pub fn total_used_space(&self) -> u64 {
-        self.total_space() - self.total_available_space()
+        self.total_space().saturating_sub(self.total_available_space())
     }
 
     /// Get number of branches
@@ -296,9 +293,8 @@ impl Pool {
     pub fn resolve_path(&self, pool_path: &Path) -> Vec<PathBuf> {
         std::thread::scope(|s| {
             let mut handles = Vec::new();
-            for branch_ref in &self.branches {
-                let branch = branch_ref.clone();
-                handles.push(s.spawn(move || {
+            for branch in &self.branches {
+                handles.push(s.spawn(|| {
                     let full_path = branch.path.join(pool_path);
                     full_path.exists().then_some(full_path)
                 }));
@@ -319,9 +315,8 @@ impl Pool {
     pub fn resolve_path_first(&self, pool_path: &Path) -> Option<PathBuf> {
         std::thread::scope(|s| {
             let mut handles = Vec::new();
-            for branch_ref in &self.branches {
-                let branch = branch_ref.clone();
-                handles.push(s.spawn(move || {
+            for branch in &self.branches {
+                handles.push(s.spawn(|| {
                     let full_path = branch.path.join(pool_path);
                     full_path.exists().then_some(full_path)
                 }));
@@ -374,10 +369,9 @@ impl Pool {
     pub fn total_available_space_cached(&self, cache: &OperationCache) -> u64 {
         std::thread::scope(|s| {
             let mut handles = Vec::new();
-            for branch_ref in &self.branches {
-                if branch_ref.can_create() {
-                    let branch = branch_ref.clone();
-                    handles.push(s.spawn(move || branch.available_space_cached(cache).ok()));
+            for branch in &self.branches {
+                if branch.can_create() {
+                    handles.push(s.spawn(|| branch.available_space_cached(cache).ok()));
                 }
             }
             let mut total: u64 = 0;
@@ -395,9 +389,8 @@ impl Pool {
     pub fn total_space_cached(&self, cache: &OperationCache) -> u64 {
         std::thread::scope(|s| {
             let mut handles = Vec::new();
-            for branch_ref in &self.branches {
-                let branch = branch_ref.clone();
-                handles.push(s.spawn(move || branch.total_space_cached(cache).ok()));
+            for branch in &self.branches {
+                handles.push(s.spawn(|| branch.total_space_cached(cache).ok()));
             }
             let mut total: u64 = 0;
             for handle in handles {
@@ -411,7 +404,6 @@ impl Pool {
 
     /// Get total used space across all branches (cached)
     #[must_use]
-    #[allow(clippy::arithmetic_side_effects)]
     pub fn total_used_space_cached(&self, cache: &OperationCache) -> u64 {
         self.total_space_cached(cache)
             .saturating_sub(self.total_available_space_cached(cache))
@@ -423,9 +415,8 @@ impl Pool {
     pub fn resolve_path_cached(&self, pool_path: &Path, cache: &OperationCache) -> Vec<PathBuf> {
         std::thread::scope(|s| {
             let mut handles = Vec::new();
-            for branch_ref in &self.branches {
-                let branch = branch_ref.clone();
-                handles.push(s.spawn(move || {
+            for branch in &self.branches {
+                handles.push(s.spawn(|| {
                     branch
                         .path_exists_cached(pool_path, cache)
                         .then(|| branch.path.join(pool_path))
@@ -447,9 +438,8 @@ impl Pool {
     pub fn resolve_path_first_cached(&self, pool_path: &Path, cache: &OperationCache) -> Option<PathBuf> {
         std::thread::scope(|s| {
             let mut handles = Vec::new();
-            for branch_ref in &self.branches {
-                let branch = branch_ref.clone();
-                handles.push(s.spawn(move || {
+            for branch in &self.branches {
+                handles.push(s.spawn(|| {
                     branch
                         .path_exists_cached(pool_path, cache)
                         .then(|| branch.path.join(pool_path))

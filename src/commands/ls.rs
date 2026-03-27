@@ -251,63 +251,74 @@ fn collect_directory_entries(
     all: bool,
     verbose: bool,
 ) -> Vec<(std::path::PathBuf, String)> {
-    let mut handles = Vec::new();
+    std::thread::scope(|s| {
+        let mut handles = Vec::new();
 
-    for branch_ref in branches {
-        let branch = (*branch_ref).clone();
-        let p_path = pool_path.to_path_buf();
-        let handle = std::thread::spawn(move || {
-            let mut entries = Vec::new();
-            let branch_path = branch.path.join(&p_path);
+        for branch in branches {
+            let handle = s.spawn(|| {
+                let mut entries = Vec::new();
+                let branch_path = branch.path.join(pool_path);
 
-            match fs::read_dir(&branch_path) {
-                Ok(read_dir) => {
-                    for entry_result in read_dir {
-                        match entry_result {
-                            Ok(entry) => {
-                                let file_name = entry.file_name();
-                                let file_name_str = file_name.to_string_lossy().to_string();
+                match fs::read_dir(&branch_path) {
+                    Ok(read_dir) => {
+                        for entry_result in read_dir {
+                            match entry_result {
+                                Ok(entry) => {
+                                    let file_name = entry.file_name();
+                                    let file_name_str = file_name.to_string_lossy().to_string();
 
-                                // Skip hidden files unless --all
-                                if !all && file_name_str.starts_with('.') {
-                                    continue;
+                                    // Skip hidden files unless --all
+                                    if !all && file_name_str.starts_with('.') {
+                                        continue;
+                                    }
+
+                                    entries.push((entry.path(), file_name_str));
                                 }
-
-                                entries.push((entry.path(), file_name_str));
+                                Err(e) if verbose => {
+                                    eprintln!(
+                                        "nofs: warning: failed to read entry in '{}': {}",
+                                        branch_path.display(),
+                                        e
+                                    );
+                                }
+                                Err(_) => {}
                             }
-                            Err(e) if verbose => {
-                                eprintln!(
-                                    "nofs: warning: failed to read entry in '{}': {}",
-                                    branch_path.display(),
-                                    e
-                                );
-                            }
-                            Err(_) => {}
                         }
                     }
+                    Err(e) if verbose => {
+                        eprintln!(
+                            "nofs: warning: cannot read directory '{}': {}",
+                            branch_path.display(),
+                            e
+                        );
+                    }
+                    Err(_) => {}
                 }
-                Err(e) if verbose => {
-                    eprintln!(
-                        "nofs: warning: cannot read directory '{}': {}",
-                        branch_path.display(),
-                        e
-                    );
-                }
-                Err(_) => {}
-            }
-            entries
-        });
-        handles.push(handle);
-    }
-
-    let mut all_entries = Vec::new();
-    for handle in handles {
-        if let Ok(entries) = handle.join() {
-            all_entries.extend(entries);
+                entries
+            });
+            handles.push(handle);
         }
-    }
 
-    all_entries
+        let mut all_entries = Vec::new();
+        for handle in handles {
+            match handle.join() {
+                Ok(entries) => all_entries.extend(entries),
+                Err(e) => {
+                    // Thread panicked - log the error
+                    let panic_msg = e.downcast_ref::<&str>().map_or_else(
+                        || {
+                            e.downcast_ref::<String>()
+                                .map_or_else(|| "unknown panic".to_string(), String::clone)
+                        },
+                        ToString::to_string,
+                    );
+                    eprintln!("nofs: error: thread panicked while reading directory: {panic_msg}");
+                }
+            }
+        }
+
+        all_entries
+    })
 }
 
 /// Returns the file mode (permission bits) from metadata.

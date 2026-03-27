@@ -809,20 +809,20 @@ fn test_rule_evaluation_hash() {
     };
     let cmp_match = FileComparison {
         hashes_match: true,
-        src_size: 100,
+        source_size: 100,
         dest_size: 100,
-        src_modified: None,
+        source_modified: None,
         dest_modified: None,
-        src_created: None,
+        source_created: None,
         dest_created: None,
     };
     let cmp_no_match = FileComparison {
         hashes_match: false,
-        src_size: 100,
+        source_size: 100,
         dest_size: 100,
-        src_modified: None,
+        source_modified: None,
         dest_modified: None,
-        src_created: None,
+        source_created: None,
         dest_created: None,
     };
     assert!(evaluate_rule(&hash_rule, &cmp_match));
@@ -841,20 +841,20 @@ fn test_rule_evaluation_size() {
     };
     let cmp_equal = FileComparison {
         hashes_match: false,
-        src_size: 100,
+        source_size: 100,
         dest_size: 100,
-        src_modified: None,
+        source_modified: None,
         dest_modified: None,
-        src_created: None,
+        source_created: None,
         dest_created: None,
     };
     let cmp_not_equal = FileComparison {
         hashes_match: false,
-        src_size: 100,
+        source_size: 100,
         dest_size: 200,
-        src_modified: None,
+        source_modified: None,
         dest_modified: None,
-        src_created: None,
+        source_created: None,
         dest_created: None,
     };
     assert!(evaluate_rule(&size_equal_rule, &cmp_equal));
@@ -868,20 +868,20 @@ fn test_rule_evaluation_size() {
     };
     let cmp_greater = FileComparison {
         hashes_match: false,
-        src_size: 200,
+        source_size: 200,
         dest_size: 100,
-        src_modified: None,
+        source_modified: None,
         dest_modified: None,
-        src_created: None,
+        source_created: None,
         dest_created: None,
     };
     let cmp_less = FileComparison {
         hashes_match: false,
-        src_size: 100,
+        source_size: 100,
         dest_size: 200,
-        src_modified: None,
+        source_modified: None,
         dest_modified: None,
-        src_created: None,
+        source_created: None,
         dest_created: None,
     };
     assert!(evaluate_rule(&size_greater_rule, &cmp_greater));
@@ -900,29 +900,29 @@ fn test_rule_evaluation_modified() {
     };
     let cmp_greater = FileComparison {
         hashes_match: false,
-        src_size: 100,
+        source_size: 100,
         dest_size: 100,
-        src_modified: Some(200),
+        source_modified: Some(200),
         dest_modified: Some(100),
-        src_created: None,
+        source_created: None,
         dest_created: None,
     };
     let cmp_less = FileComparison {
         hashes_match: false,
-        src_size: 100,
+        source_size: 100,
         dest_size: 100,
-        src_modified: Some(100),
+        source_modified: Some(100),
         dest_modified: Some(200),
-        src_created: None,
+        source_created: None,
         dest_created: None,
     };
     let cmp_none = FileComparison {
         hashes_match: false,
-        src_size: 100,
+        source_size: 100,
         dest_size: 100,
-        src_modified: None,
+        source_modified: None,
         dest_modified: Some(100),
-        src_created: None,
+        source_created: None,
         dest_created: None,
     };
     assert!(evaluate_rule(&modified_greater_rule, &cmp_greater));
@@ -942,20 +942,20 @@ fn test_rule_evaluation_created() {
     };
     let cmp_less = FileComparison {
         hashes_match: false,
-        src_size: 100,
+        source_size: 100,
         dest_size: 100,
-        src_modified: None,
+        source_modified: None,
         dest_modified: None,
-        src_created: Some(100),
+        source_created: Some(100),
         dest_created: Some(200),
     };
     let cmp_greater = FileComparison {
         hashes_match: false,
-        src_size: 100,
+        source_size: 100,
         dest_size: 100,
-        src_modified: None,
+        source_modified: None,
         dest_modified: None,
-        src_created: Some(200),
+        source_created: Some(200),
         dest_created: Some(100),
     };
     assert!(evaluate_rule(&created_less_rule, &cmp_less));

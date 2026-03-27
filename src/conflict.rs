@@ -212,12 +212,19 @@ fn files_differ(branch_files: &[BranchConflict], use_hash: bool) -> bool {
 
 /// Compute a hash of a file's content
 ///
+/// For performance optimization, small files (≤1MB) are hashed entirely,
+/// while larger files are sampled at key positions (beginning, middle, end).
+/// The 1MB threshold balances accuracy with performance - files smaller than
+/// this hash quickly, while sampling larger files provides reasonable confidence
+/// for conflict detection without excessive I/O.
+///
 /// # Errors
 ///
 /// Returns an error if the file cannot be read.
 #[allow(clippy::missing_panics_doc, clippy::integer_division)]
 pub fn compute_file_hash(path: &Path) -> Result<String> {
-    const SMALL_FILE_THRESHOLD: u64 = crate::utils::MB; // 1MB
+    /// Files ≤1MB are hashed entirely for accurate conflict detection.
+    const SMALL_FILE_THRESHOLD: u64 = crate::utils::MB;
 
     let mut file =
         File::open(path).map_err(|e| NofsError::Conflict(format!("Failed to open file {}: {}", path.display(), e)))?;

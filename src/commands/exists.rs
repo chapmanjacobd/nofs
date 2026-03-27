@@ -37,14 +37,18 @@ pub fn execute(pool: &Pool, path: &str, verbose: bool, json: bool) -> Result<()>
             } else {
                 println!("{full_path_str}");
             }
-        } else if json {
-            let output = ExistsOutput {
-                exists: true,
-                path: None,
-            };
-            println!("{}", serde_json::to_string_pretty(&output)?);
         } else {
-            unreachable!("file exists but no path and not JSON output is impossible");
+            // Race condition: file was deleted between exists_cached and resolve_path_first_cached
+            // This can happen in concurrent environments where another process deletes the file
+            if json {
+                let output = ExistsOutput {
+                    exists: false,
+                    path: None,
+                };
+                println!("{}", serde_json::to_string_pretty(&output)?);
+            } else {
+                return Err(NofsError::Command(format!("'{path}' not found in share")));
+            }
         }
         Ok(())
     } else {

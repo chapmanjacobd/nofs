@@ -470,11 +470,11 @@ fn parse_rule_token(token: &str) -> Result<Rule> {
 #[derive(Debug, Clone, Copy)]
 pub struct FileComparison {
     pub hashes_match: bool,
-    pub src_size: u64,
+    pub source_size: u64,
     pub dest_size: u64,
-    pub src_modified: Option<u64>,
+    pub source_modified: Option<u64>,
     pub dest_modified: Option<u64>,
-    pub src_created: Option<u64>,
+    pub source_created: Option<u64>,
     pub dest_created: Option<u64>,
 }
 
@@ -490,12 +490,12 @@ pub(crate) fn evaluate_rule(rule: &Rule, cmp: &FileComparison) -> bool {
             rule.comparison == Comparison::Equal && cmp.hashes_match
         }
         Attribute::Size => match rule.comparison {
-            Comparison::Equal => cmp.src_size == cmp.dest_size,
-            Comparison::Greater => cmp.src_size > cmp.dest_size,
-            Comparison::Less => cmp.src_size < cmp.dest_size,
+            Comparison::Equal => cmp.source_size == cmp.dest_size,
+            Comparison::Greater => cmp.source_size > cmp.dest_size,
+            Comparison::Less => cmp.source_size < cmp.dest_size,
         },
-        Attribute::Modified => cmp_opt(cmp.src_modified, cmp.dest_modified, rule.comparison),
-        Attribute::Created => cmp_opt(cmp.src_created, cmp.dest_created, rule.comparison),
+        Attribute::Modified => cmp_opt(cmp.source_modified, cmp.dest_modified, rule.comparison),
+        Attribute::Created => cmp_opt(cmp.source_created, cmp.dest_created, rule.comparison),
     }
 }
 
@@ -589,11 +589,11 @@ pub enum RuleResult {
 fn evaluate_rules(
     strategy: &FileOverFileStrategy,
     hashes_match: bool,
-    src_size: u64,
+    source_size: u64,
     dest_size: u64,
-    src_modified: Option<u64>,
+    source_modified: Option<u64>,
     dest_modified: Option<u64>,
-    src_created: Option<u64>,
+    source_created: Option<u64>,
     dest_created: Option<u64>,
     config: &CopyConfig,
     source: &Path,
@@ -602,11 +602,11 @@ fn evaluate_rules(
 ) -> Result<RuleResult> {
     let cmp = FileComparison {
         hashes_match,
-        src_size,
+        source_size,
         dest_size,
-        src_modified,
+        source_modified,
         dest_modified,
-        src_created,
+        source_created,
         dest_created,
     };
     for rule in &strategy.rules {
@@ -670,6 +670,9 @@ impl Default for CopyConfig {
         Self {
             copy: true,
             simulate: false,
+            // Default of 4 workers balances parallelism with overhead.
+            // This works well for most systems (typically 4+ cores) while
+            // avoiding excessive thread contention on smaller machines.
             workers: 4,
             verbose: false,
             file_over_file: FileOverFileStrategy::default(),
@@ -951,31 +954,7 @@ fn process_directory(source: &Path, dest: &Path, config: &CopyConfig, stats: &Ar
     }
     stats.folders_created.fetch_add(1, Ordering::Relaxed);
 
-    process_directory_contents(source, dest, config, stats)
-}
-
-/// Process directory contents recursively
-///
-/// # Errors
-///
-/// Returns an error if directory cannot be read.
-fn process_directory_contents(source: &Path, dest: &Path, config: &CopyConfig, stats: &Arc<CopyStats>) -> Result<()> {
-    let entries = fs::read_dir(source)?;
-
-    for entry_result in entries {
-        let entry = entry_result?;
-        let entry_path = entry.path();
-        let entry_dest = dest.join(entry.file_name());
-
-        if let Err(e) = process_source(&entry_path, &entry_dest, config, stats) {
-            eprintln!(
-                "Error processing {}: {}",
-                shell_quote(entry_path.to_string_lossy().as_ref()),
-                e
-            );
-        }
-    }
-    Ok(())
+    process_source_contents(source, dest, config, stats)
 }
 
 /// Process a file source (handles filtering and conflicts)
@@ -1201,11 +1180,11 @@ fn handle_file_over_file(source: &Path, dest: &Path, config: &CopyConfig, stats:
     let strategy = &config.file_over_file;
 
     // Get metadata for both files
-    let src_metadata = fs::metadata(source)?;
+    let source_metadata = fs::metadata(source)?;
     let dest_metadata = fs::metadata(dest)?;
-    let src_size = src_metadata.len();
+    let source_size = source_metadata.len();
     let dest_size = dest_metadata.len();
-    let src_modified = src_metadata
+    let source_modified = source_metadata
         .modified()
         .ok()
         .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
@@ -1215,7 +1194,7 @@ fn handle_file_over_file(source: &Path, dest: &Path, config: &CopyConfig, stats:
         .ok()
         .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
         .map(|d| d.as_secs());
-    let src_created = src_metadata
+    let source_created = source_metadata
         .created()
         .ok()
         .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
@@ -1237,11 +1216,11 @@ fn handle_file_over_file(source: &Path, dest: &Path, config: &CopyConfig, stats:
     match evaluate_rules(
         strategy,
         hashes_match,
-        src_size,
+        source_size,
         dest_size,
-        src_modified,
+        source_modified,
         dest_modified,
-        src_created,
+        source_created,
         dest_created,
         config,
         source,

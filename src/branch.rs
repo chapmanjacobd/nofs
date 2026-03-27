@@ -129,7 +129,6 @@ impl Branch {
     /// # Errors
     ///
     /// Returns an error if the path cannot be converted to a C string or if statvfs fails.
-    #[allow(clippy::arithmetic_side_effects)]
     pub fn available_space(&self) -> Result<u64> {
         fs4::available_space(&self.path).map_err(|e| NofsError::Branch(format!("Failed to get available space: {e}")))
     }
@@ -139,7 +138,6 @@ impl Branch {
     /// # Errors
     ///
     /// Returns an error if the path cannot be converted to a C string or if statvfs fails.
-    #[allow(clippy::arithmetic_side_effects)]
     pub fn total_space(&self) -> Result<u64> {
         fs4::total_space(&self.path).map_err(|e| NofsError::Branch(format!("Failed to get total space: {e}")))
     }
