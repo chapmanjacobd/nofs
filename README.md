@@ -27,28 +27,83 @@ cargo build --release
 sudo cp target/release/nofs /usr/local/bin/
 ```
 
-## Quick Start
+## Examples
 
-### Configuration File
-
-Create `/etc/nofs/config.toml`:
+### SSD Cache Setup
 
 ```toml
-[share.media]
-paths = ["/mnt/hdd1/media", "/mnt/hdd2/media", "/mnt/hdd3/media"]
-modes = ["RW", "RW", "RO"]  # Optional: last branch is read-only
-create_policy = "pfrd"       # percentage free random distribution
-search_policy = "ff"         # first found
-minfreespace = "4G"
+[share.fast]
+paths = ["/nvme/cache", "/hdd/storage"]
+modes = ["RW", "NC"]  # HDD can read/modify but not create
+create_policy = "lfs"  # Fill SSD first (least free space)
+```
 
-[share.backup]
-paths = ["/mnt/backup1", "/mnt/backup2"]
-create_policy = "mfs"        # most free space
-minfreespace = "10G"
+### Media Server Setup
 
-[share.scratch]
-paths = ["/tmp/a", "/tmp/b"]
-create_policy = "rand"       # random selection
+```toml
+# /etc/nofs/config.toml
+[share.movies]
+paths = ["/hdd1/movies", "/hdd2/movies", "/hdd3/movies"]
+modes = ["RW", "RW", "RO"]
+create_policy = "pfrd"
+
+[share.tv]
+paths = ["/hdd1/tv", "/hdd2/tv"]
+create_policy = "mfs"
+```
+
+## Policies
+
+### Create Policies
+
+| Policy | Description |
+|--------|-------------|
+| **pfrd** | Percentage free random distribution (default) - weighted by available space |
+| **mfs** | Most free space |
+| **ff** | First found (first in list) |
+| **rand** | Random selection |
+| **lfs** | Least free space |
+| **lus** | Least used space |
+| **lup** | Least used percentage |
+| **epmfs** | Existing path, most free space (path-preserving) |
+| **epff** | Existing path, first found (path-preserving) |
+
+### Search Policies
+
+| Policy | Description |
+|--------|-------------|
+| **ff** | First found (default) |
+| **all** | All branches |
+
+## Configuration Options
+
+### Share Settings
+
+```toml
+[share.name]
+paths = ["/path1", "/path2"]      # Required: branch paths
+modes = ["RW", "RO"]               # Optional: branch modes (parallel to paths)
+create_policy = "pfrd"             # Policy for create operations
+search_policy = "ff"               # Policy for search operations
+action_policy = "epall"            # Policy for action operations
+minfreespace = "4G"                # Minimum free space threshold
+```
+
+### Branch Modes
+
+- **RW** (Read/Write) - Full participation in all operations (default)
+- **RO** (Read-Only) - Excluded from create and action operations
+- **NC** (No-Create) - Can read and modify, but not create new files
+
+```bash
+# List movies across all drives
+nofs ls movies:/
+
+# Find specific movie
+nofs which movies:/scifi/blade_runner.mkv
+
+# Add new movie (automatically selects best branch)
+nofs create movies:/new_release.mkv
 ```
 
 ### Usage Examples
@@ -173,84 +228,6 @@ nofs cat [context:]path
 Reads file content from first found branch.
 ```
 
-## Policies
-
-### Create Policies
-
-| Policy | Description |
-|--------|-------------|
-| **pfrd** | Percentage free random distribution (default) - weighted by available space |
-| **mfs** | Most free space |
-| **ff** | First found (first in list) |
-| **rand** | Random selection |
-| **lfs** | Least free space |
-| **lus** | Least used space |
-| **lup** | Least used percentage |
-| **epmfs** | Existing path, most free space (path-preserving) |
-| **epff** | Existing path, first found (path-preserving) |
-
-### Search Policies
-
-| Policy | Description |
-|--------|-------------|
-| **ff** | First found (default) |
-| **all** | All branches |
-
-## Configuration Options
-
-### Share Settings
-
-```toml
-[share.name]
-paths = ["/path1", "/path2"]      # Required: branch paths
-modes = ["RW", "RO"]               # Optional: branch modes (parallel to paths)
-create_policy = "pfrd"             # Policy for create operations
-search_policy = "ff"               # Policy for search operations
-action_policy = "epall"            # Policy for action operations
-minfreespace = "4G"                # Minimum free space threshold
-```
-
-### Branch Modes
-
-- **RW** (Read/Write) - Full participation in all operations (default)
-- **RO** (Read-Only) - Excluded from create and action operations
-- **NC** (No-Create) - Can read and modify, but not create new files
-
-## Examples
-
-### Media Server Setup
-
-```toml
-[share.movies]
-paths = ["/hdd1/movies", "/hdd2/movies", "/hdd3/movies"]
-modes = ["RW", "RW", "RO"]
-create_policy = "pfrd"
-
-[share.tv]
-paths = ["/hdd1/tv", "/hdd2/tv"]
-create_policy = "mfs"
-```
-
-```bash
-# List movies across all drives
-nofs ls movies:/
-
-# Find specific movie
-nofs which movies:/scifi/blade_runner.mkv
-
-# Add new movie (automatically selects best branch)
-nofs create movies:/new_release.mkv
-```
-
-### SSD Cache Setup
-
-```toml
-[share.fast]
-paths = ["/nvme/cache", "/hdd/storage"]
-modes = ["RW", "NC"]  # HDD can read/modify but not create
-create_policy = "lfs"  # Fill SSD first (least free space)
-```
-
 ## Comparison with mergerfs
 
 | Feature | mergerfs | nofs |
@@ -266,7 +243,7 @@ create_policy = "lfs"  # Fill SSD first (least free space)
 | File access | Direct | Via subcommands |
 | Performance | Near-native | Subprocess overhead |
 
-## When to Use nofs
+### When to Use nofs
 
 **Good fit:**
 - Scripting and automation

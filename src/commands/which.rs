@@ -25,9 +25,9 @@ pub fn execute(pool: &Pool, path: &str, all: bool, verbose: bool) -> Result<()> 
         if verbose {
             let stderr = io::stderr();
             let mut h = stderr.lock();
-            let _ = writeln!(h, "found in:");
+            writeln!(h, "found in:")?;
             for branch in &branches {
-                let _ = writeln!(h, "  {}", branch.path.join(pool_path).display());
+                writeln!(h, "  {}", branch.path.join(pool_path).display())?;
             }
         }
 
@@ -36,7 +36,7 @@ pub fn execute(pool: &Pool, path: &str, all: bool, verbose: bool) -> Result<()> 
 
         for branch in branches {
             let full_path = branch.path.join(pool_path);
-            let _ = writeln!(handle, "{}", full_path.display());
+            writeln!(handle, "{}", full_path.display())?;
         }
     }
     // Show first branch containing the file

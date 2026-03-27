@@ -1286,7 +1286,7 @@ fn sample_hash(path: &Path, stats: &CopyStats) -> Result<String> {
         let pos = size.saturating_mul(i) / num_samples;
         file.seek(io::SeekFrom::Start(pos))?;
         let mut buf = vec![0u8; chunk_size as usize];
-        let bytes_read = file.read(&mut buf).unwrap_or(0);
+        let bytes_read = file.read(&mut buf)?;
         buf[..bytes_read].hash(&mut hasher);
     }
 

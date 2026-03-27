@@ -15,17 +15,7 @@ pub fn execute(pool: &Pool, path: &str, verbose: bool) -> Result<()> {
     // Check if file exists in any branch
     let branches = pool.find_all_branches(pool_path);
 
-    if !branches.is_empty() {
-        // File exists - update timestamps on all copies
-        for branch in branches {
-            let full_path = branch.path.join(pool_path);
-            if verbose {
-                eprintln!("updating timestamp: {}", full_path.display());
-            }
-            let now = filetime::FileTime::now();
-            filetime::set_file_times(&full_path, now, now)?;
-        }
-    } else {
+    if branches.is_empty() {
         // File doesn't exist - create on best branch
         let parent = pool_path.parent().unwrap_or(Path::new(""));
         let branch = pool.select_create_branch(parent)?;
@@ -42,6 +32,16 @@ pub fn execute(pool: &Pool, path: &str, verbose: bool) -> Result<()> {
             eprintln!("creating file: {}", full_path.display());
         }
         std::fs::File::create(&full_path)?;
+    } else {
+        // File exists - update timestamps on all copies
+        for branch in branches {
+            let full_path = branch.path.join(pool_path);
+            if verbose {
+                eprintln!("updating timestamp: {}", full_path.display());
+            }
+            let now = filetime::FileTime::now();
+            filetime::set_file_times(&full_path, now, now)?;
+        }
     }
 
     Ok(())
@@ -120,7 +120,10 @@ paths = ["{}"]
         let new_meta = fs::metadata(&file_path).unwrap();
         let new_mtime = new_meta.modified().unwrap();
 
-        assert!(new_mtime > original_mtime, "Modification time should be updated");
+        assert!(
+            new_mtime > original_mtime,
+            "Modification time should be updated"
+        );
 
         cleanup_test_dir(&test_dir);
     }

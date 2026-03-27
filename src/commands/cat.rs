@@ -1,6 +1,6 @@
 //! cat command - Read file content from first found branch
 
-use crate::error::Result;
+use crate::error::{NofsError, Result};
 use crate::pool::Pool;
 use std::fs::File;
 use std::io::{self, Read, Write};
@@ -30,8 +30,9 @@ pub fn execute(pool: &Pool, path: &str, verbose: bool) -> Result<()> {
         file.read_to_end(&mut buffer)?;
         handle.write_all(&buffer)?;
     } else {
-        eprintln!("nofs: cannot open '{path}' for reading: No such file");
-        std::process::exit(1);
+        return Err(NofsError::Command(format!(
+            "cannot open '{path}' for reading: No such file"
+        )));
     }
 
     Ok(())

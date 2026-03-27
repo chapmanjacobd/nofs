@@ -1,6 +1,6 @@
 //! ls command - List directory contents
 
-use crate::error::Result;
+use crate::error::{NofsError, Result};
 use crate::pool::Pool;
 use std::fs;
 use std::io::{self, Write};
@@ -20,16 +20,17 @@ pub fn execute(pool: &Pool, path: &str, long: bool, all: bool, verbose: bool) ->
     let branches = pool.find_all_branches(pool_path);
 
     if branches.is_empty() {
-        eprintln!("nofs: cannot access '{path}': No such file or directory");
-        return Ok(());
+        return Err(NofsError::Command(format!(
+            "cannot access '{path}': No such file or directory"
+        )));
     }
 
     if verbose {
         let stderr = io::stderr();
         let mut h = stderr.lock();
-        let _ = writeln!(h, "found in:");
+        writeln!(h, "found in:")?;
         for branch in &branches {
-            let _ = writeln!(h, "  {}", branch.path.join(pool_path).display());
+            writeln!(h, "  {}", branch.path.join(pool_path).display())?;
         }
     }
 
@@ -39,18 +40,28 @@ pub fn execute(pool: &Pool, path: &str, long: bool, all: bool, verbose: bool) ->
     for branch in &branches {
         let branch_path = branch.path.join(pool_path);
 
-        if let Ok(read_dir) = fs::read_dir(&branch_path) {
-            for entry in read_dir.flatten() {
-                let file_name = entry.file_name();
-                let file_name_str = file_name.to_string_lossy().to_string();
+        match fs::read_dir(&branch_path) {
+            Ok(read_dir) => {
+                for entry in read_dir.flatten() {
+                    let file_name = entry.file_name();
+                    let file_name_str = file_name.to_string_lossy().to_string();
 
-                // Skip hidden files unless --all
-                if !all && file_name_str.starts_with('.') {
-                    continue;
+                    // Skip hidden files unless --all
+                    if !all && file_name_str.starts_with('.') {
+                        continue;
+                    }
+
+                    entries.push((entry.path(), file_name_str));
                 }
-
-                entries.push((entry.path(), file_name_str));
             }
+            Err(e) if verbose => {
+                eprintln!(
+                    "nofs: warning: cannot read directory '{}': {}",
+                    branch_path.display(),
+                    e
+                );
+            }
+            Err(_) => {}
         }
     }
 
@@ -82,22 +93,22 @@ pub fn execute(pool: &Pool, path: &str, long: bool, all: bool, verbose: bool) ->
                 let permissions = format_permissions(metadata.st_mode());
                 let size = metadata.len();
 
-                let _ = writeln!(
+                writeln!(
                     handle,
                     "{} {} {:>8} {}",
                     file_type,
                     permissions,
                     human_size(size),
                     file_name
-                );
+                )?;
             }
         }
         // Short format: just the name
         // Add trailing slash for directories
         else if entry_path.is_dir() {
-            let _ = writeln!(handle, "{file_name}/");
+            writeln!(handle, "{file_name}/")?;
         } else {
-            let _ = writeln!(handle, "{file_name}");
+            writeln!(handle, "{file_name}")?;
         }
     }
 

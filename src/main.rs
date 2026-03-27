@@ -449,12 +449,18 @@ fn main() -> Result<()> {
             recursive,
             verbose,
         } => {
+            let mut any_failed = false;
             for path in paths {
                 let (pool, pool_path) = pool_mgr.resolve_context_path(&path)?;
-                if let Err(e) = commands::rm::execute(pool, pool_path, recursive, verbose || cli.verbose) {
+                if let Err(e) =
+                    commands::rm::execute(pool, pool_path, recursive, verbose || cli.verbose)
+                {
                     eprintln!("nofs: {e}");
-                    std::process::exit(1);
+                    any_failed = true;
                 }
+            }
+            if any_failed {
+                return Err(anyhow::anyhow!("Some removal operations failed"));
             }
         }
         Commands::Mkdir {
@@ -467,10 +473,7 @@ fn main() -> Result<()> {
         }
         Commands::Rmdir { path, verbose } => {
             let (pool, pool_path) = pool_mgr.resolve_context_path(&path)?;
-            if let Err(e) = commands::rmdir::execute(pool, pool_path, verbose || cli.verbose) {
-                eprintln!("nofs: {e}");
-                std::process::exit(1);
-            }
+            commands::rmdir::execute(pool, pool_path, verbose || cli.verbose)?;
         }
         Commands::Touch { path, verbose } => {
             let (pool, pool_path) = pool_mgr.resolve_context_path(&path)?;

@@ -28,18 +28,16 @@ pub fn execute(pool: &Pool, path: &str, recursive: bool, verbose: bool) -> Resul
                 eprintln!("removing: {}", full_path.display());
             }
             std::fs::remove_dir_all(&full_path)?;
-        } else {
-            if full_path.is_dir() {
-                if verbose {
-                    eprintln!("removing directory: {}", full_path.display());
-                }
-                std::fs::remove_dir(&full_path)?;
-            } else {
-                if verbose {
-                    eprintln!("removing: {}", full_path.display());
-                }
-                std::fs::remove_file(&full_path)?;
+        } else if full_path.is_dir() {
+            if verbose {
+                eprintln!("removing directory: {}", full_path.display());
             }
+            std::fs::remove_dir(&full_path)?;
+        } else {
+            if verbose {
+                eprintln!("removing: {}", full_path.display());
+            }
+            std::fs::remove_file(&full_path)?;
         }
     }
 

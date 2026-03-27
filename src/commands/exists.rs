@@ -1,6 +1,6 @@
 //! exists command - Check if a file exists and return its location
 
-use crate::error::Result;
+use crate::error::{NofsError, Result};
 use crate::pool::Pool;
 use std::path::Path;
 
@@ -8,7 +8,7 @@ use std::path::Path;
 ///
 /// # Errors
 ///
-/// Returns an error if there is an IO error (exits with status code otherwise).
+/// Returns an error if the path does not exist or if there is an IO error.
 pub fn execute(pool: &Pool, path: &str, verbose: bool) -> Result<()> {
     let pool_path = Path::new(path);
 
@@ -21,12 +21,9 @@ pub fn execute(pool: &Pool, path: &str, verbose: bool) -> Result<()> {
             }
             println!("{}", full_path.display());
         }
-        // Exit with success
-        std::process::exit(0);
+        Ok(())
     } else {
         // File does not exist
-        eprintln!("nofs: '{path}' not found in share");
-        // Exit with failure
-        std::process::exit(1);
+        Err(NofsError::Command(format!("'{path}' not found in share")))
     }
 }

@@ -1167,10 +1167,7 @@ paths = ["{0}/disk1"]
             "test:nonexistent.txt",
         ]);
 
-        assert!(
-            !output.success(),
-            "rm should fail on nonexistent file"
-        );
+        assert!(!output.success(), "rm should fail on nonexistent file");
         assert!(
             output.stderr.contains("No such file"),
             "Error should mention 'No such file'"

@@ -105,7 +105,10 @@ paths = ["{}"]
 
         // Try to create nested directory without parents flag - should fail
         let result = execute(pool, "parent/child", false, false);
-        assert!(result.is_err(), "Should fail when parent directory doesn't exist");
+        assert!(
+            result.is_err(),
+            "Should fail when parent directory doesn't exist"
+        );
 
         cleanup_test_dir(&test_dir);
     }
