@@ -22,29 +22,32 @@ use clap::Parser;
 #[command(author, version, about, long_about = None)]
 #[command(propagate_version = true)]
 struct Cli {
+    // Configuration options
     /// Path to configuration file
-    #[arg(short, long, global = true)]
+    #[arg(short, long, global = true, help_heading = "Configuration")]
     config: Option<String>,
 
     /// Comma-separated list of branch paths (ad-hoc mode)
     /// Format: /path1,/path2 or /path1=RW,/path2=RO
-    #[arg(long, global = true)]
+    #[arg(long, global = true, help_heading = "Configuration")]
     paths: Option<String>,
 
+    // Policy options
     /// Policy to use for branch selection
-    #[arg(long, global = true, default_value = "pfrd")]
+    #[arg(long, global = true, default_value = "pfrd", help_heading = "Policy")]
     policy: String,
 
     /// Minimum free space required on branch (e.g., "4G", "100M")
-    #[arg(long, global = true, default_value = "4G")]
+    #[arg(long, global = true, default_value = "4G", help_heading = "Policy")]
     minfreespace: String,
 
+    // Output options
     /// Verbose output (print decision steps to stderr)
-    #[arg(short, long, global = true)]
+    #[arg(short, long, global = true, help_heading = "Output")]
     verbose: bool,
 
     /// Output in JSON format (for scripting/automation)
-    #[arg(long, global = true)]
+    #[arg(long, global = true, help_heading = "Output")]
     json: bool,
 
     /// Subcommand to execute
@@ -149,106 +152,264 @@ enum Commands {
     },
 
     /// Copy files/directories (supports nofs context paths).
+    #[command(after_help = "\
+CONFLICT RESOLUTION OPTIONS:
+    --file-over-file <STRATEGY>
+            Handle file-over-file conflicts. Format: \"[CONDITIONS...] MODE\"
+            
+            MODE (required, default: delete-dest):
+              skip          Skip copying the source file
+              rename-src    Rename source file with _N suffix
+              rename-dest   Rename destination file with _N suffix, then copy
+              delete-src    Delete source file, skip copy
+              delete-dest   Delete destination file, then copy source
+            
+            CONDITIONS (optional, checked before MODE):
+              skip-hash          Skip if file hashes match
+              skip-size          Skip if file sizes match
+              skip-larger        Skip if source is larger than dest
+              skip-smaller       Skip if source is smaller than dest
+              delete-dest-hash   Delete dest if hashes match, then copy
+              delete-dest-size   Delete dest if sizes match, then copy
+              delete-dest-larger Delete dest if source is larger, then copy
+              delete-dest-smaller Delete dest if source is smaller, then copy
+              delete-src-hash    Delete src if hashes match, skip copy
+              delete-src-size    Delete src if sizes match, skip copy
+              delete-src-larger  Delete src if source is larger, skip copy
+              delete-src-smaller Delete src if source is smaller, skip copy
+            
+            Examples:
+              \"skip-hash\" - Skip if hashes match, otherwise delete-dest and copy
+              \"delete-src-hash skip\" - Delete src if hashes match, else skip
+              \"skip-size rename-dest\" - Skip if sizes match, else rename dest
+
+    --file-over-folder <MODE>
+            Handle file-over-folder conflicts (default: merge)
+            
+            skip          Skip the file
+            rename-src    Rename file and place beside folder
+            rename-dest   Rename folder, place file at original path
+            delete-src    Delete the source file
+            delete-dest   Delete the folder, place file at original path
+            merge         Place file inside the folder (folder/filename)
+
+    --folder-over-file <MODE>
+            Handle folder-over-file conflicts (default: merge)
+            
+            skip          Skip the folder
+            rename-src    Rename folder to unique name
+            rename-dest   Rename file to unique name, create folder
+            delete-src    Delete the source folder
+            delete-dest   Delete the file, create folder
+            merge         Rename file, create folder (same as rename-dest)
+
+FILTERING OPTIONS:
+    -e, --ext <EXT>           Filter by file extensions (e.g., .mkv, .jpg)
+    -E, --exclude <PATTERN>   Exclude files matching glob pattern
+    -I, --include <PATTERN>   Include only files matching glob pattern
+    -S, --size <SIZE>         Filter by file size (e.g., +5M, -10M)
+    -l, --limit <N>           Limit number of files transferred
+        --size-limit <SIZE>   Limit total size transferred (e.g., 100M, 1G)
+
+PERFORMANCE OPTIONS:
+    -j, --workers <N>     Number of parallel workers (default: 4)
+    -n, --dry-run         Simulate without making changes")]
     Cp {
         /// Source paths [...] and destination (last argument).
         /// Format: [context:]path or regular path.
-        #[arg(required = true)]
+        #[arg(required = true, value_name = "PATHS")]
         paths: Vec<String>,
 
-        /// File-over-file conflict strategy (e.g., "skip-hash rename-dest").
-        #[arg(long, default_value = "delete-src-hash rename-dest")]
+        // Conflict resolution options
+        /// File-over-file conflict strategy.
+        ///
+        /// Format: "[CONDITIONS...] MODE" where MODE is one of:
+        /// skip, rename-src, rename-dest, delete-src, delete-dest
+        ///
+        /// CONDITIONS: skip-hash, skip-size, skip-larger, skip-smaller,
+        /// delete-dest-hash, delete-dest-size, delete-dest-larger, delete-dest-smaller,
+        /// delete-src-hash, delete-src-size, delete-src-larger, delete-src-smaller
+        ///
+        /// Examples: "skip-hash", "delete-src-hash skip", "skip-size rename-dest"
+        #[arg(
+            long,
+            default_value = "delete-src-hash rename-dest",
+            value_name = "STRATEGY",
+            help_heading = "Conflict Resolution"
+        )]
         file_over_file: String,
 
-        /// File-over-folder conflict strategy.
-        #[arg(long, default_value = "merge")]
+        /// File-over-folder conflict strategy: skip, rename-src, rename-dest, delete-src, delete-dest, merge
+        #[arg(long, default_value = "merge", value_name = "MODE", help_heading = "Conflict Resolution")]
         file_over_folder: String,
 
-        /// Folder-over-file conflict strategy.
-        #[arg(long, default_value = "merge")]
+        /// Folder-over-file conflict strategy: skip, rename-src, rename-dest, delete-src, delete-dest, merge
+        #[arg(long, default_value = "merge", value_name = "MODE", help_heading = "Conflict Resolution")]
         folder_over_file: String,
 
-        /// Simulate without making changes (dry-run).
-        #[arg(short = 'n', long, alias = "simulate")]
+        // Performance options
+        /// Simulate without making changes (dry-run)
+        #[arg(short = 'n', long, alias = "simulate", help_heading = "Performance")]
         dry_run: bool,
 
-        /// Number of parallel workers.
-        #[arg(short = 'j', long, default_value = "4")]
+        /// Number of parallel workers
+        #[arg(short = 'j', long, default_value = "4", value_name = "N", help_heading = "Performance")]
         workers: usize,
 
-        /// Filter by file extensions (e.g., .mkv, .jpg).
-        #[arg(short = 'e', long)]
+        // Filtering options
+        /// Filter by file extensions (e.g., .mkv, .jpg)
+        #[arg(short = 'e', long, value_name = "EXT", help_heading = "Filtering")]
         ext: Vec<String>,
 
-        /// Exclude patterns (glob).
-        #[arg(short = 'E', long)]
+        /// Exclude files matching glob pattern
+        #[arg(short = 'E', long, value_name = "PATTERN", help_heading = "Filtering")]
         exclude: Vec<String>,
 
-        /// Include patterns (glob).
-        #[arg(short = 'I', long)]
+        /// Include only files matching glob pattern
+        #[arg(short = 'I', long, value_name = "PATTERN", help_heading = "Filtering")]
         include: Vec<String>,
 
-        /// Filter by file size (e.g., +5M, -10M).
-        #[arg(short = 'S', long)]
+        /// Filter by file size (e.g., +5M, -10M)
+        #[arg(short = 'S', long, value_name = "SIZE", help_heading = "Filtering")]
         size: Vec<String>,
 
-        /// Limit number of files transferred.
-        #[arg(short = 'l', long)]
+        /// Limit number of files transferred
+        #[arg(short = 'l', long, value_name = "N", help_heading = "Filtering")]
         limit: Option<u64>,
 
-        /// Limit total size transferred (e.g., 100M, 1G).
-        #[arg(long)]
+        /// Limit total size transferred (e.g., 100M, 1G)
+        #[arg(long, value_name = "SIZE", help_heading = "Filtering")]
         size_limit: Option<String>,
     },
 
     /// Move files/directories (supports nofs context paths).
+    #[command(after_help = "\
+CONFLICT RESOLUTION OPTIONS:
+    --file-over-file <STRATEGY>
+            Handle file-over-file conflicts. Format: \"[CONDITIONS...] MODE\"
+            
+            MODE (required, default: delete-dest):
+              skip          Skip moving the source file
+              rename-src    Rename source file with _N suffix
+              rename-dest   Rename destination file with _N suffix, then move
+              delete-src    Delete source file, skip move
+              delete-dest   Delete destination file, then move source
+            
+            CONDITIONS (optional, checked before MODE):
+              skip-hash          Skip if file hashes match
+              skip-size          Skip if file sizes match
+              skip-larger        Skip if source is larger than dest
+              skip-smaller       Skip if source is smaller than dest
+              delete-dest-hash   Delete dest if hashes match, then move
+              delete-dest-size   Delete dest if sizes match, then move
+              delete-dest-larger Delete dest if source is larger, then move
+              delete-dest-smaller Delete dest if source is smaller, then move
+              delete-src-hash    Delete src if hashes match, skip move
+              delete-src-size    Delete src if sizes match, skip move
+              delete-src-larger  Delete src if source is larger, skip move
+              delete-src-smaller Delete src if source is smaller, skip move
+            
+            Examples:
+              \"skip-hash\" - Skip if hashes match, otherwise delete-dest and move
+              \"delete-src-hash skip\" - Delete src if hashes match, else skip
+              \"skip-size rename-dest\" - Skip if sizes match, else rename dest
+
+    --file-over-folder <MODE>
+            Handle file-over-folder conflicts (default: merge)
+            
+            skip          Skip the file
+            rename-src    Rename file and place beside folder
+            rename-dest   Rename folder, place file at original path
+            delete-src    Delete the source file
+            delete-dest   Delete the folder, place file at original path
+            merge         Place file inside the folder (folder/filename)
+
+    --folder-over-file <MODE>
+            Handle folder-over-file conflicts (default: merge)
+            
+            skip          Skip the folder
+            rename-src    Rename folder to unique name
+            rename-dest   Rename file to unique name, create folder
+            delete-src    Delete the source folder
+            delete-dest   Delete the file, create folder
+            merge         Rename file, create folder (same as rename-dest)
+
+FILTERING OPTIONS:
+    -e, --ext <EXT>           Filter by file extensions (e.g., .mkv, .jpg)
+    -E, --exclude <PATTERN>   Exclude files matching glob pattern
+    -I, --include <PATTERN>   Include only files matching glob pattern
+    -S, --size <SIZE>         Filter by file size (e.g., +5M, -10M)
+    -l, --limit <N>           Limit number of files moved
+        --size-limit <SIZE>   Limit total size moved (e.g., 100M, 1G)
+
+PERFORMANCE OPTIONS:
+    -j, --workers <N>     Number of parallel workers (default: 4)
+    -n, --dry-run         Simulate without making changes")]
     Mv {
         /// Source paths [...] and destination (last argument).
         /// Format: [context:]path or regular path.
-        #[arg(required = true)]
+        #[arg(required = true, value_name = "PATHS")]
         paths: Vec<String>,
 
-        /// File-over-file conflict strategy (e.g., "skip-hash rename-dest").
-        #[arg(long, default_value = "delete-src-hash rename-dest")]
+        // Conflict resolution options
+        /// File-over-file conflict strategy.
+        ///
+        /// Format: "[CONDITIONS...] MODE" where MODE is one of:
+        /// skip, rename-src, rename-dest, delete-src, delete-dest
+        ///
+        /// CONDITIONS: skip-hash, skip-size, skip-larger, skip-smaller,
+        /// delete-dest-hash, delete-dest-size, delete-dest-larger, delete-dest-smaller,
+        /// delete-src-hash, delete-src-size, delete-src-larger, delete-src-smaller
+        ///
+        /// Examples: "skip-hash", "delete-src-hash skip", "skip-size rename-dest"
+        #[arg(
+            long,
+            default_value = "delete-src-hash rename-dest",
+            value_name = "STRATEGY",
+            help_heading = "Conflict Resolution"
+        )]
         file_over_file: String,
 
-        /// File-over-folder conflict strategy.
-        #[arg(long, default_value = "merge")]
+        /// File-over-folder conflict strategy: skip, rename-src, rename-dest, delete-src, delete-dest, merge
+        #[arg(long, default_value = "merge", value_name = "MODE", help_heading = "Conflict Resolution")]
         file_over_folder: String,
 
-        /// Folder-over-file conflict strategy.
-        #[arg(long, default_value = "merge")]
+        /// Folder-over-file conflict strategy: skip, rename-src, rename-dest, delete-src, delete-dest, merge
+        #[arg(long, default_value = "merge", value_name = "MODE", help_heading = "Conflict Resolution")]
         folder_over_file: String,
 
-        /// Simulate without making changes (dry-run).
-        #[arg(short = 'n', long, alias = "simulate")]
+        // Performance options
+        /// Simulate without making changes (dry-run)
+        #[arg(short = 'n', long, alias = "simulate", help_heading = "Performance")]
         dry_run: bool,
 
-        /// Number of parallel workers.
-        #[arg(short = 'j', long, default_value = "4")]
+        /// Number of parallel workers
+        #[arg(short = 'j', long, default_value = "4", value_name = "N", help_heading = "Performance")]
         workers: usize,
 
-        /// Filter by file extensions (e.g., .mkv, .jpg).
-        #[arg(short = 'e', long)]
+        // Filtering options
+        /// Filter by file extensions (e.g., .mkv, .jpg)
+        #[arg(short = 'e', long, value_name = "EXT", help_heading = "Filtering")]
         ext: Vec<String>,
 
-        /// Exclude patterns (glob).
-        #[arg(short = 'E', long)]
+        /// Exclude files matching glob pattern
+        #[arg(short = 'E', long, value_name = "PATTERN", help_heading = "Filtering")]
         exclude: Vec<String>,
 
-        /// Include patterns (glob).
-        #[arg(short = 'I', long)]
+        /// Include only files matching glob pattern
+        #[arg(short = 'I', long, value_name = "PATTERN", help_heading = "Filtering")]
         include: Vec<String>,
 
-        /// Filter by file size (e.g., +5M, -10M).
-        #[arg(short = 'S', long)]
+        /// Filter by file size (e.g., +5M, -10M)
+        #[arg(short = 'S', long, value_name = "SIZE", help_heading = "Filtering")]
         size: Vec<String>,
 
-        /// Limit number of files transferred.
-        #[arg(short = 'l', long)]
+        /// Limit number of files moved
+        #[arg(short = 'l', long, value_name = "N", help_heading = "Filtering")]
         limit: Option<u64>,
 
-        /// Limit total size transferred (e.g., 100M, 1G).
-        #[arg(long)]
+        /// Limit total size moved (e.g., 100M, 1G)
+        #[arg(long, value_name = "SIZE", help_heading = "Filtering")]
         size_limit: Option<String>,
     },
 

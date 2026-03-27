@@ -1,0 +1,10 @@
+mtime/ctime based file-over-file conflict management options
+
+  2. Disk Usage Analysis (du command)
+  While the stat command provides filesystem-wide statistics, there is no tool for recursive directory-level size calculation. A du command is needed to aggregate and report
+  space usage for specific paths across all combined branches.
+
+  9. Extended Attributes (xattr) Support
+  Modern filesystems and applications often rely on extended attributes for metadata. Implementing getfattr and setfattr equivalents would bring nofs closer to the
+  capabilities of FUSE-based alternatives like mergerfs.
+
