@@ -1,14 +1,6 @@
-    The cp/mv implementation uses the first writable branch for share paths. We should add support for:
-     - Policy-based branch selection (mfs, pfrd, rand)
-     - Support for different source/destination shares
-     - Proper handling of NC (no-create) branches
+shell integration/completion - Missing shell completion scripts (bash, zsh, fish) and no man page generation.
 
-
-We need rm, mkdir, rmdir, touch subcommands
-
-     2. No shell integration/completion - Missing shell completion scripts (bash, zsh, fish) and no man page generation.
-
-     3. No JSON/machine-readable output - All commands output human-readable text only. No --json flag for scripting/automation integration.
+JSON/machine-readable output - All commands output human-readable text only. No --json flag for scripting/automation integration.
 
      4. No caching layer - Branch metadata (space, existence checks) is queried on every operation, which could be slow for large pools or remote filesystems.
 

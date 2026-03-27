@@ -225,6 +225,58 @@ enum Commands {
         #[arg(long)]
         size_limit: Option<String>,
     },
+
+    /// Remove files or directories.
+    Rm {
+        /// Path(s) within the share (format: [context:]path).
+        #[arg(required = true)]
+        paths: Vec<String>,
+
+        /// Remove directories and their contents recursively.
+        #[arg(short, long)]
+        recursive: bool,
+
+        /// Verbose output.
+        #[arg(short, long)]
+        verbose: bool,
+    },
+
+    /// Create directories.
+    Mkdir {
+        /// Path within the share (format: [context:]path).
+        #[arg(required = true)]
+        path: String,
+
+        /// Create parent directories as needed.
+        #[arg(short, long)]
+        parents: bool,
+
+        /// Verbose output.
+        #[arg(short, long)]
+        verbose: bool,
+    },
+
+    /// Remove empty directories.
+    Rmdir {
+        /// Path within the share (format: [context:]path).
+        #[arg(required = true)]
+        path: String,
+
+        /// Verbose output.
+        #[arg(short, long)]
+        verbose: bool,
+    },
+
+    /// Create or update files.
+    Touch {
+        /// Path within the share (format: [context:]path).
+        #[arg(required = true)]
+        path: String,
+
+        /// Verbose output.
+        #[arg(short, long)]
+        verbose: bool,
+    },
 }
 
 #[allow(clippy::too_many_lines)]
@@ -391,6 +443,32 @@ fn main() -> Result<()> {
                 parsed_size_limit,
                 share,
             )?;
+        }
+        Commands::Rm {
+            paths,
+            recursive,
+            verbose,
+        } => {
+            for path in paths {
+                let (pool, pool_path) = pool_mgr.resolve_context_path(&path)?;
+                commands::rm::execute(pool, pool_path, recursive, verbose || cli.verbose)?;
+            }
+        }
+        Commands::Mkdir {
+            path,
+            parents,
+            verbose,
+        } => {
+            let (pool, pool_path) = pool_mgr.resolve_context_path(&path)?;
+            commands::mkdir::execute(pool, pool_path, parents, verbose || cli.verbose)?;
+        }
+        Commands::Rmdir { path, verbose } => {
+            let (pool, pool_path) = pool_mgr.resolve_context_path(&path)?;
+            commands::rmdir::execute(pool, pool_path, verbose || cli.verbose)?;
+        }
+        Commands::Touch { path, verbose } => {
+            let (pool, pool_path) = pool_mgr.resolve_context_path(&path)?;
+            commands::touch::execute(pool, pool_path, verbose || cli.verbose)?;
         }
     }
 
