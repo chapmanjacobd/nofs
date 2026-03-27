@@ -300,6 +300,50 @@ pub fn parse_file_over_file(spec: &str) -> Result<FileOverFileStrategy> {
     Ok(FileOverFileStrategy { rules, required })
 }
 
+/// Helper to create a rule with hash attribute
+const fn make_hash_rule(action: RuleAction) -> Rule {
+    Rule {
+        action,
+        attribute: Attribute::Hash,
+        comparison: Comparison::Equal,
+        target: Target::Dest,
+    }
+}
+
+/// Helper to create a rule with size attribute
+const fn make_size_rule(action: RuleAction, comparison: Comparison, target: Target) -> Rule {
+    Rule {
+        action,
+        attribute: Attribute::Size,
+        comparison,
+        target,
+    }
+}
+
+/// Helper to create a rule with modified attribute
+const fn make_modified_rule(
+    action: RuleAction,
+    comparison: Comparison,
+    target: Target,
+) -> Rule {
+    Rule {
+        action,
+        attribute: Attribute::Modified,
+        comparison,
+        target,
+    }
+}
+
+/// Helper to create a rule with created attribute
+const fn make_created_rule(action: RuleAction, comparison: Comparison, target: Target) -> Rule {
+    Rule {
+        action,
+        attribute: Attribute::Created,
+        comparison,
+        target,
+    }
+}
+
 /// Parse a single rule token into a Rule struct
 ///
 /// # Errors
@@ -308,185 +352,123 @@ pub fn parse_file_over_file(spec: &str) -> Result<FileOverFileStrategy> {
 fn parse_rule_token(token: &str) -> Result<Rule> {
     match token {
         // Skip rules
-        "skip-hash" => Ok(Rule {
-            action: RuleAction::Skip,
-            attribute: Attribute::Hash,
-            comparison: Comparison::Equal,
-            target: Target::Dest,
-        }),
-        "skip-size" => Ok(Rule {
-            action: RuleAction::Skip,
-            attribute: Attribute::Size,
-            comparison: Comparison::Equal,
-            target: Target::Dest,
-        }),
-        "skip-larger" => Ok(Rule {
-            action: RuleAction::Skip,
-            attribute: Attribute::Size,
-            comparison: Comparison::Greater,
-            target: Target::Src,
-        }),
-        "skip-smaller" => Ok(Rule {
-            action: RuleAction::Skip,
-            attribute: Attribute::Size,
-            comparison: Comparison::Less,
-            target: Target::Src,
-        }),
-        "skip-modified-newer" => Ok(Rule {
-            action: RuleAction::Skip,
-            attribute: Attribute::Modified,
-            comparison: Comparison::Greater,
-            target: Target::Src,
-        }),
-        "skip-modified-older" => Ok(Rule {
-            action: RuleAction::Skip,
-            attribute: Attribute::Modified,
-            comparison: Comparison::Less,
-            target: Target::Src,
-        }),
-        "skip-created-newer" => Ok(Rule {
-            action: RuleAction::Skip,
-            attribute: Attribute::Created,
-            comparison: Comparison::Greater,
-            target: Target::Src,
-        }),
-        "skip-created-older" => Ok(Rule {
-            action: RuleAction::Skip,
-            attribute: Attribute::Created,
-            comparison: Comparison::Less,
-            target: Target::Src,
-        }),
+        "skip-hash" => Ok(make_hash_rule(RuleAction::Skip)),
+        "skip-size" => Ok(make_size_rule(RuleAction::Skip, Comparison::Equal, Target::Dest)),
+        "skip-larger" => Ok(make_size_rule(RuleAction::Skip, Comparison::Greater, Target::Src)),
+        "skip-smaller" => Ok(make_size_rule(RuleAction::Skip, Comparison::Less, Target::Src)),
+        "skip-modified-newer" => Ok(make_modified_rule(
+            RuleAction::Skip,
+            Comparison::Greater,
+            Target::Src,
+        )),
+        "skip-modified-older" => Ok(make_modified_rule(
+            RuleAction::Skip,
+            Comparison::Less,
+            Target::Src,
+        )),
+        "skip-created-newer" => Ok(make_created_rule(
+            RuleAction::Skip,
+            Comparison::Greater,
+            Target::Src,
+        )),
+        "skip-created-older" => Ok(make_created_rule(
+            RuleAction::Skip,
+            Comparison::Less,
+            Target::Src,
+        )),
         // Delete-dest rules
-        "delete-dest-hash" => Ok(Rule {
-            action: RuleAction::DeleteDest,
-            attribute: Attribute::Hash,
-            comparison: Comparison::Equal,
-            target: Target::Dest,
-        }),
-        "delete-dest-size" => Ok(Rule {
-            action: RuleAction::DeleteDest,
-            attribute: Attribute::Size,
-            comparison: Comparison::Equal,
-            target: Target::Dest,
-        }),
-        "delete-dest-larger" => Ok(Rule {
-            action: RuleAction::DeleteDest,
-            attribute: Attribute::Size,
-            comparison: Comparison::Greater,
-            target: Target::Src,
-        }),
-        "delete-dest-smaller" => Ok(Rule {
-            action: RuleAction::DeleteDest,
-            attribute: Attribute::Size,
-            comparison: Comparison::Less,
-            target: Target::Src,
-        }),
-        "delete-dest-modified-newer" => Ok(Rule {
-            action: RuleAction::DeleteDest,
-            attribute: Attribute::Modified,
-            comparison: Comparison::Greater,
-            target: Target::Src,
-        }),
-        "delete-dest-modified-older" => Ok(Rule {
-            action: RuleAction::DeleteDest,
-            attribute: Attribute::Modified,
-            comparison: Comparison::Less,
-            target: Target::Src,
-        }),
-        "delete-dest-created-newer" => Ok(Rule {
-            action: RuleAction::DeleteDest,
-            attribute: Attribute::Created,
-            comparison: Comparison::Greater,
-            target: Target::Src,
-        }),
-        "delete-dest-created-older" => Ok(Rule {
-            action: RuleAction::DeleteDest,
-            attribute: Attribute::Created,
-            comparison: Comparison::Less,
-            target: Target::Src,
-        }),
+        "delete-dest-hash" => Ok(make_hash_rule(RuleAction::DeleteDest)),
+        "delete-dest-size" => {
+            Ok(make_size_rule(RuleAction::DeleteDest, Comparison::Equal, Target::Dest))
+        }
+        "delete-dest-larger" => {
+            Ok(make_size_rule(RuleAction::DeleteDest, Comparison::Greater, Target::Src))
+        }
+        "delete-dest-smaller" => {
+            Ok(make_size_rule(RuleAction::DeleteDest, Comparison::Less, Target::Src))
+        }
+        "delete-dest-modified-newer" => Ok(make_modified_rule(
+            RuleAction::DeleteDest,
+            Comparison::Greater,
+            Target::Src,
+        )),
+        "delete-dest-modified-older" => Ok(make_modified_rule(
+            RuleAction::DeleteDest,
+            Comparison::Less,
+            Target::Src,
+        )),
+        "delete-dest-created-newer" => Ok(make_created_rule(
+            RuleAction::DeleteDest,
+            Comparison::Greater,
+            Target::Src,
+        )),
+        "delete-dest-created-older" => Ok(make_created_rule(
+            RuleAction::DeleteDest,
+            Comparison::Less,
+            Target::Src,
+        )),
         // Delete-src rules
-        "delete-src-hash" => Ok(Rule {
-            action: RuleAction::DeleteSrc,
-            attribute: Attribute::Hash,
-            comparison: Comparison::Equal,
-            target: Target::Dest,
-        }),
-        "delete-src-size" => Ok(Rule {
-            action: RuleAction::DeleteSrc,
-            attribute: Attribute::Size,
-            comparison: Comparison::Equal,
-            target: Target::Dest,
-        }),
-        "delete-src-larger" => Ok(Rule {
-            action: RuleAction::DeleteSrc,
-            attribute: Attribute::Size,
-            comparison: Comparison::Greater,
-            target: Target::Src,
-        }),
-        "delete-src-smaller" => Ok(Rule {
-            action: RuleAction::DeleteSrc,
-            attribute: Attribute::Size,
-            comparison: Comparison::Less,
-            target: Target::Src,
-        }),
-        "delete-src-modified-newer" => Ok(Rule {
-            action: RuleAction::DeleteSrc,
-            attribute: Attribute::Modified,
-            comparison: Comparison::Greater,
-            target: Target::Src,
-        }),
-        "delete-src-modified-older" => Ok(Rule {
-            action: RuleAction::DeleteSrc,
-            attribute: Attribute::Modified,
-            comparison: Comparison::Less,
-            target: Target::Src,
-        }),
-        "delete-src-created-newer" => Ok(Rule {
-            action: RuleAction::DeleteSrc,
-            attribute: Attribute::Created,
-            comparison: Comparison::Greater,
-            target: Target::Src,
-        }),
-        "delete-src-created-older" => Ok(Rule {
-            action: RuleAction::DeleteSrc,
-            attribute: Attribute::Created,
-            comparison: Comparison::Less,
-            target: Target::Src,
-        }),
+        "delete-src-hash" => Ok(make_hash_rule(RuleAction::DeleteSrc)),
+        "delete-src-size" => Ok(make_size_rule(RuleAction::DeleteSrc, Comparison::Equal, Target::Dest)),
+        "delete-src-larger" => Ok(make_size_rule(RuleAction::DeleteSrc, Comparison::Greater, Target::Src)),
+        "delete-src-smaller" => Ok(make_size_rule(RuleAction::DeleteSrc, Comparison::Less, Target::Src)),
+        "delete-src-modified-newer" => Ok(make_modified_rule(
+            RuleAction::DeleteSrc,
+            Comparison::Greater,
+            Target::Src,
+        )),
+        "delete-src-modified-older" => Ok(make_modified_rule(
+            RuleAction::DeleteSrc,
+            Comparison::Less,
+            Target::Src,
+        )),
+        "delete-src-created-newer" => Ok(make_created_rule(
+            RuleAction::DeleteSrc,
+            Comparison::Greater,
+            Target::Src,
+        )),
+        "delete-src-created-older" => Ok(make_created_rule(
+            RuleAction::DeleteSrc,
+            Comparison::Less,
+            Target::Src,
+        )),
         _ => Err(NofsError::Parse(format!(
             "Unknown file-over-file option: {token}"
         ))),
     }
 }
 
+/// Metadata for comparing source and destination files
+#[non_exhaustive]
+#[derive(Debug, Clone, Copy)]
+pub struct FileComparison {
+    pub hashes_match: bool,
+    pub src_size: u64,
+    pub dest_size: u64,
+    pub src_modified: Option<u64>,
+    pub dest_modified: Option<u64>,
+    pub src_created: Option<u64>,
+    pub dest_created: Option<u64>,
+}
+
 /// Evaluate a single rule against file metadata
 ///
 /// Returns true if the rule condition matches.
 #[must_use]
-pub(crate) fn evaluate_rule(
-    rule: &Rule,
-    hashes_match: bool,
-    src_size: u64,
-    dest_size: u64,
-    src_modified: Option<u64>,
-    dest_modified: Option<u64>,
-    src_created: Option<u64>,
-    dest_created: Option<u64>,
-) -> bool {
+pub(crate) fn evaluate_rule(rule: &Rule, cmp: &FileComparison) -> bool {
     match rule.attribute {
         Attribute::Hash => {
             // For hash, we only have a boolean match, not a numeric value
             // The comparison is always "Equal" for hash
-            rule.comparison == Comparison::Equal && hashes_match
+            rule.comparison == Comparison::Equal && cmp.hashes_match
         }
         Attribute::Size => match rule.comparison {
-            Comparison::Equal => src_size == dest_size,
-            Comparison::Greater => src_size > dest_size,
-            Comparison::Less => src_size < dest_size,
+            Comparison::Equal => cmp.src_size == cmp.dest_size,
+            Comparison::Greater => cmp.src_size > cmp.dest_size,
+            Comparison::Less => cmp.src_size < cmp.dest_size,
         },
         Attribute::Modified => {
-            let (Some(src_m), Some(dest_m)) = (src_modified, dest_modified) else {
+            let (Some(src_m), Some(dest_m)) = (cmp.src_modified, cmp.dest_modified) else {
                 return false;
             };
             match rule.comparison {
@@ -496,7 +478,7 @@ pub(crate) fn evaluate_rule(
             }
         }
         Attribute::Created => {
-            let (Some(src_c), Some(dest_c)) = (src_created, dest_created) else {
+            let (Some(src_c), Some(dest_c)) = (cmp.src_created, cmp.dest_created) else {
                 return false;
             };
             match rule.comparison {
@@ -540,17 +522,17 @@ fn evaluate_rules(
     file_count: &Arc<Mutex<u64>>,
     byte_count: &Arc<Mutex<u64>>,
 ) -> Result<RuleResult> {
+    let cmp = FileComparison {
+        hashes_match,
+        src_size,
+        dest_size,
+        src_modified,
+        dest_modified,
+        src_created,
+        dest_created,
+    };
     for rule in &strategy.rules {
-        if evaluate_rule(
-            rule,
-            hashes_match,
-            src_size,
-            dest_size,
-            src_modified,
-            dest_modified,
-            src_created,
-            dest_created,
-        ) {
+        if evaluate_rule(rule, &cmp) {
             match rule.action {
                 RuleAction::Skip => {
                     if config.verbose {
@@ -1050,9 +1032,7 @@ fn handle_file_over_file(
         file_count,
         byte_count,
     )? {
-        RuleResult::Skip => return Ok(()),
-        RuleResult::DeleteDest => return Ok(()),
-        RuleResult::DeleteSrc => return Ok(()),
+        RuleResult::Skip | RuleResult::DeleteDest | RuleResult::DeleteSrc => return Ok(()),
         RuleResult::NoMatch => {
             // No rules matched, apply required fallback
         }

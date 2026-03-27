@@ -727,165 +727,200 @@ fn test_parse_file_over_file() {
     // Test strategy with one rule
     let strategy2 = parse_file_over_file("skip-hash rename-dest").unwrap();
     assert_eq!(strategy2.rules.len(), 1);
-    assert_eq!(strategy2.rules[0].action, RuleAction::Skip);
-    assert_eq!(strategy2.rules[0].attribute, Attribute::Hash);
-    assert_eq!(strategy2.rules[0].comparison, Comparison::Equal);
+    let Some(rule) = strategy2.rules.first() else {
+        panic!("Expected rule at index 0");
+    };
+    assert_eq!(rule.action, RuleAction::Skip);
+    assert_eq!(rule.attribute, Attribute::Hash);
+    assert_eq!(rule.comparison, Comparison::Equal);
     assert_eq!(strategy2.required, FileOverFileMode::RenameDest);
 
     // Test strategy with multiple rules
     let strategy3 =
         parse_file_over_file("skip-hash skip-size delete-dest-larger delete-dest").unwrap();
     assert_eq!(strategy3.rules.len(), 3);
-    assert_eq!(strategy3.rules[0].action, RuleAction::Skip);
-    assert_eq!(strategy3.rules[0].attribute, Attribute::Hash);
-    assert_eq!(strategy3.rules[1].action, RuleAction::Skip);
-    assert_eq!(strategy3.rules[1].attribute, Attribute::Size);
-    assert_eq!(strategy3.rules[2].action, RuleAction::DeleteDest);
-    assert_eq!(strategy3.rules[2].attribute, Attribute::Size);
-    assert_eq!(strategy3.rules[2].comparison, Comparison::Greater);
+    let Some(rule0) = strategy3.rules.first() else {
+        panic!("Expected rule at index 0");
+    };
+    assert_eq!(rule0.action, RuleAction::Skip);
+    assert_eq!(rule0.attribute, Attribute::Hash);
+    let Some(rule1) = strategy3.rules.get(1) else {
+        panic!("Expected rule at index 1");
+    };
+    assert_eq!(rule1.action, RuleAction::Skip);
+    assert_eq!(rule1.attribute, Attribute::Size);
+    let Some(rule2) = strategy3.rules.get(2) else {
+        panic!("Expected rule at index 2");
+    };
+    assert_eq!(rule2.action, RuleAction::DeleteDest);
+    assert_eq!(rule2.attribute, Attribute::Size);
+    assert_eq!(rule2.comparison, Comparison::Greater);
     assert_eq!(strategy3.required, FileOverFileMode::DeleteDest);
 }
 
 #[test]
-fn test_rule_evaluation() {
-    use crate::commands::cp::evaluate_rule;
+fn test_rule_evaluation_hash() {
+    use crate::commands::cp::{evaluate_rule, FileComparison};
 
-    // Test hash rule
     let hash_rule = Rule {
         action: RuleAction::Skip,
         attribute: Attribute::Hash,
         comparison: Comparison::Equal,
         target: Target::Dest,
     };
-    assert!(evaluate_rule(
-        &hash_rule, true, 100, 100, None, None, None, None
-    ));
-    assert!(!evaluate_rule(
-        &hash_rule, false, 100, 100, None, None, None, None
-    ));
+    let cmp_match = FileComparison {
+        hashes_match: true,
+        src_size: 100,
+        dest_size: 100,
+        src_modified: None,
+        dest_modified: None,
+        src_created: None,
+        dest_created: None,
+    };
+    let cmp_no_match = FileComparison {
+        hashes_match: false,
+        src_size: 100,
+        dest_size: 100,
+        src_modified: None,
+        dest_modified: None,
+        src_created: None,
+        dest_created: None,
+    };
+    assert!(evaluate_rule(&hash_rule, &cmp_match));
+    assert!(!evaluate_rule(&hash_rule, &cmp_no_match));
+}
 
-    // Test size equal rule
+#[test]
+fn test_rule_evaluation_size() {
+    use crate::commands::cp::{evaluate_rule, FileComparison};
+
     let size_equal_rule = Rule {
         action: RuleAction::Skip,
         attribute: Attribute::Size,
         comparison: Comparison::Equal,
         target: Target::Dest,
     };
-    assert!(evaluate_rule(
-        &size_equal_rule,
-        false,
-        100,
-        100,
-        None,
-        None,
-        None,
-        None
-    ));
-    assert!(!evaluate_rule(
-        &size_equal_rule,
-        false,
-        100,
-        200,
-        None,
-        None,
-        None,
-        None
-    ));
+    let cmp_equal = FileComparison {
+        hashes_match: false,
+        src_size: 100,
+        dest_size: 100,
+        src_modified: None,
+        dest_modified: None,
+        src_created: None,
+        dest_created: None,
+    };
+    let cmp_not_equal = FileComparison {
+        hashes_match: false,
+        src_size: 100,
+        dest_size: 200,
+        src_modified: None,
+        dest_modified: None,
+        src_created: None,
+        dest_created: None,
+    };
+    assert!(evaluate_rule(&size_equal_rule, &cmp_equal));
+    assert!(!evaluate_rule(&size_equal_rule, &cmp_not_equal));
 
-    // Test size greater rule
     let size_greater_rule = Rule {
         action: RuleAction::Skip,
         attribute: Attribute::Size,
         comparison: Comparison::Greater,
         target: Target::Src,
     };
-    assert!(evaluate_rule(
-        &size_greater_rule,
-        false,
-        200,
-        100,
-        None,
-        None,
-        None,
-        None
-    ));
-    assert!(!evaluate_rule(
-        &size_greater_rule,
-        false,
-        100,
-        200,
-        None,
-        None,
-        None,
-        None
-    ));
+    let cmp_greater = FileComparison {
+        hashes_match: false,
+        src_size: 200,
+        dest_size: 100,
+        src_modified: None,
+        dest_modified: None,
+        src_created: None,
+        dest_created: None,
+    };
+    let cmp_less = FileComparison {
+        hashes_match: false,
+        src_size: 100,
+        dest_size: 200,
+        src_modified: None,
+        dest_modified: None,
+        src_created: None,
+        dest_created: None,
+    };
+    assert!(evaluate_rule(&size_greater_rule, &cmp_greater));
+    assert!(!evaluate_rule(&size_greater_rule, &cmp_less));
+}
 
-    // Test modified greater rule
+#[test]
+fn test_rule_evaluation_modified() {
+    use crate::commands::cp::{evaluate_rule, FileComparison};
+
     let modified_greater_rule = Rule {
         action: RuleAction::Skip,
         attribute: Attribute::Modified,
         comparison: Comparison::Greater,
         target: Target::Src,
     };
-    assert!(evaluate_rule(
-        &modified_greater_rule,
-        false,
-        100,
-        100,
-        Some(200),
-        Some(100),
-        None,
-        None
-    ));
-    assert!(!evaluate_rule(
-        &modified_greater_rule,
-        false,
-        100,
-        100,
-        Some(100),
-        Some(200),
-        None,
-        None
-    ));
-    // Should return false if timestamps are None
-    assert!(!evaluate_rule(
-        &modified_greater_rule,
-        false,
-        100,
-        100,
-        None,
-        Some(100),
-        None,
-        None
-    ));
+    let cmp_greater = FileComparison {
+        hashes_match: false,
+        src_size: 100,
+        dest_size: 100,
+        src_modified: Some(200),
+        dest_modified: Some(100),
+        src_created: None,
+        dest_created: None,
+    };
+    let cmp_less = FileComparison {
+        hashes_match: false,
+        src_size: 100,
+        dest_size: 100,
+        src_modified: Some(100),
+        dest_modified: Some(200),
+        src_created: None,
+        dest_created: None,
+    };
+    let cmp_none = FileComparison {
+        hashes_match: false,
+        src_size: 100,
+        dest_size: 100,
+        src_modified: None,
+        dest_modified: Some(100),
+        src_created: None,
+        dest_created: None,
+    };
+    assert!(evaluate_rule(&modified_greater_rule, &cmp_greater));
+    assert!(!evaluate_rule(&modified_greater_rule, &cmp_less));
+    assert!(!evaluate_rule(&modified_greater_rule, &cmp_none));
+}
 
-    // Test created less rule
+#[test]
+fn test_rule_evaluation_created() {
+    use crate::commands::cp::{evaluate_rule, FileComparison};
+
     let created_less_rule = Rule {
         action: RuleAction::Skip,
         attribute: Attribute::Created,
         comparison: Comparison::Less,
         target: Target::Src,
     };
-    assert!(evaluate_rule(
-        &created_less_rule,
-        false,
-        100,
-        100,
-        None,
-        None,
-        Some(100),
-        Some(200)
-    ));
-    assert!(!evaluate_rule(
-        &created_less_rule,
-        false,
-        100,
-        100,
-        None,
-        None,
-        Some(200),
-        Some(100)
-    ));
+    let cmp_less = FileComparison {
+        hashes_match: false,
+        src_size: 100,
+        dest_size: 100,
+        src_modified: None,
+        dest_modified: None,
+        src_created: Some(100),
+        dest_created: Some(200),
+    };
+    let cmp_greater = FileComparison {
+        hashes_match: false,
+        src_size: 100,
+        dest_size: 100,
+        src_modified: None,
+        dest_modified: None,
+        src_created: Some(200),
+        dest_created: Some(100),
+    };
+    assert!(evaluate_rule(&created_less_rule, &cmp_less));
+    assert!(!evaluate_rule(&created_less_rule, &cmp_greater));
 }
 
 #[test]
