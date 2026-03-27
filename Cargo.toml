@@ -148,3 +148,64 @@ collapsible_else_if = "allow"
 
 # Identification of unused allows
 useless_attribute = "warn"
+
+# Probably already covered:
+
+# Warn on operations that can panic
+indexing_slicing = "deny"
+arithmetic_side_effects = "deny"
+integer_division = "deny"
+modulo_arithmetic = "deny"
+float_arithmetic = "deny"
+unchecked_time_subtraction = "deny"
+
+# Warn on dangerous patterns
+get_unwrap = "deny"
+
+# Prefer explicit pattern matching
+exhaustive_enums = "deny"
+exhaustive_structs = "deny"
+wildcard_enum_match_arm = "deny"
+match_bool = "deny"
+single_match = "deny"
+
+# Prefer explicit casts
+as_conversions = "deny"
+cast_lossless = "deny"
+cast_precision_loss = "deny"
+cast_possible_truncation = "deny"
+cast_possible_wrap = "deny"
+cast_sign_loss = "deny"
+cast_ptr_alignment = "deny"
+
+# Cleaner code
+shadow_reuse = "deny"
+shadow_same = "deny"
+else_if_without_else = "deny"
+if_then_some_else_none = "deny"
+
+# Error handling
+unused_result_ok = "deny"
+manual_assert = "deny"
+manual_unwrap_or_default = "deny"
+
+# Redundancy
+redundant_clone = "deny"
+redundant_type_annotations = "deny"
+redundant_field_names = "deny"
+needless_parens_on_range_literals = "deny"
+needless_raw_string_hashes = "deny"
+
+# Require documentation for unsafe blocks
+undocumented_unsafe_blocks = "deny"
+
+# Warn on unwrap/expect/panic (prefer proper error handling)
+unwrap_used = "deny"
+unwrap_in_result = "deny"
+expect_used = "deny"
+expect_fun_call = "deny"
+panic = "deny"
+panic_in_result_fn = "deny"
+todo = "deny"
+unimplemented = "deny"
+items_after_statements = "deny"
