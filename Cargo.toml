@@ -27,7 +27,7 @@ opt-level = 3
 
 [lints.clippy]
 # Base: pedantic lints (sensible warnings for production code)
-pedantic = "warn"
+pedantic = { level = "warn", priority = -1 }
 
 # === Safety lints (restriction category) ===
 # Require documentation for unsafe blocks
@@ -97,8 +97,8 @@ needless_parens_on_range_literals = "warn"
 needless_raw_string_hashes = "warn"
 
 # === LLM & Strict Quality ===
-nursery = "warn"
-cargo = "warn"
+nursery = { level = "warn", priority = -1 }
+cargo = { level = "warn", priority = -1 }
 missing_errors_doc = "warn"
 missing_panics_doc = "warn"
 missing_docs_in_private_items = "warn"
@@ -107,3 +107,4 @@ print_stdout = "warn"
 print_stderr = "warn"
 items_after_statements = "warn"
 implicit_clone = "warn"
+use_self = "allow"
