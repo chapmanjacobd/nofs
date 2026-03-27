@@ -667,6 +667,8 @@ pub fn execute(
     let mut handles = Vec::new();
     let workers = config.workers;
     let active_workers = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let file_count = Arc::new(Mutex::new(0_u64));
+    let byte_count = Arc::new(Mutex::new(0_u64));
 
     for source in sources {
         // Resolve source path (may have share: prefix) - for read (existing file)
@@ -698,9 +700,8 @@ pub fn execute(
 
         let stats_clone = Arc::clone(&stats);
         let config_clone = config.clone();
-        let _share_clone = share.map(|p| p.name.clone()); // We can't easily clone Pool, but we can re-fetch it if needed, or just pass None since it's not used in process_source anyway
-        let file_count = Arc::new(Mutex::new(0u64));
-        let byte_count = Arc::new(Mutex::new(0u64));
+        let file_count_clone = Arc::clone(&file_count);
+        let byte_count_clone = Arc::clone(&byte_count);
         let active_workers_clone = Arc::clone(&active_workers);
 
         // Simple worker limit: wait if too many threads
@@ -716,8 +717,8 @@ pub fn execute(
                 &config_clone,
                 &stats_clone,
                 None, // share is not used in process_source
-                &file_count,
-                &byte_count,
+                &file_count_clone,
+                &byte_count_clone,
             );
             active_workers_clone.fetch_sub(1, Ordering::Relaxed);
             if let Err(e) = result {
@@ -784,7 +785,7 @@ fn process_source(
             if !dest_is_dir {
                 // Folder over file conflict
                 stats.conflicts_resolved.fetch_add(1, Ordering::Relaxed);
-                return handle_folder_over_file(dest, source, config, stats);
+                return handle_folder_over_file(dest, source, config, stats, file_count, byte_count);
             }
             // Folder over folder - merge
         } else {
@@ -1213,7 +1214,14 @@ fn handle_file_over_folder(
 /// # Errors
 ///
 /// Returns an error if file operations fail.
-fn handle_folder_over_file(dest: &Path, source: &Path, config: &CopyConfig, stats: &Arc<CopyStats>) -> Result<()> {
+fn handle_folder_over_file(
+    dest: &Path,
+    source: &Path,
+    config: &CopyConfig,
+    stats: &Arc<CopyStats>,
+    file_count: &Arc<Mutex<u64>>,
+    byte_count: &Arc<Mutex<u64>>,
+) -> Result<()> {
     match config.folder_over_file {
         FolderConflictMode::Skip => {
             if config.verbose {
@@ -1249,7 +1257,7 @@ fn handle_folder_over_file(dest: &Path, source: &Path, config: &CopyConfig, stat
                 fs::create_dir_all(dest)?;
             }
             stats.folders_created.fetch_add(1, Ordering::Relaxed);
-            return process_source_contents(source, dest, config, stats);
+            return process_source_contents(source, dest, config, stats, file_count, byte_count);
         }
         FolderConflictMode::RenameSrc => {
             // Rename the source folder conceptually by copying to renamed path
@@ -1265,7 +1273,7 @@ fn handle_folder_over_file(dest: &Path, source: &Path, config: &CopyConfig, stat
             }
             stats.folders_created.fetch_add(1, Ordering::Relaxed);
             // Process source contents into new destination
-            return process_source_contents(source, &new_dest, config, stats);
+            return process_source_contents(source, &new_dest, config, stats, file_count, byte_count);
         }
         FolderConflictMode::RenameDest => {
             let renamed_dest = get_unique_folder_name(dest);
@@ -1281,7 +1289,7 @@ fn handle_folder_over_file(dest: &Path, source: &Path, config: &CopyConfig, stat
                 fs::create_dir_all(dest)?;
             }
             stats.folders_created.fetch_add(1, Ordering::Relaxed);
-            return process_source_contents(source, dest, config, stats);
+            return process_source_contents(source, dest, config, stats, file_count, byte_count);
         }
         FolderConflictMode::Merge => {
             // This case shouldn't happen (folder over file merge doesn't make sense)
@@ -1299,7 +1307,7 @@ fn handle_folder_over_file(dest: &Path, source: &Path, config: &CopyConfig, stat
                 fs::create_dir_all(dest)?;
             }
             stats.folders_created.fetch_add(1, Ordering::Relaxed);
-            return process_source_contents(source, dest, config, stats);
+            return process_source_contents(source, dest, config, stats, file_count, byte_count);
         }
     }
 
@@ -1311,7 +1319,14 @@ fn handle_folder_over_file(dest: &Path, source: &Path, config: &CopyConfig, stat
 /// # Errors
 ///
 /// Returns an error if directory cannot be read or entries cannot be processed.
-fn process_source_contents(source: &Path, dest: &Path, config: &CopyConfig, stats: &Arc<CopyStats>) -> Result<()> {
+fn process_source_contents(
+    source: &Path,
+    dest: &Path,
+    config: &CopyConfig,
+    stats: &Arc<CopyStats>,
+    file_count: &Arc<Mutex<u64>>,
+    byte_count: &Arc<Mutex<u64>>,
+) -> Result<()> {
     let entries = fs::read_dir(source)?;
     for entry_result in entries {
         let entry = entry_result?;
@@ -1325,8 +1340,8 @@ fn process_source_contents(source: &Path, dest: &Path, config: &CopyConfig, stat
             config,
             stats,
             None, // share not needed for already-resolved paths
-            &Arc::new(Mutex::new(0u64)),
-            &Arc::new(Mutex::new(0u64)),
+            file_count,
+            byte_count,
         ) {
             eprintln!(
                 "Error processing {}: {}",
@@ -1465,7 +1480,7 @@ fn sample_hash(path: &Path, stats: &CopyStats) -> Result<String> {
     for i in 0..num_samples {
         let pos = size.saturating_mul(i) / num_samples;
         file.seek(io::SeekFrom::Start(pos))?;
-        let mut buf = vec![0u8; chunk_size as usize];
+        let mut buf = vec![0_u8; chunk_size as usize];
         let bytes_read = file.read(&mut buf)?;
         buf[..bytes_read].hash(&mut hasher);
     }

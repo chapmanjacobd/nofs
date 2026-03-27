@@ -464,7 +464,7 @@ pub fn parse_size(s: &str) -> Result<u64> {
 
     let num: f64 = num_str
         .parse()
-        .map_err(|_| NofsError::Parse(format!("Invalid size number: {s}")))?;
+        .map_err(|e| NofsError::Parse(format!("Invalid size number {num_str} in {s}: {e}")))?;
 
     let multiplier = match suffix.as_str() {
         "" | "B" => 1_u64,

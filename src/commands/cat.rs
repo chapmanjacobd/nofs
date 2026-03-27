@@ -2,8 +2,7 @@
 
 use crate::error::{NofsError, Result};
 use crate::pool::Pool;
-use std::fs::File;
-use std::io::{self, Read, Write};
+use std::io::{self, Write};
 use std::path::Path;
 
 /// Execute the cat command
@@ -21,14 +20,8 @@ pub fn execute(pool: &Pool, path: &str, verbose: bool) -> Result<()> {
             eprintln!("  {} (first-found policy)", full_path.display());
         }
 
-        let mut file = File::open(&full_path)?;
-
-        let stdout = io::stdout();
-        let mut handle = stdout.lock();
-
-        let mut buffer = Vec::new();
-        file.read_to_end(&mut buffer)?;
-        handle.write_all(&buffer)?;
+        let buffer = std::fs::read(&full_path)?;
+        io::stdout().write_all(&buffer)?;
     } else {
         return Err(NofsError::Command(format!(
             "cannot open '{path}' for reading: No such file"

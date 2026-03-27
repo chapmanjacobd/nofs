@@ -206,18 +206,17 @@ pub fn compute_file_hash(path: &Path) -> Result<String> {
         .map_err(|e| NofsError::Conflict(format!("Failed to get metadata for {}: {}", path.display(), e)))?;
 
     if metadata.len() <= SMALL_FILE_THRESHOLD {
-        let mut content = Vec::new();
-        file.read_to_end(&mut content)
+        let content = std::fs::read(path)
             .map_err(|e| NofsError::Conflict(format!("Failed to read file {}: {}", path.display(), e)))?;
         let mut hasher = DefaultHasher::new();
-        content.hash(&mut hasher);
+        hasher.write(&content);
         return Ok(format!("{:x}", hasher.finish()));
     }
 
     // For larger files, sample beginning, middle, and end
     let mut hasher = DefaultHasher::new();
     let buf_size = usize::try_from(8 * crate::utils::KB).unwrap_or(8000);
-    let mut buf = vec![0u8; buf_size];
+    let mut buf = vec![0_u8; buf_size];
 
     // Sample beginning (first 8KB)
     let bytes_read = file

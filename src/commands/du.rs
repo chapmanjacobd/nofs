@@ -136,7 +136,7 @@ pub fn execute(
 
 /// Calculate directory usage recursively
 fn calculate_directory_usage(path: &Path, max_depth: Option<usize>, all: bool) -> DuBranchData {
-    let mut total_size = 0u64;
+    let mut total_size = 0_u64;
     let mut subdirs: BTreeMap<PathBuf, u64> = BTreeMap::new();
 
     let base_depth = path.components().count();
