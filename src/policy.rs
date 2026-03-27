@@ -70,6 +70,21 @@ impl Policy {
     pub fn parse(s: &str) -> Result<Self> {
         <Self as FromStr>::from_str(s)
     }
+
+    /// Convert an Ep* policy to its non-Ep counterpart
+    ///
+    /// Ep* (existing path) policies fall back to these when the path doesn't exist.
+    #[must_use]
+    #[allow(clippy::wildcard_enum_match_arm)]
+    const fn to_non_ep_policy(self) -> Self {
+        match self {
+            Policy::EpMfs => Policy::Mfs,
+            Policy::EpFf => Policy::Ff,
+            Policy::EpRand => Policy::Rand,
+            Policy::EpAll => Policy::All,
+            other => other,
+        }
+    }
 }
 
 impl std::fmt::Display for Policy {
@@ -168,7 +183,7 @@ impl<'ctx> CreatePolicy<'ctx> {
                 .first()
                 .map(|(b, _)| *b)
                 .ok_or(NofsError::NoSuitableBranch),
-            Policy::Rand => Ok(Self::select_rand_with_space(&eligible_with_space)),
+            Policy::Rand => Self::select_rand_with_space(&eligible_with_space),
             Policy::Lfs => eligible_with_space
                 .into_iter()
                 .min_by_key(|(_, space)| *space)
@@ -185,88 +200,93 @@ impl<'ctx> CreatePolicy<'ctx> {
             }
             Policy::EpMfs | Policy::EpFf | Policy::EpRand | Policy::EpAll => {
                 // For existing path policies, check if path exists
-                #[allow(clippy::option_if_let_else)]
-                match relative_path {
-                    Some(rel_path) => {
-                        let with_path: Vec<(&'ctx Branch, u64)> = eligible_with_space
-                            .iter()
-                            .copied()
-                            .filter(|(b, _)| {
-                                self.cache.map_or_else(
-                                    || b.path.join(rel_path).exists(),
-                                    |cache| b.path_exists_cached(rel_path, cache),
-                                )
-                            })
-                            .collect();
-
-                        if with_path.is_empty() {
-                            // Fall back to non-path-preserving variant based on the policy type
-                            match policy {
-                                Policy::EpMfs | Policy::Mfs => Self::select_mfs(&eligible_with_space),
-                                Policy::EpFf | Policy::EpAll | Policy::Ff | Policy::All => {
-                                    Self::select_ff(&eligible_with_space)
-                                }
-                                Policy::EpRand | Policy::Rand => Ok(Self::select_rand_with_space(&eligible_with_space)),
-                                Policy::Pfrd => Self::select_pfrd_with_space(&eligible_with_space),
-                                Policy::Lfs => Self::select_lfs(&eligible_with_space),
-                                Policy::Lus => {
-                                    let eligible: Vec<&Branch> = eligible_with_space.iter().map(|(b, _)| *b).collect();
-                                    Self::select_lus(&eligible)
-                                }
-                                Policy::Lup => {
-                                    let eligible: Vec<&Branch> = eligible_with_space.iter().map(|(b, _)| *b).collect();
-                                    Self::select_lup(&eligible)
-                                }
-                            }
-                        } else {
-                            // Path exists in some branches, apply the Ep* policy
-                            match policy {
-                                Policy::EpMfs => with_path
-                                    .into_iter()
-                                    .max_by_key(|(_, space)| *space)
-                                    .map(|(b, _)| b)
-                                    .ok_or(NofsError::NoSuitableBranch),
-                                Policy::EpFf | Policy::EpAll => {
-                                    with_path.first().map(|(b, _)| *b).ok_or(NofsError::NoSuitableBranch)
-                                }
-                                Policy::EpRand => Ok(Self::select_rand_with_space(&with_path)),
-                                // These cases shouldn't happen, but handle them gracefully
-                                Policy::Pfrd
-                                | Policy::Mfs
-                                | Policy::Ff
-                                | Policy::Rand
-                                | Policy::Lfs
-                                | Policy::Lus
-                                | Policy::Lup
-                                | Policy::All => eligible_with_space
-                                    .first()
-                                    .map(|(b, _)| *b)
-                                    .ok_or(NofsError::NoSuitableBranch),
-                            }
-                        }
-                    }
-                    None => {
-                        // No relative path provided, use the non-path-preserving variant
-                        match policy {
-                            Policy::EpMfs | Policy::Mfs => Self::select_mfs(&eligible_with_space),
-                            Policy::EpFf | Policy::EpAll | Policy::Ff | Policy::All => {
-                                Self::select_ff(&eligible_with_space)
-                            }
-                            Policy::EpRand | Policy::Rand => Ok(Self::select_rand_with_space(&eligible_with_space)),
-                            Policy::Pfrd => Self::select_pfrd_with_space(&eligible_with_space),
-                            Policy::Lfs => Self::select_lfs(&eligible_with_space),
-                            Policy::Lus => {
-                                let eligible: Vec<&Branch> = eligible_with_space.iter().map(|(b, _)| *b).collect();
-                                Self::select_lus(&eligible)
-                            }
-                            Policy::Lup => {
-                                let eligible: Vec<&Branch> = eligible_with_space.iter().map(|(b, _)| *b).collect();
-                                Self::select_lup(&eligible)
-                            }
-                        }
-                    }
-                }
+                Self::select_ep_policy(policy, relative_path, &eligible_with_space, self.cache)
             }
+        }
+    }
+
+    /// Select branch for Ep* (existing path) policies
+    ///
+    /// Handles the case where we need to check if a path exists in branches
+    /// and apply the appropriate policy based on existence.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if no suitable branch is found.
+    fn select_ep_policy(
+        policy: Policy,
+        relative_path: Option<&Path>,
+        eligible_with_space: &[(&'ctx Branch, u64)],
+        cache: Option<&'ctx OperationCache>,
+    ) -> Result<&'ctx Branch> {
+        relative_path.map_or_else(
+            || Self::apply_policy(policy.to_non_ep_policy(), eligible_with_space),
+            |rel_path| {
+                let with_path: Vec<(&'ctx Branch, u64)> = eligible_with_space
+                    .iter()
+                    .copied()
+                    .filter(|(b, _)| Self::path_exists(b, rel_path, cache))
+                    .collect();
+
+                if with_path.is_empty() {
+                    // Fall back to non-path-preserving variant
+                    Self::apply_policy(policy.to_non_ep_policy(), eligible_with_space)
+                } else {
+                    // Path exists in some branches, apply the Ep* policy
+                    Self::apply_ep_policy(policy, &with_path)
+                }
+            },
+        )
+    }
+
+    /// Check if path exists in a branch (with or without cache)
+    fn path_exists(branch: &Branch, rel_path: &Path, cache: Option<&OperationCache>) -> bool {
+        cache.map_or_else(
+            || branch.path.join(rel_path).exists(),
+            |c| branch.path_exists_cached(rel_path, c),
+        )
+    }
+
+    /// Apply a policy to select a branch from eligible candidates
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if no suitable branch is found.
+    fn apply_policy(policy: Policy, eligible_with_space: &[(&'ctx Branch, u64)]) -> Result<&'ctx Branch> {
+        match policy {
+            Policy::Mfs | Policy::EpMfs => Self::select_mfs(eligible_with_space),
+            Policy::Ff | Policy::All | Policy::EpFf | Policy::EpAll => Self::select_ff(eligible_with_space),
+            Policy::Rand | Policy::EpRand => Self::select_rand_with_space(eligible_with_space),
+            Policy::Pfrd => Self::select_pfrd_with_space(eligible_with_space),
+            Policy::Lfs => Self::select_lfs(eligible_with_space),
+            Policy::Lus => {
+                let eligible: Vec<&Branch> = eligible_with_space.iter().map(|(b, _)| *b).collect();
+                Self::select_lus(&eligible)
+            }
+            Policy::Lup => {
+                let eligible: Vec<&Branch> = eligible_with_space.iter().map(|(b, _)| *b).collect();
+                Self::select_lup(&eligible)
+            }
+        }
+    }
+
+    /// Apply an Ep* policy when path exists in some branches
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if no suitable branch is found.
+    #[allow(clippy::wildcard_enum_match_arm)]
+    fn apply_ep_policy(policy: Policy, with_path: &[(&'ctx Branch, u64)]) -> Result<&'ctx Branch> {
+        match policy {
+            Policy::EpMfs => with_path
+                .iter()
+                .max_by_key(|(_, space)| *space)
+                .map(|(b, _)| *b)
+                .ok_or(NofsError::NoSuitableBranch),
+            Policy::EpFf | Policy::EpAll => with_path.first().map(|(b, _)| *b).ok_or(NofsError::NoSuitableBranch),
+            Policy::EpRand => Self::select_rand_with_space(with_path),
+            // These cases shouldn't happen, but handle them gracefully
+            _ => with_path.first().map(|(b, _)| *b).ok_or(NofsError::NoSuitableBranch),
         }
     }
 
@@ -319,11 +339,10 @@ impl<'ctx> CreatePolicy<'ctx> {
     }
 
     /// Select a random branch from eligible branches with pre-fetched space
-    #[allow(clippy::indexing_slicing)]
-    fn select_rand_with_space(eligible: &[(&'ctx Branch, u64)]) -> &'ctx Branch {
+    fn select_rand_with_space(eligible: &[(&'ctx Branch, u64)]) -> Result<&'ctx Branch> {
         let mut rng = rand::rng();
         let idx = rng.random_range(0..eligible.len());
-        eligible[idx].0
+        eligible.get(idx).map(|(b, _)| *b).ok_or(NofsError::NoSuitableBranch)
     }
 
     /// Select branch with least used space

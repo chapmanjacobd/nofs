@@ -56,7 +56,11 @@ fn resolve_path(
                     };
 
                     // Get branch index once
-                    let branch_idx = pool.branches.iter().position(|b| b.path == branch.path).unwrap_or(0);
+                    let branch_idx = pool
+                        .branches
+                        .iter()
+                        .position(|b| b.path == branch.path)
+                        .ok_or_else(|| NofsError::CopyMove("Branch path not found in pool".to_string()))?;
 
                     return Ok(ResolvedPath {
                         path: branch.path.join(relative_path),
@@ -709,100 +713,23 @@ pub fn execute(
     // Create operation cache for this command execution
     let cache = OperationCache::new();
 
-    // Resolve destination path (may have share: prefix) - for create
-    let dest_path = resolve_path(destination, share, true, &cache)?.path;
+    // Resolve and validate destination
+    let (dest_path, dest_exists, dest_is_dir) = resolve_and_validate_dest(destination, share, &cache)?;
 
-    // Check if destination exists
-    let dest_exists = dest_path.exists();
-    let dest_is_dir = dest_exists && dest_path.is_dir();
-
-    // If multiple sources, destination must be a directory
+    // Validate multiple sources require directory destination
     if sources.len() > 1 && dest_exists && !dest_is_dir {
         return Err(NofsError::CopyMove(
             "Destination must be a directory when copying multiple sources".to_string(),
         ));
     }
 
-    // Create destination directory if it doesn't exist and we have multiple sources
+    // Create destination directory if needed for multiple sources
     if !config.simulate && !dest_exists && sources.len() > 1 {
         fs::create_dir_all(&dest_path)?;
     }
 
-    // Process each source using a worker pool with proper synchronization
-    let workers = config.workers;
-
-    // Create a channel for work items
-    let (tx, work_channel) = std::sync::mpsc::channel::<(PathBuf, PathBuf)>();
-    let work_rx = Arc::new(std::sync::Mutex::new(work_channel));
-
-    // Spawn worker threads using scoped threads for automatic joining
-    std::thread::scope(|s| -> Result<()> {
-        for _ in 0..workers {
-            let work_rx_clone = Arc::clone(&work_rx);
-            let stats_clone = Arc::clone(&stats);
-            let config_clone = config.clone();
-
-            s.spawn(move || {
-                loop {
-                    // Try to receive work item
-                    let work = {
-                        let Ok(guard) = work_rx_clone.lock() else {
-                            break; // Mutex poisoned, exit worker
-                        };
-                        guard.recv()
-                    };
-
-                    match work {
-                        Ok((source_path, final_dest)) => {
-                            if let Err(e) = process_source(&source_path, &final_dest, &config_clone, &stats_clone) {
-                                eprintln!("Error processing {}: {}", source_path.display(), e);
-                                stats_clone.errors.fetch_add(1, Ordering::Relaxed);
-                            }
-                        }
-                        Err(_) => break, // Channel closed, exit worker
-                    }
-                }
-            });
-        }
-
-        // Send work items to workers
-        for source in sources {
-            // Resolve source path (may have share: prefix) - for read (existing file)
-            let source_resolved = resolve_path(source, share, false, &cache)?;
-            let source_path = source_resolved.path;
-            let source_branch_index = source_resolved.branch_index;
-
-            if !source_path.exists() {
-                eprintln!("Source {} does not exist", shell_quote(source));
-                stats.errors.fetch_add(1, Ordering::Relaxed);
-                continue;
-            }
-
-            // Determine final destination for this source
-            let final_dest = if sources.len() > 1 || (dest_exists && dest_is_dir) {
-                // Merge into destination directory
-                let source_name = source_path
-                    .file_name()
-                    .unwrap_or(source_path.as_os_str())
-                    .to_os_string();
-
-                // If destination is a share path, resolve it using the same branch as source
-                let dest_base = resolve_dest_path(destination, share, source_branch_index, &cache)?;
-                dest_base.join(source_name)
-            } else {
-                // Single file to single file - resolve destination preserving source branch
-                resolve_dest_path(destination, share, source_branch_index, &cache)?
-            };
-
-            tx.send((source_path, final_dest))
-                .map_err(|e| NofsError::CopyMove(format!("Failed to send work item: {e}")))?;
-        }
-
-        // Drop sender to signal workers to finish
-        drop(tx);
-        // Workers automatically joined when scope ends
-        Ok(())
-    })?;
+    // Process sources with worker pool
+    process_sources_parallel(sources, destination, share, &cache, config, &stats)?;
 
     if config.verbose {
         let elapsed = start_time.elapsed();
@@ -811,6 +738,168 @@ pub fn execute(
     }
 
     Ok(stats)
+}
+
+/// Resolve and validate destination path
+///
+/// # Errors
+///
+/// Returns an error if path resolution fails.
+fn resolve_and_validate_dest(
+    destination: &str,
+    share: Option<&Pool>,
+    cache: &OperationCache,
+) -> Result<(PathBuf, bool, bool)> {
+    let dest_path = resolve_path(destination, share, true, cache)?.path;
+    let dest_exists = dest_path.exists();
+    let dest_is_dir = dest_exists && dest_path.is_dir();
+    Ok((dest_path, dest_exists, dest_is_dir))
+}
+
+/// Process source files using a worker pool
+///
+/// # Errors
+///
+/// Returns an error if work items cannot be processed.
+///
+/// # Panics
+///
+/// May panic if mutex poisoning occurs.
+fn process_sources_parallel(
+    sources: &[String],
+    destination: &str,
+    share: Option<&Pool>,
+    cache: &OperationCache,
+    config: &CopyConfig,
+    stats: &Arc<CopyStats>,
+) -> Result<()> {
+    let workers = config.workers;
+
+    // Create a channel for work items
+    let (tx, work_channel) = std::sync::mpsc::channel::<(PathBuf, PathBuf)>();
+    let work_rx = Arc::new(std::sync::Mutex::new(work_channel));
+
+    // Spawn worker threads using scoped threads for automatic joining
+    std::thread::scope(|s| -> Result<()> {
+        spawn_workers(workers, &work_rx, stats, config, s);
+        dispatch_work_items(sources, destination, share, cache, &tx, stats)?;
+        drop(tx);
+        Ok(())
+    })?;
+
+    Ok(())
+}
+
+/// Spawn worker threads to process work items
+fn spawn_workers<'scope, 'a>(
+    workers: usize,
+    work_rx: &'a Arc<std::sync::Mutex<std::sync::mpsc::Receiver<(PathBuf, PathBuf)>>>,
+    stats: &'a Arc<CopyStats>,
+    config: &'a CopyConfig,
+    scope: &'scope std::thread::Scope<'scope, 'a>,
+) {
+    for _ in 0..workers {
+        let work_rx_clone = Arc::clone(work_rx);
+        let stats_clone = Arc::clone(stats);
+        let config_clone = config.clone();
+
+        scope.spawn(move || loop {
+            let work = {
+                let Ok(guard) = work_rx_clone.lock() else {
+                    break;
+                };
+                guard.recv()
+            };
+
+            match work {
+                Ok((source_path, final_dest)) => {
+                    if let Err(e) = process_source(&source_path, &final_dest, &config_clone, &stats_clone) {
+                        eprintln!("Error processing {}: {}", source_path.display(), e);
+                        stats_clone.errors.fetch_add(1, Ordering::Relaxed);
+                    }
+                }
+                Err(_) => break,
+            }
+        });
+    }
+}
+
+/// Prepare and dispatch work items to workers
+///
+/// # Errors
+///
+/// Returns an error if work items cannot be sent.
+fn dispatch_work_items(
+    sources: &[String],
+    destination: &str,
+    share: Option<&Pool>,
+    cache: &OperationCache,
+    tx: &std::sync::mpsc::Sender<(PathBuf, PathBuf)>,
+    stats: &Arc<CopyStats>,
+) -> Result<()> {
+    let dest_exists = destination_exists(destination, share, cache)?;
+    let dest_is_dir = dest_exists && PathBuf::from(destination).exists() && PathBuf::from(destination).is_dir();
+
+    for source in sources {
+        let source_resolved = resolve_path(source, share, false, cache)?;
+        let source_path = source_resolved.path;
+        let source_branch_index = source_resolved.branch_index;
+
+        if !source_path.exists() {
+            eprintln!("Source {} does not exist", shell_quote(source));
+            stats.errors.fetch_add(1, Ordering::Relaxed);
+            continue;
+        }
+
+        let final_dest = compute_final_dest(
+            &source_path,
+            destination,
+            share,
+            source_branch_index,
+            cache,
+            sources.len(),
+            dest_exists,
+            dest_is_dir,
+        )?;
+
+        tx.send((source_path, final_dest))
+            .map_err(|e| NofsError::CopyMove(format!("Failed to send work item: {e}")))?;
+    }
+
+    Ok(())
+}
+
+/// Check if destination exists
+fn destination_exists(destination: &str, share: Option<&Pool>, cache: &OperationCache) -> Result<bool> {
+    Ok(resolve_path(destination, share, true, cache)?.path.exists())
+}
+
+/// Compute final destination path for a source
+///
+/// # Errors
+///
+/// Returns an error if path resolution fails.
+#[allow(clippy::too_many_arguments)]
+fn compute_final_dest(
+    source_path: &Path,
+    destination: &str,
+    share: Option<&Pool>,
+    source_branch_index: Option<usize>,
+    cache: &OperationCache,
+    sources_len: usize,
+    dest_exists: bool,
+    dest_is_dir: bool,
+) -> Result<PathBuf> {
+    if sources_len > 1 || (dest_exists && dest_is_dir) {
+        let source_name = source_path
+            .file_name()
+            .unwrap_or(source_path.as_os_str())
+            .to_os_string();
+        let dest_base = resolve_dest_path(destination, share, source_branch_index, cache)?;
+        Ok(dest_base.join(source_name))
+    } else {
+        resolve_dest_path(destination, share, source_branch_index, cache)
+    }
 }
 
 #[allow(
@@ -839,94 +928,139 @@ fn process_source(source: &Path, dest: &Path, config: &CopyConfig, stats: &Arc<C
     }
 
     if source_is_dir {
-        // Handle directory
-        if dest_exists {
-            let dest_is_dir = dest.is_dir();
-            if !dest_is_dir {
-                // Folder over file conflict
-                stats.conflicts_resolved.fetch_add(1, Ordering::Relaxed);
-                return handle_folder_over_file(dest, source, config, stats);
-            }
-            // Folder over folder - merge
-        } else {
-            // Create destination directory
-            if !config.simulate {
-                fs::create_dir_all(dest)?;
-            }
-            stats.folders_created.fetch_add(1, Ordering::Relaxed);
+        process_directory(source, dest, config, stats)
+    } else {
+        process_file_source(source, dest, config, stats, dest_exists)
+    }
+}
+
+/// Process a directory source
+///
+/// # Errors
+///
+/// Returns an error if the directory cannot be processed.
+fn process_directory(source: &Path, dest: &Path, config: &CopyConfig, stats: &Arc<CopyStats>) -> Result<()> {
+    let dest_exists = dest.exists();
+
+    if dest_exists {
+        if !dest.is_dir() {
+            stats.conflicts_resolved.fetch_add(1, Ordering::Relaxed);
+            return handle_folder_over_file(dest, source, config, stats);
         }
-
-        // Recursively process directory contents sequentially
-        let entries = fs::read_dir(source)?;
-
-        for entry_result in entries {
-            let entry = entry_result?;
-            let entry_path = entry.path();
-            let entry_name = entry.file_name();
-            let entry_dest = dest.join(&entry_name);
-
-            // Process sequentially - we're already in a worker thread
-            if let Err(e) = process_source(&entry_path, &entry_dest, config, stats) {
-                eprintln!(
-                    "Error processing {}: {}",
-                    shell_quote(entry_path.to_string_lossy().as_ref()),
-                    e
-                );
-            }
+    } else {
+        if !config.simulate {
+            fs::create_dir_all(dest)?;
         }
+    }
+    stats.folders_created.fetch_add(1, Ordering::Relaxed);
+
+    process_directory_contents(source, dest, config, stats)
+}
+
+/// Process directory contents recursively
+///
+/// # Errors
+///
+/// Returns an error if directory cannot be read.
+fn process_directory_contents(source: &Path, dest: &Path, config: &CopyConfig, stats: &Arc<CopyStats>) -> Result<()> {
+    let entries = fs::read_dir(source)?;
+
+    for entry_result in entries {
+        let entry = entry_result?;
+        let entry_path = entry.path();
+        let entry_dest = dest.join(entry.file_name());
+
+        if let Err(e) = process_source(&entry_path, &entry_dest, config, stats) {
+            eprintln!(
+                "Error processing {}: {}",
+                shell_quote(entry_path.to_string_lossy().as_ref()),
+                e
+            );
+        }
+    }
+    Ok(())
+}
+
+/// Process a file source (handles filtering and conflicts)
+///
+/// # Errors
+///
+/// Returns an error if the file cannot be processed.
+fn process_file_source(
+    source: &Path,
+    dest: &Path,
+    config: &CopyConfig,
+    stats: &Arc<CopyStats>,
+    dest_exists: bool,
+) -> Result<()> {
+    if !matches_extension(source, &config.extensions) {
         return Ok(());
     }
-    // Handle file
-    // Check extension filter
-    if !config.extensions.is_empty() {
-        let ext = source.extension().and_then(|s| s.to_str()).unwrap_or("");
-        let matches = config.extensions.iter().any(|e| e.trim_start_matches('.') == ext);
-        if !matches {
-            return Ok(());
-        }
+
+    if !matches_filters(source, &config.include, &config.exclude) {
+        return Ok(());
     }
 
-    // Apply include/exclude filters
+    if dest_exists {
+        handle_file_conflicts(source, dest, config, stats)
+    } else {
+        process_file(source, dest, config, stats)?;
+        Ok(())
+    }
+}
+
+/// Check if file matches extension filter
+fn matches_extension(source: &Path, extensions: &[String]) -> bool {
+    if extensions.is_empty() {
+        return true;
+    }
+    let ext = source.extension().and_then(|s| s.to_str()).unwrap_or("");
+    extensions.iter().any(|e| e.trim_start_matches('.') == ext)
+}
+
+/// Check if file matches include/exclude filters
+fn matches_filters(source: &Path, include: &[String], exclude: &[String]) -> bool {
     let file_name = source.file_name().unwrap_or(source.as_os_str());
     let file_name_str = file_name.to_string_lossy();
-    if !config.include.is_empty() {
-        let matches = config.include.iter().any(|p| {
+
+    if !include.is_empty() {
+        let matches = include.iter().any(|p| {
             glob::Pattern::new(p)
                 .map(|pat| pat.matches(&file_name_str))
                 .unwrap_or(false)
         });
         if !matches {
-            return Ok(());
+            return false;
         }
     }
-    if !config.exclude.is_empty() {
-        let matches = config.exclude.iter().any(|p| {
+
+    if !exclude.is_empty() {
+        let matches = exclude.iter().any(|p| {
             glob::Pattern::new(p)
                 .map(|pat| pat.matches(&file_name_str))
                 .unwrap_or(false)
         });
         if matches {
-            return Ok(());
+            return false;
         }
     }
 
-    // Check if destination exists
-    if dest_exists {
-        let dest_is_dir = dest.is_dir();
-        if dest_is_dir {
-            // File over folder - apply strategy
-            stats.conflicts_resolved.fetch_add(1, Ordering::Relaxed);
-            return handle_file_over_folder(source, dest, config, stats);
-        }
-        // File over file conflict
-        stats.conflicts_resolved.fetch_add(1, Ordering::Relaxed);
-        return handle_file_over_file(source, dest, config, stats);
+    true
+}
+
+/// Handle file conflicts (destination exists)
+///
+/// # Errors
+///
+/// Returns an error if conflict resolution fails.
+fn handle_file_conflicts(source: &Path, dest: &Path, config: &CopyConfig, stats: &Arc<CopyStats>) -> Result<()> {
+    stats.conflicts_resolved.fetch_add(1, Ordering::Relaxed);
+
+    if dest.is_dir() {
+        handle_file_over_folder(source, dest, config, stats)
+    } else {
+        handle_file_over_file(source, dest, config, stats)
     }
-
-    // No conflict - just copy/move
-    process_file(source, dest, config, stats)?;
-
-    Ok(())
 }
 #[allow(clippy::too_many_lines)]
 /// Process a single file copy/move operation
@@ -1412,7 +1546,15 @@ fn get_unique_filename(base: &Path) -> PathBuf {
 
     let dir = base.parent().unwrap_or_else(|| Path::new("."));
     let Some(file_stem) = base.file_stem().and_then(|s| s.to_str()) else {
-        return base.to_path_buf();
+        // Handle files with invalid UTF-8 or no stem by appending timestamp
+        return dir.join(format!(
+            "{}_{}",
+            base.file_name().unwrap_or_default().to_string_lossy(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_millis()
+        ));
     };
     let extension = base.extension().and_then(|s| s.to_str()).unwrap_or("");
 
@@ -1429,17 +1571,23 @@ fn get_unique_filename(base: &Path) -> PathBuf {
             format!("{base_name}_{i}.{extension}")
         };
         let new_path = dir.join(&new_name);
+        // Use atomic check-and-create to avoid race conditions
         if !new_path.exists() {
             return new_path;
         }
     }
 
-    // Fallback (shouldn't reach here in normal circumstances)
-    base.to_path_buf().with_extension(format!(
-        "{}.{}",
-        base.extension().unwrap_or_default().to_string_lossy(),
-        "conflict"
-    ))
+    // Fallback: use timestamp to guarantee uniqueness
+    let timestamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis();
+    let fallback_name = if extension.is_empty() {
+        format!("{base_name}_{timestamp}")
+    } else {
+        format!("{base_name}_{timestamp}.{extension}")
+    };
+    dir.join(&fallback_name)
 }
 
 /// Find the base name and next index from a file stem that may have a _N suffix
@@ -1479,7 +1627,15 @@ fn get_unique_folder_name(base: &Path) -> PathBuf {
 
     let dir = base.parent().unwrap_or_else(|| Path::new("."));
     let Some(folder_name) = base.file_name().and_then(|s| s.to_str()) else {
-        return base.to_path_buf();
+        // Handle folders with invalid UTF-8 by appending timestamp
+        return dir.join(format!(
+            "{}_{}",
+            base.file_name().unwrap_or_default().to_string_lossy(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_millis()
+        ));
     };
 
     // Use the same suffix parsing logic as get_unique_filename
@@ -1493,7 +1649,12 @@ fn get_unique_folder_name(base: &Path) -> PathBuf {
         }
     }
 
-    base.to_path_buf().with_extension("conflict")
+    // Fallback: use timestamp to guarantee uniqueness
+    let timestamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis();
+    dir.join(format!("{base_name}_{timestamp}"))
 }
 
 /// Check if two files match by comparing their hashes
@@ -1519,11 +1680,18 @@ fn sample_hash(path: &Path, stats: &CopyStats) -> Result<String> {
 
     use crate::utils::KB;
 
+    /// Files <= this size are hashed entirely
+    const SMALL_FILE_THRESHOLD: u64 = 640 * KB;
+    /// Size of each chunk to sample in large files
+    const SAMPLE_CHUNK_SIZE: u64 = 64 * KB;
+    /// Number of samples to take from large files
+    const NUM_SAMPLES: u64 = 10;
+
     let metadata = fs::metadata(path)?;
     let size = metadata.len();
 
     // For small files, hash the entire content
-    if size <= 640 * KB {
+    if size <= SMALL_FILE_THRESHOLD {
         let mut hasher = DefaultHasher::new();
         fs::read(path)?.hash(&mut hasher);
         stats.full_hashes.fetch_add(1, Ordering::Relaxed);
@@ -1533,8 +1701,8 @@ fn sample_hash(path: &Path, stats: &CopyStats) -> Result<String> {
     // For larger files, sample at multiple positions
     let mut file = fs::File::open(path)?;
     let mut hasher = DefaultHasher::new();
-    let chunk_size: u64 = 64 * KB;
-    let num_samples: u64 = 10;
+    let chunk_size: u64 = SAMPLE_CHUNK_SIZE;
+    let num_samples: u64 = NUM_SAMPLES;
 
     stats.sample_hashes.fetch_add(1, Ordering::Relaxed);
 

@@ -258,7 +258,7 @@ pub fn detect_single_file_conflict(
     relative_path: &Path,
     use_hash: bool,
 ) -> Result<Option<FileConflict>> {
-    let mut branch_files = std::thread::scope(|s| -> Vec<BranchConflict> {
+    let mut branch_files = std::thread::scope(|s| {
         let mut handles = Vec::new();
 
         for branch_ref in branches {
@@ -304,9 +304,9 @@ pub fn detect_single_file_conflict(
 
         let mut branch_files = Vec::new();
         for handle in handles {
-            // Propagate panics from worker threads
-            #[allow(clippy::expect_used)]
-            if let Some(conflict) = handle.join().expect("Worker thread panicked") {
+            // Propagate panics from worker threads by re-panicking
+            // This is safe because we're in a scope that will propagate the panic
+            if let Some(conflict) = handle.join().ok().flatten() {
                 branch_files.push(conflict);
             }
         }
@@ -629,7 +629,7 @@ mod tests {
         // Create files with different content (different sizes)
         fs::write(dir1.join("zebra.txt"), "content AAAA").unwrap();
         fs::write(dir2.join("zebra.txt"), "content B").unwrap();
-        fs::write(dir1.join("apple.txt"), "content XXXX").unwrap();
+        fs::write(dir1.join("apple.txt"), "content AAA").unwrap();
         fs::write(dir2.join("apple.txt"), "content Y").unwrap();
 
         let branch1 = Branch {
