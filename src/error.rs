@@ -31,6 +31,9 @@ pub enum NofsError {
 
     #[error("Conflict resolution error: {0}")]
     Conflict(String),
+
+    #[error("{0}")]
+    Command(String),
 }
 
 pub type Result<T> = std::result::Result<T, NofsError>;

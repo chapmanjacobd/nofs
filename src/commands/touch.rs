@@ -46,3 +46,111 @@ pub fn execute(pool: &Pool, path: &str, verbose: bool) -> Result<()> {
 
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::pool::PoolManager;
+    use std::fs;
+    use std::path::PathBuf;
+    use std::time::Duration;
+
+    fn setup_test_pool(name: &str) -> (PoolManager, PathBuf) {
+        let test_dir = std::env::temp_dir().join(format!("nofs_test_touch_{name}"));
+        let _ = fs::remove_dir_all(&test_dir);
+        fs::create_dir_all(&test_dir).unwrap();
+
+        let branch_path = test_dir.join("branch1");
+        fs::create_dir_all(&branch_path).unwrap();
+
+        let config_content = format!(
+            r#"
+[share.test]
+paths = ["{}"]
+"#,
+            branch_path.display()
+        );
+
+        let config_path = test_dir.join("config.toml");
+        fs::write(&config_path, config_content).unwrap();
+
+        let pool_mgr = PoolManager::from_config(&config_path).unwrap();
+        (pool_mgr, test_dir)
+    }
+
+    fn cleanup_test_dir(test_dir: &PathBuf) {
+        let _ = fs::remove_dir_all(test_dir);
+    }
+
+    #[test]
+    fn test_touch_create() {
+        let (pool_mgr, test_dir) = setup_test_pool("create");
+        let pool = pool_mgr.get_pool("test").unwrap();
+
+        // Create a new file
+        execute(pool, "newfile.txt", false).unwrap();
+
+        let file_path = test_dir.join("branch1").join("newfile.txt");
+        assert!(file_path.exists());
+        assert!(file_path.is_file());
+
+        cleanup_test_dir(&test_dir);
+    }
+
+    #[test]
+    fn test_touch_update_timestamp() {
+        let (pool_mgr, test_dir) = setup_test_pool("update");
+        let pool = pool_mgr.get_pool("test").unwrap();
+
+        // Create a file first
+        let file_path = test_dir.join("branch1").join("existing.txt");
+        fs::write(&file_path, "content").unwrap();
+
+        // Get original modification time
+        let original_meta = fs::metadata(&file_path).unwrap();
+        let original_mtime = original_meta.modified().unwrap();
+
+        // Sleep to ensure time difference
+        std::thread::sleep(Duration::from_secs(2));
+
+        // Touch the file to update timestamp
+        execute(pool, "existing.txt", false).unwrap();
+
+        // Check that modification time was updated
+        let new_meta = fs::metadata(&file_path).unwrap();
+        let new_mtime = new_meta.modified().unwrap();
+
+        assert!(new_mtime > original_mtime, "Modification time should be updated");
+
+        cleanup_test_dir(&test_dir);
+    }
+
+    #[test]
+    fn test_touch_create_with_parent_dirs() {
+        let (pool_mgr, test_dir) = setup_test_pool("parent_dirs");
+        let pool = pool_mgr.get_pool("test").unwrap();
+
+        // Create a file in a nested directory (parent dirs should be created)
+        execute(pool, "parent/child/file.txt", false).unwrap();
+
+        let file_path = test_dir.join("branch1").join("parent/child/file.txt");
+        assert!(file_path.exists());
+        assert!(file_path.is_file());
+
+        cleanup_test_dir(&test_dir);
+    }
+
+    #[test]
+    fn test_touch_verbose() {
+        let (pool_mgr, test_dir) = setup_test_pool("verbose");
+        let pool = pool_mgr.get_pool("test").unwrap();
+
+        // Create a file with verbose output
+        execute(pool, "verbose.txt", true).unwrap();
+
+        let file_path = test_dir.join("branch1").join("verbose.txt");
+        assert!(file_path.exists());
+
+        cleanup_test_dir(&test_dir);
+    }
+}

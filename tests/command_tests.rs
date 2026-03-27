@@ -870,4 +870,310 @@ paths = ["{0}/disk1", "{0}/disk2"]
             "File should NOT be on disk2 (different branch)"
         );
     }
+
+    #[test]
+    fn mkdir_command() {
+        let ctx = TestContext::new("cmd_mkdir");
+
+        let _ = ctx.create_branch("disk1", &[]);
+
+        let config = format!(
+            r#"
+[share.test]
+paths = ["{0}/disk1"]
+"#,
+            ctx.root.display()
+        );
+
+        ctx.write_config(&config);
+
+        let output = ctx.run_nofs(&[
+            "--config",
+            ctx.config_path.to_str().unwrap(),
+            "mkdir",
+            "test:newdir",
+        ]);
+
+        assert!(output.success(), "Command failed: {}", output.stderr);
+
+        let dir_path = ctx.path("disk1/newdir");
+        assert!(dir_path.exists(), "Directory should be created");
+        assert!(dir_path.is_dir(), "Should be a directory");
+    }
+
+    #[test]
+    fn mkdir_command_with_parents() {
+        let ctx = TestContext::new("cmd_mkdir_parents");
+
+        let _ = ctx.create_branch("disk1", &[]);
+
+        let config = format!(
+            r#"
+[share.test]
+paths = ["{0}/disk1"]
+"#,
+            ctx.root.display()
+        );
+
+        ctx.write_config(&config);
+
+        let output = ctx.run_nofs(&[
+            "--config",
+            ctx.config_path.to_str().unwrap(),
+            "mkdir",
+            "-p",
+            "test:parent/child/grandchild",
+        ]);
+
+        assert!(output.success(), "Command failed: {}", output.stderr);
+
+        let dir_path = ctx.path("disk1/parent/child/grandchild");
+        assert!(dir_path.exists(), "Nested directory should be created");
+        assert!(dir_path.is_dir(), "Should be a directory");
+    }
+
+    #[test]
+    fn rmdir_command() {
+        let ctx = TestContext::new("cmd_rmdir");
+
+        let _ = ctx.create_branch("disk1/emptydir", &[]);
+
+        let config = format!(
+            r#"
+[share.test]
+paths = ["{0}/disk1"]
+"#,
+            ctx.root.display()
+        );
+
+        ctx.write_config(&config);
+
+        let output = ctx.run_nofs(&[
+            "--config",
+            ctx.config_path.to_str().unwrap(),
+            "rmdir",
+            "test:emptydir",
+        ]);
+
+        assert!(output.success(), "Command failed: {}", output.stderr);
+
+        let dir_path = ctx.path("disk1/emptydir");
+        assert!(!dir_path.exists(), "Directory should be removed");
+    }
+
+    #[test]
+    fn rmdir_command_nonempty_fails() {
+        let ctx = TestContext::new("cmd_rmdir_nonempty");
+
+        let _ = ctx.create_branch("disk1/nonemptydir", &["file.txt"]);
+
+        let config = format!(
+            r#"
+[share.test]
+paths = ["{0}/disk1"]
+"#,
+            ctx.root.display()
+        );
+
+        ctx.write_config(&config);
+
+        let output = ctx.run_nofs(&[
+            "--config",
+            ctx.config_path.to_str().unwrap(),
+            "rmdir",
+            "test:nonemptydir",
+        ]);
+
+        assert!(
+            !output.success(),
+            "rmdir should fail on non-empty directory"
+        );
+        assert!(
+            output.stderr.contains("not empty"),
+            "Error should mention 'not empty'"
+        );
+
+        let dir_path = ctx.path("disk1/nonemptydir");
+        assert!(dir_path.exists(), "Directory should still exist");
+    }
+
+    #[test]
+    fn touch_command_create() {
+        let ctx = TestContext::new("cmd_touch_create");
+
+        let _ = ctx.create_branch("disk1", &[]);
+
+        let config = format!(
+            r#"
+[share.test]
+paths = ["{0}/disk1"]
+"#,
+            ctx.root.display()
+        );
+
+        ctx.write_config(&config);
+
+        let output = ctx.run_nofs(&[
+            "--config",
+            ctx.config_path.to_str().unwrap(),
+            "touch",
+            "test:newfile.txt",
+        ]);
+
+        assert!(output.success(), "Command failed: {}", output.stderr);
+
+        let file_path = ctx.path("disk1/newfile.txt");
+        assert!(file_path.exists(), "File should be created");
+        assert!(file_path.is_file(), "Should be a file");
+    }
+
+    #[test]
+    fn touch_command_update() {
+        let ctx = TestContext::new("cmd_touch_update");
+
+        let _ = ctx.create_branch("disk1", &["existing.txt"]);
+
+        let config = format!(
+            r#"
+[share.test]
+paths = ["{0}/disk1"]
+"#,
+            ctx.root.display()
+        );
+
+        ctx.write_config(&config);
+
+        let output = ctx.run_nofs(&[
+            "--config",
+            ctx.config_path.to_str().unwrap(),
+            "touch",
+            "test:existing.txt",
+        ]);
+
+        assert!(output.success(), "Command failed: {}", output.stderr);
+
+        let file_path = ctx.path("disk1/existing.txt");
+        assert!(file_path.exists(), "File should still exist");
+    }
+
+    #[test]
+    fn rm_command_file() {
+        let ctx = TestContext::new("cmd_rm_file");
+
+        let _ = ctx.create_branch("disk1", &["file.txt"]);
+
+        let config = format!(
+            r#"
+[share.test]
+paths = ["{0}/disk1"]
+"#,
+            ctx.root.display()
+        );
+
+        ctx.write_config(&config);
+
+        let output = ctx.run_nofs(&[
+            "--config",
+            ctx.config_path.to_str().unwrap(),
+            "rm",
+            "test:file.txt",
+        ]);
+
+        assert!(output.success(), "Command failed: {}", output.stderr);
+
+        let file_path = ctx.path("disk1/file.txt");
+        assert!(!file_path.exists(), "File should be removed");
+    }
+
+    #[test]
+    fn rm_command_directory() {
+        let ctx = TestContext::new("cmd_rm_dir");
+
+        let _ = ctx.create_branch("disk1/dir", &[]);
+
+        let config = format!(
+            r#"
+[share.test]
+paths = ["{0}/disk1"]
+"#,
+            ctx.root.display()
+        );
+
+        ctx.write_config(&config);
+
+        let output = ctx.run_nofs(&[
+            "--config",
+            ctx.config_path.to_str().unwrap(),
+            "rm",
+            "test:dir",
+        ]);
+
+        assert!(output.success(), "Command failed: {}", output.stderr);
+
+        let dir_path = ctx.path("disk1/dir");
+        assert!(!dir_path.exists(), "Directory should be removed");
+    }
+
+    #[test]
+    fn rm_command_recursive() {
+        let ctx = TestContext::new("cmd_rm_recursive");
+
+        let _ = ctx.create_branch("disk1/dir/subdir", &["file.txt"]);
+
+        let config = format!(
+            r#"
+[share.test]
+paths = ["{0}/disk1"]
+"#,
+            ctx.root.display()
+        );
+
+        ctx.write_config(&config);
+
+        let output = ctx.run_nofs(&[
+            "--config",
+            ctx.config_path.to_str().unwrap(),
+            "rm",
+            "-r",
+            "test:dir",
+        ]);
+
+        assert!(output.success(), "Command failed: {}", output.stderr);
+
+        let dir_path = ctx.path("disk1/dir");
+        assert!(!dir_path.exists(), "Directory tree should be removed");
+    }
+
+    #[test]
+    fn rm_command_nonexistent_fails() {
+        let ctx = TestContext::new("cmd_rm_nonexistent");
+
+        let _ = ctx.create_branch("disk1", &[]);
+
+        let config = format!(
+            r#"
+[share.test]
+paths = ["{0}/disk1"]
+"#,
+            ctx.root.display()
+        );
+
+        ctx.write_config(&config);
+
+        let output = ctx.run_nofs(&[
+            "--config",
+            ctx.config_path.to_str().unwrap(),
+            "rm",
+            "test:nonexistent.txt",
+        ]);
+
+        assert!(
+            !output.success(),
+            "rm should fail on nonexistent file"
+        );
+        assert!(
+            output.stderr.contains("No such file"),
+            "Error should mention 'No such file'"
+        );
+    }
 }

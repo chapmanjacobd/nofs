@@ -451,7 +451,10 @@ fn main() -> Result<()> {
         } => {
             for path in paths {
                 let (pool, pool_path) = pool_mgr.resolve_context_path(&path)?;
-                commands::rm::execute(pool, pool_path, recursive, verbose || cli.verbose)?;
+                if let Err(e) = commands::rm::execute(pool, pool_path, recursive, verbose || cli.verbose) {
+                    eprintln!("nofs: {e}");
+                    std::process::exit(1);
+                }
             }
         }
         Commands::Mkdir {
@@ -464,7 +467,10 @@ fn main() -> Result<()> {
         }
         Commands::Rmdir { path, verbose } => {
             let (pool, pool_path) = pool_mgr.resolve_context_path(&path)?;
-            commands::rmdir::execute(pool, pool_path, verbose || cli.verbose)?;
+            if let Err(e) = commands::rmdir::execute(pool, pool_path, verbose || cli.verbose) {
+                eprintln!("nofs: {e}");
+                std::process::exit(1);
+            }
         }
         Commands::Touch { path, verbose } => {
             let (pool, pool_path) = pool_mgr.resolve_context_path(&path)?;
