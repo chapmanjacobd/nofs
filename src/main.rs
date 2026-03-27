@@ -4,6 +4,7 @@
 //! All operations happen via subcommands with optional TOML configuration.
 
 pub mod branch;
+pub mod cache;
 pub mod commands;
 pub mod config;
 pub mod conflict;

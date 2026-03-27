@@ -2,10 +2,11 @@
 //!
 //! A branch is a path that contributes to the share pool.
 
+use crate::cache::OperationCache;
 use crate::error::{NofsError, Result};
 use serde::{Deserialize, Serialize};
 use std::ffi::CString;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
 /// Branch mode determines how a branch can be used
@@ -210,5 +211,68 @@ impl Branch {
     #[allow(clippy::float_arithmetic)]
     pub fn used_percentage(&self) -> Result<f64> {
         Ok(100.0 - self.free_percentage()?)
+    }
+
+    /// Get available space, using cache if available
+    ///
+    /// This method checks the cache first before calling statvfs,
+    /// reducing redundant syscalls during batch operations.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if statvfs fails and the value is not cached.
+    pub fn available_space_cached(&self, cache: &OperationCache) -> Result<u64> {
+        if let Some(cached) = cache.get_space(&self.path) {
+            return Ok(cached.available);
+        }
+
+        let available = self.available_space()?;
+
+        // Update cache with full space info if we can get total too
+        if let Ok(total) = self.total_space() {
+            use crate::cache::SpaceInfo;
+            cache.set_space(self.path.clone(), SpaceInfo { available, total });
+        }
+
+        Ok(available)
+    }
+
+    /// Get total space, using cache if available
+    ///
+    /// This method checks the cache first before calling statvfs,
+    /// reducing redundant syscalls during batch operations.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if statvfs fails and the value is not cached.
+    pub fn total_space_cached(&self, cache: &OperationCache) -> Result<u64> {
+        if let Some(cached) = cache.get_space(&self.path) {
+            return Ok(cached.total);
+        }
+
+        let total = self.total_space()?;
+
+        // Update cache with full space info if we can get available too
+        if let Ok(available) = self.available_space() {
+            use crate::cache::SpaceInfo;
+            cache.set_space(self.path.clone(), SpaceInfo { available, total });
+        }
+
+        Ok(total)
+    }
+
+    /// Check path existence with caching
+    ///
+    /// This method checks the cache first before calling path.exists(),
+    /// reducing redundant filesystem calls during batch operations.
+    #[must_use]
+    pub fn path_exists_cached(&self, relative_path: &Path, cache: &OperationCache) -> bool {
+        if let Some(cached) = cache.get_exists(&self.path, relative_path) {
+            return cached;
+        }
+
+        let exists = self.path.join(relative_path).exists();
+        cache.set_exists(self.path.clone(), relative_path, exists);
+        exists
     }
 }

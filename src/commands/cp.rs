@@ -4,6 +4,7 @@
 //! conflict resolution strategies, and parallel operations.
 
 use crate::branch::Branch;
+use crate::cache::OperationCache;
 use crate::error::{NofsError, Result};
 use crate::pool::Pool;
 use std::fs;
@@ -32,7 +33,12 @@ struct ResolvedPath {
 ///
 /// Returns an error if the share is not found or if path resolution fails.
 #[allow(clippy::arithmetic_side_effects)]
-fn resolve_path(path_str: &str, share: Option<&Pool>, for_create: bool) -> Result<ResolvedPath> {
+fn resolve_path(
+    path_str: &str,
+    share: Option<&Pool>,
+    for_create: bool,
+    cache: &OperationCache,
+) -> Result<ResolvedPath> {
     if let Some(colon_idx) = path_str.find(':') {
         let potential_prefix = &path_str[..colon_idx];
         if !potential_prefix.contains('/') {
@@ -43,7 +49,8 @@ fn resolve_path(path_str: &str, share: Option<&Pool>, for_create: bool) -> Resul
                 if pool.name == share_name {
                     let (branch, branch_idx) = if for_create {
                         // For create operations, use policy-based selection
-                        let branch = select_branch_for_create(pool, Some(relative_path.as_ref()))?;
+                        let branch =
+                            select_branch_for_create(pool, Some(relative_path.as_ref()), cache)?;
                         let idx = pool
                             .branches
                             .iter()
@@ -52,7 +59,7 @@ fn resolve_path(path_str: &str, share: Option<&Pool>, for_create: bool) -> Resul
                         (branch, idx)
                     } else {
                         // For existing files, find the branch containing the file
-                        let branch = select_branch_for_read(pool, Path::new(relative_path))?;
+                        let branch = select_branch_for_read(pool, Path::new(relative_path), cache)?;
                         let idx = pool
                             .branches
                             .iter()
@@ -84,21 +91,26 @@ fn resolve_path(path_str: &str, share: Option<&Pool>, for_create: bool) -> Resul
 fn select_branch_for_create<'a>(
     pool: &'a Pool,
     relative_path: Option<&Path>,
+    cache: &'a OperationCache,
 ) -> Result<&'a Branch> {
     use crate::policy::CreatePolicy;
 
-    let policy_executor = CreatePolicy::new(&pool.branches, pool.minfreespace);
+    let policy_executor = CreatePolicy::with_cache(&pool.branches, pool.minfreespace, cache);
     policy_executor
         .select(pool.create_policy, relative_path)
         .map_err(|e| NofsError::CopyMove(format!("No suitable branch: {e}")))
 }
 
 /// Select a branch for read operations (finds the branch containing the file)
-fn select_branch_for_read<'a>(pool: &'a Pool, relative_path: &Path) -> Result<&'a Branch> {
+fn select_branch_for_read<'a>(
+    pool: &'a Pool,
+    relative_path: &Path,
+    cache: &'a OperationCache,
+) -> Result<&'a Branch> {
     // For reads, find the branch that has the file
     // Prefer RW branches, then NC, then RO
     for branch in &pool.branches {
-        if branch.path.join(relative_path).exists() {
+        if branch.path_exists_cached(relative_path, cache) {
             return Ok(branch);
         }
     }
@@ -123,6 +135,7 @@ fn resolve_dest_path(
     dest_str: &str,
     share: Option<&Pool>,
     source_branch_index: Option<usize>,
+    cache: &OperationCache,
 ) -> Result<PathBuf> {
     if let Some(colon_idx) = dest_str.find(':') {
         let potential_prefix = &dest_str[..colon_idx];
@@ -144,7 +157,8 @@ fn resolve_dest_path(
                     }
 
                     // Otherwise, use policy-based selection
-                    let branch = select_branch_for_create(pool, Some(relative_path.as_ref()))?;
+                    let branch =
+                        select_branch_for_create(pool, Some(relative_path.as_ref()), cache)?;
                     return Ok(branch.path.join(relative_path));
                 }
             }
@@ -349,8 +363,11 @@ pub fn execute(
         ));
     }
 
+    // Create operation cache for this command execution
+    let cache = OperationCache::new();
+
     // Resolve destination path (may have share: prefix) - for create
-    let dest_path = resolve_path(destination, share, true)?.path;
+    let dest_path = resolve_path(destination, share, true, &cache)?.path;
 
     // Check if destination exists
     let dest_exists = dest_path.exists();
@@ -371,7 +388,7 @@ pub fn execute(
     // Process each source
     for source in sources {
         // Resolve source path (may have share: prefix) - for read (existing file)
-        let source_resolved = resolve_path(source, share, false)?;
+        let source_resolved = resolve_path(source, share, false, &cache)?;
         let source_path = &source_resolved.path;
         let source_branch_index = source_resolved.branch_index;
 
@@ -387,11 +404,11 @@ pub fn execute(
             let source_name = source_path.file_name().unwrap_or(source_path.as_os_str());
 
             // If destination is a share path, resolve it using the same branch as source
-            let dest_base = resolve_dest_path(destination, share, source_branch_index)?;
+            let dest_base = resolve_dest_path(destination, share, source_branch_index, &cache)?;
             dest_base.join(source_name)
         } else {
             // Single file to single file - resolve destination preserving source branch
-            resolve_dest_path(destination, share, source_branch_index)?
+            resolve_dest_path(destination, share, source_branch_index, &cache)?
         };
 
         // Process the source

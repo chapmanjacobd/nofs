@@ -1,6 +1,7 @@
 //! ls command - List directory contents
 
 use crate::branch::Branch;
+use crate::cache::OperationCache;
 use crate::conflict::{detect_conflicts, FileConflict};
 use crate::error::{NofsError, Result};
 use crate::pool::Pool;
@@ -26,8 +27,11 @@ pub fn execute(
 ) -> Result<()> {
     let pool_path = Path::new(path);
 
-    // Find all branches with this path
-    let branches = pool.find_all_branches(pool_path);
+    // Create operation cache for this command execution
+    let cache = OperationCache::new();
+
+    // Find all branches with this path (cached)
+    let branches = pool.find_all_branches_cached(pool_path, &cache);
 
     if branches.is_empty() {
         return Err(NofsError::Command(format!(

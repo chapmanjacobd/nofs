@@ -3,6 +3,7 @@
 //! A pool is a share of multiple branches.
 
 use crate::branch::Branch;
+use crate::cache::OperationCache;
 use crate::config::Config;
 use crate::error::{NofsError, Result};
 use crate::policy::Policy;
@@ -271,5 +272,88 @@ impl Pool {
         self.branches
             .iter()
             .any(|b| b.path.join(pool_path).exists())
+    }
+
+    /// Get total available space across all RW branches (cached)
+    #[must_use]
+    pub fn total_available_space_cached(&self, cache: &OperationCache) -> u64 {
+        self.branches
+            .iter()
+            .filter(|b| b.can_create())
+            .filter_map(|b| b.available_space_cached(cache).ok())
+            .sum()
+    }
+
+    /// Get total space across all branches (cached)
+    #[must_use]
+    pub fn total_space_cached(&self, cache: &OperationCache) -> u64 {
+        self.branches
+            .iter()
+            .filter_map(|b| b.total_space_cached(cache).ok())
+            .sum()
+    }
+
+    /// Get total used space across all branches (cached)
+    #[must_use]
+    #[allow(clippy::arithmetic_side_effects)]
+    pub fn total_used_space_cached(&self, cache: &OperationCache) -> u64 {
+        self.total_space_cached(cache) - self.total_available_space_cached(cache)
+    }
+
+    /// Resolve a pool path to actual branch paths (cached)
+    /// Returns all branches where the path exists
+    #[must_use]
+    pub fn resolve_path_cached(&self, pool_path: &Path, cache: &OperationCache) -> Vec<PathBuf> {
+        self.branches
+            .iter()
+            .filter(|b| b.path_exists_cached(pool_path, cache))
+            .map(|b| b.path.join(pool_path))
+            .collect()
+    }
+
+    /// Find the first branch where a path exists (cached)
+    #[must_use]
+    pub fn resolve_path_first_cached(&self, pool_path: &Path, cache: &OperationCache) -> Option<PathBuf> {
+        self.branches
+            .iter()
+            .find(|b| b.path_exists_cached(pool_path, cache))
+            .map(|b| b.path.join(pool_path))
+    }
+
+    /// Get the best branch for creating a file at the given path (cached)
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if no suitable branch is found.
+    pub fn select_create_branch_cached<'a>(
+        &'a self,
+        relative_path: &Path,
+        cache: &'a OperationCache,
+    ) -> Result<&'a Branch> {
+        use crate::policy::CreatePolicy;
+
+        let policy = CreatePolicy::with_cache(&self.branches, self.minfreespace, cache);
+        policy.select(self.create_policy, Some(relative_path))
+    }
+
+    /// Get all branches containing a path (cached)
+    #[must_use]
+    pub fn find_all_branches_cached<'a>(
+        &'a self,
+        relative_path: &Path,
+        cache: &'a OperationCache,
+    ) -> Vec<&'a Branch> {
+        use crate::policy::SearchPolicy;
+
+        let search = SearchPolicy::with_cache(&self.branches, cache);
+        search.find_all(relative_path)
+    }
+
+    /// Check if a path exists in the pool (cached)
+    #[must_use]
+    pub fn exists_cached(&self, pool_path: &Path, cache: &OperationCache) -> bool {
+        self.branches
+            .iter()
+            .any(|b| b.path_exists_cached(pool_path, cache))
     }
 }

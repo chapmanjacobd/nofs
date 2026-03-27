@@ -1,7 +1,3 @@
-caching layer - Branch metadata (space, existence checks) is queried on every operation, which could be slow for large pools or remote filesystems.
-
 shell integration/completion - Missing shell completion scripts (bash, zsh, fish) and no man page generation.
 
 JSON/machine-readable output - All commands output human-readable text only. No --json flag for scripting/automation integration.
-
-No benchmarking/performance tools - No built-in way to measure operation latency across branches or compare policy performance.

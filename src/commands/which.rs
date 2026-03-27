@@ -1,5 +1,6 @@
 //! which command - Find which branch contains a file
 
+use crate::cache::OperationCache;
 use crate::conflict::detect_single_file_conflict;
 use crate::error::Result;
 use crate::pool::Pool;
@@ -22,9 +23,12 @@ pub fn execute(
 ) -> Result<()> {
     let pool_path = Path::new(path);
 
+    // Create operation cache for this command execution
+    let cache = OperationCache::new();
+
     if all {
-        // Show all branches containing the file
-        let branches = pool.find_all_branches(pool_path);
+        // Show all branches containing the file (cached)
+        let branches = pool.find_all_branches_cached(pool_path, &cache);
 
         if branches.is_empty() {
             eprintln!("nofs: '{path}' not found in share");
@@ -59,8 +63,8 @@ pub fn execute(
             writeln!(handle, "{}", full_path.display())?;
         }
     }
-    // Show first branch containing the file
-    else if let Some(full_path) = pool.resolve_path_first(pool_path) {
+    // Show first branch containing the file (cached)
+    else if let Some(full_path) = pool.resolve_path_first_cached(pool_path, &cache) {
         if verbose {
             eprintln!("selected:");
             eprintln!("  {} (first-found policy)", full_path.display());
