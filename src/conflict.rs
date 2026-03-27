@@ -287,12 +287,10 @@ pub fn detect_single_file_conflict(
     if files_differ(&branch_files, use_hash) {
         branch_files.sort_by(|a, b| a.path.cmp(&b.path));
 
-        let file_name = relative_path
-            .file_name()
-            .map_or_else(
-                || relative_path.to_string_lossy().to_string(),
-                |s| s.to_string_lossy().to_string(),
-            );
+        let file_name = relative_path.file_name().map_or_else(
+            || relative_path.to_string_lossy().to_string(),
+            |s| s.to_string_lossy().to_string(),
+        );
 
         Ok(Some(FileConflict {
             name: file_name,

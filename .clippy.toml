@@ -7,7 +7,8 @@ allow-dbg-in-tests = true
 
 # Complexity thresholds
 too-many-lines-threshold = 100
-cognitive-complexity-threshold = 25
+cognitive-complexity-threshold = 15
+max-trait-bounds = 3
 
 # Code quality
 max-struct-bools = 3
