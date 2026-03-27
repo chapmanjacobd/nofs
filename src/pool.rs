@@ -33,6 +33,7 @@ pub struct Pool {
 
 /// Pool manager - holds multiple named pools
 pub struct PoolManager {
+    /// Map of pool names to pool instances
     pools: HashMap<String, Pool>,
 }
 
@@ -207,7 +208,7 @@ impl Pool {
 
     /// Get number of branches
     #[must_use]
-    pub fn branch_count(&self) -> usize {
+    pub const fn branch_count(&self) -> usize {
         self.branches.len()
     }
 

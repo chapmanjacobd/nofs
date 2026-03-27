@@ -17,7 +17,7 @@ pub fn execute(pool: &Pool, path: &str, verbose: bool) -> Result<()> {
 
     if branches.is_empty() {
         // File doesn't exist - create on best branch
-        let parent = pool_path.parent().unwrap_or(Path::new(""));
+        let parent = pool_path.parent().unwrap_or_else(|| Path::new(""));
         let branch = pool.select_create_branch(parent)?;
 
         // Create the full path on the selected branch

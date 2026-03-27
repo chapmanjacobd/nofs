@@ -43,18 +43,22 @@ pub struct ShareConfig {
     pub minfreespace: String,
 }
 
+/// Default create policy
 fn default_create_policy() -> String {
     "pfrd".to_string()
 }
 
+/// Default search policy
 fn default_search_policy() -> String {
     "ff".to_string()
 }
 
+/// Default action policy
 fn default_action_policy() -> String {
     "epall".to_string()
 }
 
+/// Default minimum free space threshold
 fn default_minfreespace() -> String {
     "4G".to_string()
 }
@@ -201,6 +205,7 @@ pub fn find_default_config() -> Option<PathBuf> {
     locations.into_iter().flatten().find(|loc| loc.exists())
 }
 
+/// Get the home directory from HOME environment variable
 fn dirs_home() -> Option<PathBuf> {
     std::env::var_os("HOME").map(PathBuf::from)
 }

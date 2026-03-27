@@ -101,6 +101,7 @@ pub fn execute(pool: &Pool, human: bool, _verbose: bool) -> Result<()> {
     Ok(())
 }
 
+/// Format size in human-readable format
 fn format_size(size: u64) -> String {
     const KB: u64 = 1024;
     const MB: u64 = KB * 1024;
@@ -125,6 +126,7 @@ fn format_size(size: u64) -> String {
     }
 }
 
+/// Truncate a path string to a maximum length
 #[allow(clippy::arithmetic_side_effects)]
 fn truncate_path(s: &str, max_len: usize) -> String {
     if s.len() <= max_len {

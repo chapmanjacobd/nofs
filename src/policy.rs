@@ -92,13 +92,15 @@ impl std::fmt::Display for Policy {
 
 /// Policy executor for create operations
 pub struct CreatePolicy<'ctx> {
+    /// Branches to select from
     branches: &'ctx [Branch],
+    /// Minimum free space threshold
     minfreespace: u64,
 }
 
 impl<'ctx> CreatePolicy<'ctx> {
     #[must_use]
-    pub fn new(branches: &'ctx [Branch], minfreespace: u64) -> Self {
+    pub const fn new(branches: &'ctx [Branch], minfreespace: u64) -> Self {
         CreatePolicy {
             branches,
             minfreespace,
@@ -183,6 +185,7 @@ impl<'ctx> CreatePolicy<'ctx> {
         }
     }
 
+    /// Fallback policy selection when original policy cannot be applied
     #[allow(clippy::unnecessary_wraps)]
     fn select_fallback(policy: Policy, eligible: &[&'ctx Branch]) -> Result<&'ctx Branch> {
         match policy {
@@ -200,6 +203,7 @@ impl<'ctx> CreatePolicy<'ctx> {
         }
     }
 
+    /// Select branch based on percentage free random distribution
     #[allow(clippy::arithmetic_side_effects)]
     fn select_pfrd(branches: &[&'ctx Branch]) -> Result<&'ctx Branch> {
         // Calculate total available space
@@ -229,6 +233,7 @@ impl<'ctx> CreatePolicy<'ctx> {
         branches.last().copied().ok_or(NofsError::NoSuitableBranch)
     }
 
+    /// Select branch with most free space
     fn select_mfs(branches: &[&'ctx Branch]) -> Result<&'ctx Branch> {
         branches
             .iter()
@@ -237,6 +242,7 @@ impl<'ctx> CreatePolicy<'ctx> {
             .ok_or(NofsError::NoSuitableBranch)
     }
 
+    /// Select branch with least free space
     fn select_lfs(branches: &[&'ctx Branch]) -> Result<&'ctx Branch> {
         branches
             .iter()
@@ -245,6 +251,7 @@ impl<'ctx> CreatePolicy<'ctx> {
             .ok_or(NofsError::NoSuitableBranch)
     }
 
+    /// Select branch with least used space
     fn select_lus(branches: &[&'ctx Branch]) -> Result<&'ctx Branch> {
         branches
             .iter()
@@ -253,6 +260,7 @@ impl<'ctx> CreatePolicy<'ctx> {
             .ok_or(NofsError::NoSuitableBranch)
     }
 
+    /// Select branch with least used percentage
     #[allow(clippy::cast_possible_truncation, clippy::as_conversions)]
     fn select_lup(branches: &[&'ctx Branch]) -> Result<&'ctx Branch> {
         branches
@@ -262,6 +270,7 @@ impl<'ctx> CreatePolicy<'ctx> {
             .ok_or(NofsError::NoSuitableBranch)
     }
 
+    /// Select a random branch
     #[allow(clippy::indexing_slicing)]
     fn select_rand(branches: &[&'ctx Branch]) -> &'ctx Branch {
         let mut rng = rand::rng();
@@ -272,12 +281,13 @@ impl<'ctx> CreatePolicy<'ctx> {
 
 /// Search policy executor
 pub struct SearchPolicy<'ctx> {
+    /// Branches to select from
     branches: &'ctx [Branch],
 }
 
 impl<'ctx> SearchPolicy<'ctx> {
     #[must_use]
-    pub fn new(branches: &'ctx [Branch]) -> Self {
+    pub const fn new(branches: &'ctx [Branch]) -> Self {
         SearchPolicy { branches }
     }
 
@@ -356,6 +366,7 @@ impl<'ctx> SearchPolicy<'ctx> {
             .collect()
     }
 
+    /// Select branch with most free space from matching branches
     fn select_mfs(branches: &[&'ctx Branch]) -> Result<&'ctx Branch> {
         branches
             .iter()
@@ -364,6 +375,7 @@ impl<'ctx> SearchPolicy<'ctx> {
             .ok_or(NofsError::NoSuitableBranch)
     }
 
+    /// Select branch with least free space from matching branches
     fn select_lfs(branches: &[&'ctx Branch]) -> Result<&'ctx Branch> {
         branches
             .iter()

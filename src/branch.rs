@@ -109,13 +109,13 @@ impl Branch {
 
     /// Check if branch is eligible for create operations
     #[must_use]
-    pub fn can_create(&self) -> bool {
+    pub const fn can_create(&self) -> bool {
         matches!(self.mode, BranchMode::RW)
     }
 
     /// Check if branch is eligible for action operations (chmod, chown, etc.)
     #[must_use]
-    pub fn can_action(&self) -> bool {
+    pub const fn can_action(&self) -> bool {
         matches!(self.mode, BranchMode::RW)
     }
 

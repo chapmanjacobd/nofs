@@ -73,7 +73,7 @@ pub fn execute(
             // Get path relative to branch
             let relative = entry_path
                 .strip_prefix(&branch_path)
-                .unwrap_or(Path::new(""));
+                .unwrap_or_else(|_| Path::new(""));
 
             // Get path relative to pool mount point
             let pool_relative = relative.to_path_buf();

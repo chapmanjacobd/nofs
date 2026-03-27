@@ -57,6 +57,11 @@ pub fn execute(
     copy_execute(sources, destination, &config, share)
 }
 
+/// Parse folder conflict mode from string
+///
+/// # Errors
+///
+/// Returns an error if the mode string is not recognized.
 fn parse_folder_conflict_mode(s: &str) -> Result<FolderConflictMode> {
     match s.to_lowercase().as_str() {
         "skip" => Ok(FolderConflictMode::Skip),

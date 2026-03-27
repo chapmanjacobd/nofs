@@ -14,6 +14,7 @@ pub mod pool;
 use anyhow::Result;
 use clap::Parser;
 
+/// Command-line interface for nofs
 #[derive(Parser, Debug)]
 #[command(name = "nofs")]
 #[command(author, version, about, long_about = None)]
@@ -40,10 +41,12 @@ struct Cli {
     #[arg(short, long, global = true)]
     verbose: bool,
 
+    /// Subcommand to execute
     #[command(subcommand)]
     command: Commands,
 }
 
+/// Available subcommands for nofs
 #[derive(clap::Subcommand, Debug)]
 enum Commands {
     /// List directory contents (like ls).
@@ -519,6 +522,11 @@ fn main() -> Result<()> {
     Ok(())
 }
 
+/// Parse folder conflict mode from string
+///
+/// # Errors
+///
+/// Returns an error if the mode string is not recognized.
 fn parse_folder_conflict_mode(s: &str) -> Result<commands::cp::FolderConflictMode> {
     use commands::cp::FolderConflictMode;
     match s.to_lowercase().as_str() {
@@ -532,6 +540,11 @@ fn parse_folder_conflict_mode(s: &str) -> Result<commands::cp::FolderConflictMod
     }
 }
 
+/// Parse human-readable size string to bytes
+///
+/// # Errors
+///
+/// Returns an error if the size string cannot be parsed.
 fn parse_size(s: &str) -> Result<u64> {
     use crate::policy::parse_size as policy_parse_size;
     policy_parse_size(s).map_err(|e| anyhow::anyhow!("Parse error: {e}"))

@@ -1,10 +1,12 @@
 [package]
 name = "nofs"
 version = "0.1.1"
-edition = "2021"
+edition = "2024"
 description = "A lightweight shared filesystem tool"
 repository = "https://github.com/chapmanjacobd/nofs"
 license = "MIT"
+keywords = ["filesystem", "unionfs", "overlay", "storage", "mergefs"]
+categories = ["filesystem", "command-line-utilities"]
 
 [dependencies]
 clap = { version = "4.6", features = ["derive"] }
@@ -19,6 +21,9 @@ libc = "0.2"
 rand = "0.10"
 filetime = "0.2"
 reflink = "0.1.3"
+
+[workspace]
+resolver = "2"
 
 [profile.release]
 lto = true
@@ -103,8 +108,7 @@ missing_errors_doc = "warn"
 missing_panics_doc = "warn"
 missing_docs_in_private_items = "warn"
 exit = "warn"
-print_stdout = "warn"
-print_stderr = "warn"
 items_after_statements = "warn"
 implicit_clone = "warn"
 use_self = "allow"
+collapsible_else_if = "allow"

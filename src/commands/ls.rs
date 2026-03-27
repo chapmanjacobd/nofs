@@ -198,6 +198,7 @@ fn collect_directory_entries(
     entries
 }
 
+/// Format file permissions as rwx string
 fn format_permissions(mode: u32) -> String {
     let mut result = String::with_capacity(9);
 
@@ -219,6 +220,7 @@ fn format_permissions(mode: u32) -> String {
     result
 }
 
+/// Format size in human-readable format
 fn human_size(size: u64) -> String {
     const KB: u64 = 1024;
     const MB: u64 = KB * 1024;

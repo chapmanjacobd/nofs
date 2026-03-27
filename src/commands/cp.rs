@@ -15,6 +15,7 @@ use std::time::Instant;
 
 /// Resolved path with branch information
 struct ResolvedPath {
+    /// The resolved file system path
     path: PathBuf,
     /// Branch index in the share (if resolved from a share path)
     branch_index: Option<usize>,
@@ -422,6 +423,13 @@ pub fn execute(
     clippy::used_underscore_binding,
     clippy::only_used_in_recursion
 )]
+/// Process a source path and copy/move to destination
+///
+/// Recursively handles directories and applies conflict resolution strategies.
+///
+/// # Errors
+///
+/// Returns an error if the file/folder cannot be copied or moved.
 fn process_source(
     source: &Path,
     dest: &Path,
@@ -525,6 +533,13 @@ fn process_source(
 }
 
 #[allow(clippy::too_many_lines)]
+/// Process a single file copy/move operation
+///
+/// Handles size limits, simulate mode, and actual file transfer.
+///
+/// # Errors
+///
+/// Returns an error if the file cannot be read or written.
 fn process_file(
     source: &Path,
     dest: &Path,
@@ -583,17 +598,16 @@ fn process_file(
     if config.copy {
         // Copy the file
         copy_file_contents(source, dest)?;
-        stats.files_copied.fetch_add(1, Ordering::Relaxed);
-        stats.bytes_copied.fetch_add(file_size, Ordering::Relaxed);
     } else {
         // Move the file (try rename first, fall back to copy+delete)
         if fs::rename(source, dest).is_err() {
             copy_file_contents(source, dest)?;
             fs::remove_file(source)?;
         }
-        stats.files_copied.fetch_add(1, Ordering::Relaxed);
-        stats.bytes_copied.fetch_add(file_size, Ordering::Relaxed);
     }
+
+    stats.files_copied.fetch_add(1, Ordering::Relaxed);
+    stats.bytes_copied.fetch_add(file_size, Ordering::Relaxed);
 
     if config.verbose {
         let action = if config.copy { "copy" } else { "move" };
@@ -609,6 +623,14 @@ fn process_file(
     Ok(())
 }
 
+/// Copy file contents from source to destination
+///
+/// Tries reflink first for copy-on-write benefits, falls back to manual copy.
+/// Also preserves file permissions.
+///
+/// # Errors
+///
+/// Returns an error if the file cannot be read or written.
 fn copy_file_contents(source: &Path, dest: &Path) -> Result<()> {
     // Try reflink first for copy-on-write benefits on supported filesystems
     if reflink::reflink(source, dest).is_ok() {
@@ -627,6 +649,14 @@ fn copy_file_contents(source: &Path, dest: &Path) -> Result<()> {
     Ok(())
 }
 
+/// Handle file-over-file conflict resolution
+///
+/// Evaluates skip/delete conditions based on hash and size, then applies
+/// the required strategy if no conditions match.
+///
+/// # Errors
+///
+/// Returns an error if file operations fail.
 fn handle_file_over_file(
     source: &Path,
     dest: &Path,
@@ -696,6 +726,11 @@ fn handle_file_over_file(
     )
 }
 
+/// Check skip conditions for file-over-file conflicts
+///
+/// Returns true if the file should be skipped based on hash/size/larger/smaller conditions.
+#[must_use]
+#[allow(clippy::too_many_arguments)]
 fn check_skip_conditions(
     strategy: &FileOverFileStrategy,
     hashes_match: bool,
@@ -752,6 +787,13 @@ fn check_skip_conditions(
     false
 }
 
+/// Check delete-dest conditions for file-over-file conflicts
+///
+/// Returns true if the destination was deleted and processing should continue.
+///
+/// # Errors
+///
+/// Returns an error if file operations fail.
 #[allow(clippy::too_many_arguments)]
 fn check_delete_dest_conditions(
     strategy: &FileOverFileStrategy,
@@ -820,6 +862,13 @@ fn check_delete_dest_conditions(
     Ok(false)
 }
 
+/// Check delete-src conditions for file-over-file conflicts
+///
+/// Returns true if the source was deleted and processing should stop.
+///
+/// # Errors
+///
+/// Returns an error if file operations fail.
 #[allow(clippy::too_many_arguments)]
 fn check_delete_src_conditions(
     strategy: &FileOverFileStrategy,
@@ -890,6 +939,11 @@ fn check_delete_src_conditions(
     Ok(false)
 }
 
+/// Apply the required file-over-file strategy when no optional conditions match
+///
+/// # Errors
+///
+/// Returns an error if file operations fail.
 fn apply_required_strategy(
     strategy: &FileOverFileStrategy,
     source: &Path,
@@ -965,6 +1019,11 @@ fn apply_required_strategy(
     Ok(())
 }
 
+/// Handle file-over-folder conflict resolution
+///
+/// # Errors
+///
+/// Returns an error if file operations fail.
 fn handle_file_over_folder(
     source: &Path,
     dest: &Path,
@@ -1052,6 +1111,11 @@ fn handle_file_over_folder(
     Ok(())
 }
 
+/// Handle folder-over-file conflict resolution
+///
+/// # Errors
+///
+/// Returns an error if file operations fail.
 fn handle_folder_over_file(
     dest: &Path,
     source: &Path,
@@ -1150,6 +1214,11 @@ fn handle_folder_over_file(
     Ok(())
 }
 
+/// Process directory contents recursively
+///
+/// # Errors
+///
+/// Returns an error if directory cannot be read or entries cannot be processed.
 fn process_source_contents(
     source: &Path,
     dest: &Path,
@@ -1182,12 +1251,17 @@ fn process_source_contents(
     Ok(())
 }
 
+/// Generate a unique filename by appending _N suffix if file exists
+///
+/// # Returns
+///
+/// Returns a path with a unique filename that doesn't exist on disk.
 fn get_unique_filename(base: &Path) -> PathBuf {
     if !base.exists() {
         return base.to_path_buf();
     }
 
-    let dir = base.parent().unwrap_or(Path::new("."));
+    let dir = base.parent().unwrap_or_else(|| Path::new("."));
     let file_stem = base.file_stem().and_then(|s| s.to_str()).unwrap_or("");
     let extension = base.extension().and_then(|s| s.to_str()).unwrap_or("");
 
@@ -1220,12 +1294,17 @@ fn get_unique_filename(base: &Path) -> PathBuf {
     ))
 }
 
+/// Generate a unique folder name by appending _N suffix if folder exists
+///
+/// # Returns
+///
+/// Returns a path with a unique folder name that doesn't exist on disk.
 fn get_unique_folder_name(base: &Path) -> PathBuf {
     if !base.exists() {
         return base.to_path_buf();
     }
 
-    let dir = base.parent().unwrap_or(Path::new("."));
+    let dir = base.parent().unwrap_or_else(|| Path::new("."));
     let folder_name = base
         .file_name()
         .and_then(|s| s.to_str())
@@ -1251,6 +1330,11 @@ fn get_unique_folder_name(base: &Path) -> PathBuf {
     base.to_path_buf().with_extension("conflict")
 }
 
+/// Check if two files match by comparing their hashes
+///
+/// # Errors
+///
+/// Returns an error if either file cannot be read.
 fn files_match_by_hash(source: &Path, dest: &Path, stats: &CopyStats) -> Result<bool> {
     // Use sample hashing for efficiency
     let src_hash = sample_hash(source, stats)?;
@@ -1258,6 +1342,11 @@ fn files_match_by_hash(source: &Path, dest: &Path, stats: &CopyStats) -> Result<
     Ok(src_hash == dest_hash)
 }
 
+/// Compute a hash of a file, using sampling for large files
+///
+/// # Errors
+///
+/// Returns an error if the file cannot be read.
 fn sample_hash(path: &Path, stats: &CopyStats) -> Result<String> {
     use std::collections::hash_map::DefaultHasher;
     use std::hash::{Hash, Hasher};
@@ -1267,9 +1356,8 @@ fn sample_hash(path: &Path, stats: &CopyStats) -> Result<String> {
 
     // For small files, hash the entire content
     if size <= 640 * 1024 {
-        let content = fs::read(path)?;
         let mut hasher = DefaultHasher::new();
-        content.hash(&mut hasher);
+        fs::read(path)?.hash(&mut hasher);
         stats.full_hashes.fetch_add(1, Ordering::Relaxed);
         return Ok(format!("{:x}", hasher.finish()));
     }
@@ -1321,6 +1409,11 @@ pub fn format_size(bytes: u64) -> String {
     }
 }
 
+/// Quote a string for shell usage
+///
+/// # Returns
+///
+/// Returns the string wrapped in single quotes with proper escaping.
 fn shell_quote<S: AsRef<str>>(s: S) -> String {
     let s_ref = s.as_ref();
     if s_ref.is_empty() {
@@ -1335,6 +1428,7 @@ fn shell_quote<S: AsRef<str>>(s: S) -> String {
     format!("'{}'", s_ref.replace('\'', "'\\''"))
 }
 
+/// Print copy/move statistics
 fn print_stats(stats: &CopyStats) {
     eprintln!("\nSummary:");
     eprintln!(
