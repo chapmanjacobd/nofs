@@ -310,12 +310,14 @@ fn collect_directory_entries(
     all_entries
 }
 
+/// Returns the file mode (permission bits) from metadata.
 #[cfg(unix)]
 fn get_mode(metadata: &fs::Metadata) -> u32 {
     use std::os::unix::fs::PermissionsExt;
     metadata.permissions().mode()
 }
 
+/// Returns the file mode (permission bits) from metadata.
 #[cfg(not(unix))]
 fn get_mode(metadata: &fs::Metadata) -> u32 {
     let mode = if metadata.permissions().readonly() {
