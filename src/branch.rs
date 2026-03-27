@@ -5,7 +5,6 @@
 use crate::cache::OperationCache;
 use crate::error::{NofsError, Result};
 use serde::{Deserialize, Serialize};
-use std::ffi::CString;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
@@ -127,24 +126,7 @@ impl Branch {
     /// Returns an error if the path cannot be converted to a C string or if statvfs fails.
     #[allow(clippy::arithmetic_side_effects)]
     pub fn available_space(&self) -> Result<u64> {
-        let path_c = CString::new(self.path.to_string_lossy().as_bytes())
-            .map_err(|e| NofsError::Branch(format!("Invalid path: {e}")))?;
-
-        // Safety: statvfs is called with a valid C string pointer (path_c is guaranteed
-        // to be null-terminated by CString) and a valid statvfs pointer (stat is properly
-        // zero-initialized). The result is checked for success (0 return value).
-        let mut stat = unsafe { std::mem::zeroed() };
-        // Safety: `path_c` is a valid null-terminated C string from CString, and `stat`
-        // is a properly initialized statvfs struct. libc::statvfs will write to `stat`
-        // only on success (return value 0).
-        let result = unsafe { libc::statvfs(path_c.as_ptr(), &raw mut stat) };
-
-        if result == 0 {
-            // f_bavail is free blocks for unprivileged users
-            Ok(stat.f_bavail * stat.f_frsize)
-        } else {
-            Err(NofsError::Branch("Failed to statvfs".to_string()))
-        }
+        fs4::available_space(&self.path).map_err(|e| NofsError::Branch(format!("Failed to get available space: {e}")))
     }
 
     /// Get total space on this branch in bytes
@@ -154,23 +136,7 @@ impl Branch {
     /// Returns an error if the path cannot be converted to a C string or if statvfs fails.
     #[allow(clippy::arithmetic_side_effects)]
     pub fn total_space(&self) -> Result<u64> {
-        let path_c = CString::new(self.path.to_string_lossy().as_bytes())
-            .map_err(|e| NofsError::Branch(format!("Invalid path: {e}")))?;
-
-        // Safety: statvfs is called with a valid C string pointer (path_c is guaranteed
-        // to be null-terminated by CString) and a valid statvfs pointer (stat is properly
-        // zero-initialized). The result is checked for success (0 return value).
-        let mut stat = unsafe { std::mem::zeroed() };
-        // Safety: `path_c` is a valid null-terminated C string from CString, and `stat`
-        // is a properly initialized statvfs struct. libc::statvfs will write to `stat`
-        // only on success (return value 0).
-        let result = unsafe { libc::statvfs(path_c.as_ptr(), &raw mut stat) };
-
-        if result == 0 {
-            Ok(stat.f_blocks * stat.f_frsize)
-        } else {
-            Err(NofsError::Branch("Failed to statvfs".to_string()))
-        }
+        fs4::total_space(&self.path).map_err(|e| NofsError::Branch(format!("Failed to get total space: {e}")))
     }
 
     /// Get used space on this branch in bytes

@@ -9,7 +9,6 @@ use crate::pool::Pool;
 use serde_json;
 use std::fs;
 use std::io::{self, Write};
-use std::os::linux::fs::MetadataExt;
 use std::path::Path;
 
 /// Execute the ls command
@@ -114,7 +113,7 @@ fn output_json(
 
             let (size, permissions) = if long {
                 fs::metadata(entry_path)
-                    .map(|metadata| (Some(metadata.len()), Some(format_permissions(metadata.st_mode()))))
+                    .map(|metadata| (Some(metadata.len()), Some(format_permissions(get_mode(&metadata)))))
                     .unwrap_or((None, None))
             } else {
                 (None, None)
@@ -190,7 +189,7 @@ fn output_text(
                     "-"
                 };
 
-                let permissions = format_permissions(metadata.st_mode());
+                let permissions = format_permissions(get_mode(&metadata));
                 let size = metadata.len();
 
                 let conflict_marker = if is_conflict { " !" } else { "" };
@@ -309,6 +308,26 @@ fn collect_directory_entries(
     }
 
     all_entries
+}
+
+#[cfg(unix)]
+fn get_mode(metadata: &fs::Metadata) -> u32 {
+    use std::os::unix::fs::PermissionsExt;
+    metadata.permissions().mode()
+}
+
+#[cfg(not(unix))]
+fn get_mode(metadata: &fs::Metadata) -> u32 {
+    let mode = if metadata.permissions().readonly() {
+        0o444
+    } else {
+        0o666
+    };
+    if metadata.is_dir() {
+        mode | 0o111
+    } else {
+        mode
+    }
 }
 
 /// Format file permissions as rwx string

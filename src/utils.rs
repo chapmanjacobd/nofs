@@ -12,16 +12,16 @@ pub const PB: u64 = TB * 1000;
 #[must_use]
 pub fn format_size(size: u64) -> String {
     if size >= PB {
-        format!("{:.1} PB", size as f64 / PB as f64)
+        format!("{:.1}PB", size as f64 / PB as f64)
     } else if size >= TB {
-        format!("{:.1} TB", size as f64 / TB as f64)
+        format!("{:.1}TB", size as f64 / TB as f64)
     } else if size >= GB {
-        format!("{:.1} GB", size as f64 / GB as f64)
+        format!("{:.1}GB", size as f64 / GB as f64)
     } else if size >= MB {
-        format!("{:.1} MB", size as f64 / MB as f64)
+        format!("{:.1}MB", size as f64 / MB as f64)
     } else if size >= KB {
-        format!("{:.1} KB", size as f64 / KB as f64)
+        format!("{:.1}KB", size as f64 / KB as f64)
     } else {
-        format!("{size} B")
+        format!("{size}B")
     }
 }

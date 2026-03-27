@@ -966,14 +966,14 @@ fn test_rule_evaluation_created() {
 fn test_format_size() {
     use crate::utils::format_size;
 
-    assert_eq!(format_size(0), "0 B");
-    assert_eq!(format_size(500), "500 B");
-    assert_eq!(format_size(1000), "1.0 KB");
-    assert_eq!(format_size(1500), "1.5 KB");
-    assert_eq!(format_size(1_000_000), "1.0 MB");
-    assert_eq!(format_size(1_500_000), "1.5 MB");
-    assert_eq!(format_size(1_000_000_000), "1.0 GB");
-    assert_eq!(format_size(2_500_000_000), "2.5 GB");
+    assert_eq!(format_size(0), "0B");
+    assert_eq!(format_size(500), "500B");
+    assert_eq!(format_size(1000), "1.0KB");
+    assert_eq!(format_size(1500), "1.5KB");
+    assert_eq!(format_size(1_000_000), "1.0MB");
+    assert_eq!(format_size(1_500_000), "1.5MB");
+    assert_eq!(format_size(1_000_000_000), "1.0GB");
+    assert_eq!(format_size(2_500_000_000), "2.5GB");
 }
 
 #[test]
