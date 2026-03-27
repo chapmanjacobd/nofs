@@ -37,8 +37,8 @@ sudo cp target/release/nofs /usr/local/bin/
 
 ```toml
 [share.fast]
-paths = ["/nvme/cache", "/hdd/storage"]
-modes = ["RW", "NC"]  # HDD can read/modify but not create
+paths = ["/nvme/cache"]
+nc_paths = ["/hdd/storage"]  # HDD can read/modify but not create
 create_policy = "lfs"  # Fill SSD first (least free space)
 ```
 
@@ -118,10 +118,10 @@ nofs --paths /mnt/hdd1=RW,/mnt/hdd2=RW,/mnt/backup=RO ls /
 nofs ls media:/movies
 
 # Find which branch contains a file
-nofs -v which media:/movies/blade_runner.mkv
+nofs -v which media:/movies/big_buck_bunny.mkv
 # Output (stderr):
 #   selected:
-#     /mnt/hdd1/media/movies/blade_runner.mkv (first-found policy)
+#     /mnt/hdd1/media/movies/big_buck_bunny.mkv (first-found policy)
 
 # Get best branch for creating a new file
 nofs -v create media:/new_movie.mkv

@@ -169,8 +169,8 @@ create_policy = "pfrd"
     fn context_path_syntax() {
         let ctx = TestContext::new("context_syntax");
 
-        let _ = ctx.create_branch("disk1/media/movies", &["blade_runner.mkv"]);
-        let _ = ctx.create_branch("disk2/media/movies", &["aliens.mkv"]);
+        let _ = ctx.create_branch("disk1/media/movies", &["big_buck_bunny.mkv"]);
+        let _ = ctx.create_branch("disk2/media/movies", &["sintel.mkv"]);
 
         let config = format!(
             r#"
@@ -192,8 +192,8 @@ create_policy = "pfrd"
         ]);
 
         assert!(output.success(), "Command failed: {}", output.stderr);
-        assert!(output.stdout.contains("blade_runner.mkv"));
-        assert!(output.stdout.contains("aliens.mkv"));
+        assert!(output.stdout.contains("big_buck_bunny.mkv"));
+        assert!(output.stdout.contains("sintel.mkv"));
     }
 
     #[test]
