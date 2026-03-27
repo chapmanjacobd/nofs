@@ -12,7 +12,9 @@ A lightweight [shared filesystem](https://en.wikipedia.org/wiki/Clustered_file_s
 - share-path syntax: `nofs ls media:/movies` lists files in the `media` share
 - Ad-hoc: Use directly from the command line without any config
 - Policy-based branch selection: Choose branches based on free space, randomness, or path preservation
-- POSIX-like commands: Familiar interface (`ls`, `find`, `which`, etc.)
+- POSIX-like commands: Familiar interface (`ls`, `find`, `which`, `cp`, `mv`, `rm`, etc.)
+- Parallel operations: `cp` and `mv` support multi-threaded transfers
+- Conflict resolution: Flexible strategies for file/folder conflicts during copy/move
 
 ## Installation
 
@@ -23,6 +25,8 @@ cargo install nofs
 (or manually)
 
 ```bash
+git clone https://github.com/chapmanjacobd/nofs
+cd nofs
 cargo build --release
 sudo cp target/release/nofs /usr/local/bin/
 ```
@@ -67,6 +71,9 @@ create_policy = "mfs"
 | **lup** | Least used percentage |
 | **epmfs** | Existing path, most free space (path-preserving) |
 | **epff** | Existing path, first found (path-preserving) |
+| **eprand** | Existing path, random selection (path-preserving) |
+| **epall** | Existing path, all branches (path-preserving) |
+| **all** | All branches |
 
 ### Search Policies
 
@@ -95,18 +102,15 @@ minfreespace = "4G"                # Minimum free space threshold
 - **RO** (Read-Only) - Excluded from create and action operations
 - **NC** (No-Create) - Can read and modify, but not create new files
 
+#### Ad-hoc Branch Mode Syntax
+
+In ad-hoc mode, specify modes with `=` syntax:
+
 ```bash
-# List movies across all drives
-nofs ls movies:/
-
-# Find specific movie
-nofs which movies:/scifi/blade_runner.mkv
-
-# Add new movie (automatically selects best branch)
-nofs create movies:/new_release.mkv
+nofs --paths /mnt/hdd1=RW,/mnt/hdd2=RW,/mnt/backup=RO ls /
 ```
 
-### Usage Examples
+### Quick Examples
 
 ```bash
 # List files in a share
@@ -135,6 +139,15 @@ nofs info
 
 # Show specific share
 nofs info media
+
+# Copy files with parallel workers
+nofs cp -j 8 media:/movies/ /backup/movies/
+
+# Move files with extension filter
+nofs mv -e .mkv media:/old/ media:/new/
+
+# Create directory with parents
+nofs mkdir -p media:/new/scifi/2024/
 ```
 
 ### Ad-hoc Mode (No Config)
@@ -226,6 +239,77 @@ Prints location to stdout.
 nofs cat [context:]path
 
 Reads file content from first found branch.
+```
+
+### `cp` - Copy Files/Directories
+
+```bash
+nofs [OPTIONS] cp [SOURCE...] DEST
+
+SOURCES and DEST can be regular paths or nofs context paths (e.g., media:/movies).
+
+OPTIONS:
+    --file-over-file <STRATEGY>    File-over-file conflict strategy (default: "delete-src-hash rename-dest")
+    --file-over-folder <STRATEGY>  File-over-folder conflict strategy (default: "merge")
+    --folder-over-file <STRATEGY>  Folder-over-file conflict strategy (default: "merge")
+    -n, --dry-run                  Simulate without making changes
+    -j, --workers <N>              Number of parallel workers (default: 4)
+    -e, --ext <EXT>                Filter by file extensions (e.g., .mkv, .jpg)
+    -E, --exclude <PATTERN>        Exclude patterns (glob)
+    -I, --include <PATTERN>        Include patterns (glob)
+    -S, --size <SIZE>              Filter by file size (e.g., +5M, -10M)
+    -l, --limit <N>                Limit number of files transferred
+    --size-limit <SIZE>            Limit total size transferred (e.g., 100M, 1G)
+    -v, --verbose                  Verbose output
+
+Conflict strategies:
+    skip, skip-hash, rename-src, rename-dest, delete-src, delete-dest, delete-src-hash
+```
+
+### `mv` - Move Files/Directories
+
+```bash
+nofs [OPTIONS] mv [SOURCE...] DEST
+
+Same options as `cp`, but moves files instead of copying.
+```
+
+### `rm` - Remove Files/Directories
+
+```bash
+nofs [OPTIONS] rm [PATH...]
+
+OPTIONS:
+    -r, --recursive    Remove directories and their contents recursively
+    -v, --verbose      Verbose output
+```
+
+### `mkdir` - Create Directories
+
+```bash
+nofs [OPTIONS] mkdir [context:]path
+
+OPTIONS:
+    -p, --parents    Create parent directories as needed
+    -v, --verbose    Verbose output
+```
+
+### `rmdir` - Remove Empty Directories
+
+```bash
+nofs [OPTIONS] rmdir [context:]path
+
+OPTIONS:
+    -v, --verbose    Verbose output
+```
+
+### `touch` - Create or Update Files
+
+```bash
+nofs [OPTIONS] touch [context:]path
+
+OPTIONS:
+    -v, --verbose    Verbose output
 ```
 
 ## Comparison with mergerfs
