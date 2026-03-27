@@ -135,8 +135,9 @@ fn resolve_dest_path(
                     if let Some(src_idx) = source_branch_index {
                         if src_idx < pool.branches.len() {
                             // Verify the branch is writable (not RO)
-                            if pool.branches[src_idx].can_create() {
-                                return Ok(pool.branches[src_idx].path.join(relative_path));
+                            let branch = &pool.branches[src_idx];
+                            if branch.can_create() {
+                                return Ok(branch.path.join(relative_path));
                             }
                         }
                     }
@@ -388,8 +389,8 @@ pub fn execute(
             let dest_base = resolve_dest_path(destination, share, source_branch_index)?;
             dest_base.join(source_name)
         } else {
-            // Single file to single file - use destination as-is
-            dest_path.clone()
+            // Single file to single file - resolve destination preserving source branch
+            resolve_dest_path(destination, share, source_branch_index)?
         };
 
         // Process the source
