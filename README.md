@@ -343,8 +343,8 @@ EXAMPLES:
 | FUSE-based | Yes | No |
 | /etc/fstab support | Yes | No |
 | Config changes require remount | Yes | No |
-| Runs in Windows or Mac OS | No | Yes |
 | Runs in containers | Difficult | Yes |
+| Runs in Windows or Mac OS | No | Yes |
 | File creation | Transparent | Via subcommands |
 | File access | Direct | Via subcommands |
 | Performance | Near-native | Subprocess overhead |
