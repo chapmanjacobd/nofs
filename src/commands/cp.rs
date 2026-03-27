@@ -12,6 +12,13 @@ use std::sync::atomic::{AtomicI64, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
+/// Resolved path with branch information for same-share operations
+struct ResolvedPath {
+    path: PathBuf,
+    /// Branch index in the share (if resolved from a share path)
+    branch_index: Option<usize>,
+}
+
 /// Resolve a path that may have a share: prefix
 ///
 /// If the path has a share prefix (e.g., <media:/path>), it will be resolved
@@ -21,7 +28,7 @@ use std::time::Instant;
 ///
 /// Returns an error if the share is not found or if path resolution fails.
 #[allow(clippy::arithmetic_side_effects)]
-fn resolve_path(path_str: &str, share: Option<&Pool>) -> Result<PathBuf> {
+fn resolve_path(path_str: &str, share: Option<&Pool>) -> Result<ResolvedPath> {
     if let Some(colon_idx) = path_str.find(':') {
         // Check if this looks like a share prefix (no slashes before colon)
         let potential_prefix = &path_str[..colon_idx];
@@ -35,12 +42,72 @@ fn resolve_path(path_str: &str, share: Option<&Pool>) -> Result<PathBuf> {
                 if pool.name == share_name {
                     // Use the first writable branch for simplicity
                     // TODO: Use policy-based branch selection
+                    for (idx, branch) in pool.branches.iter().enumerate() {
+                        if branch.can_create() {
+                            return Ok(ResolvedPath {
+                                path: branch.path.join(relative_path),
+                                branch_index: Some(idx),
+                            });
+                        }
+                    }
+                    // No writable branch found, use first branch
+                    if let Some(branch) = pool.branches.first() {
+                        return Ok(ResolvedPath {
+                            path: branch.path.join(relative_path),
+                            branch_index: Some(0),
+                        });
+                    }
+                }
+            }
+            return Err(NofsError::CopyMove(format!(
+                "Share '{share_name}' not found or has no branches"
+            )));
+        }
+    }
+
+    // No share prefix, return as-is
+    Ok(ResolvedPath {
+        path: PathBuf::from(path_str),
+        branch_index: None,
+    })
+}
+
+/// Resolve a destination path, preferring the same branch as the source
+/// when both are in the same share.
+///
+/// This ensures that moves within a share stay on the same branch (avoiding
+/// cross-device moves which would require copy+delete).
+///
+/// # Errors
+///
+/// Returns an error if the share is not found or if path resolution fails.
+#[allow(clippy::arithmetic_side_effects, clippy::indexing_slicing)]
+fn resolve_dest_path(
+    dest_str: &str,
+    share: Option<&Pool>,
+    source_branch_index: Option<usize>,
+) -> Result<PathBuf> {
+    if let Some(colon_idx) = dest_str.find(':') {
+        let potential_prefix = &dest_str[..colon_idx];
+        if !potential_prefix.contains('/') {
+            let share_name = potential_prefix;
+            let relative_path = &dest_str[colon_idx + 1..];
+
+            if let Some(pool) = share {
+                if pool.name == share_name {
+                    // If source was from this share, use the same branch
+                    if let Some(src_idx) = source_branch_index {
+                        if src_idx < pool.branches.len() {
+                            return Ok(pool.branches[src_idx].path.join(relative_path));
+                        }
+                    }
+
+                    // Otherwise, use the first writable branch
                     for branch in &pool.branches {
                         if branch.can_create() {
                             return Ok(branch.path.join(relative_path));
                         }
                     }
-                    // No writable branch found, use first branch
                     if let Some(branch) = pool.branches.first() {
                         return Ok(branch.path.join(relative_path));
                     }
@@ -53,7 +120,7 @@ fn resolve_path(path_str: &str, share: Option<&Pool>) -> Result<PathBuf> {
     }
 
     // No share prefix, return as-is
-    Ok(PathBuf::from(path_str))
+    Ok(PathBuf::from(dest_str))
 }
 
 /// Conflict resolution mode for file-over-file conflicts
@@ -248,7 +315,7 @@ pub fn execute(
     }
 
     // Resolve destination path (may have share: prefix)
-    let dest_path = resolve_path(destination, share)?;
+    let dest_path = resolve_path(destination, share)?.path;
 
     // Check if destination exists
     let dest_exists = dest_path.exists();
@@ -269,7 +336,9 @@ pub fn execute(
     // Process each source
     for source in sources {
         // Resolve source path (may have share: prefix)
-        let source_path = resolve_path(source, share)?;
+        let source_resolved = resolve_path(source, share)?;
+        let source_path = &source_resolved.path;
+        let source_branch_index = source_resolved.branch_index;
 
         if !source_path.exists() {
             eprintln!("Source {} does not exist", shell_quote(source));
@@ -281,14 +350,18 @@ pub fn execute(
         let final_dest = if sources.len() > 1 || (dest_exists && dest_is_dir) {
             // Merge into destination directory
             let source_name = source_path.file_name().unwrap_or(source_path.as_os_str());
-            dest_path.join(source_name)
+
+            // If destination is a share path, resolve it using the same branch as source
+            let dest_base = resolve_dest_path(destination, share, source_branch_index)?;
+            dest_base.join(source_name)
         } else {
+            // Single file to single file - use destination as-is
             dest_path.clone()
         };
 
         // Process the source
         if let Err(e) = process_source(
-            &source_path,
+            source_path,
             &final_dest,
             config,
             &stats,

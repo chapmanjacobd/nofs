@@ -610,4 +610,82 @@ paths = ["{0}/disk1"]
         assert!(copied_file.exists(), "File should be moved to destination");
         assert!(!original_file.exists(), "Original file should be removed after move");
     }
+
+    #[test]
+    fn mv_share_path_same_branch() {
+        let ctx = TestContext::new("mv_share_same_branch");
+
+        // Create multiple branches
+        let _ = ctx.create_branch("disk1/source", &["file.txt"]);
+        let _ = ctx.create_branch("disk1/dest", &[]);
+        let _ = ctx.create_branch("disk2/other", &[]);
+
+        let config = format!(
+            r#"
+[share.test]
+paths = ["{0}/disk1", "{0}/disk2"]
+"#,
+            ctx.root.display()
+        );
+
+        ctx.write_config(&config);
+
+        let output = ctx.run_nofs(&[
+            "--config",
+            ctx.config_path.to_str().unwrap(),
+            "mv",
+            "test:source/file.txt",
+            "test:dest/",
+        ]);
+
+        assert!(output.success(), "Command failed: {}\nstdout: {}\nstderr: {}", output.status, output.stdout, output.stderr);
+        
+        // Verify file was moved within disk1 (same branch)
+        let moved_file = ctx.root.join("disk1/dest/file.txt");
+        let original_file = ctx.root.join("disk1/source/file.txt");
+        let wrong_branch_file = ctx.root.join("disk2/dest/file.txt");
+        
+        assert!(moved_file.exists(), "File should be moved to disk1/dest (same branch as source)");
+        assert!(!original_file.exists(), "Original file should be removed after move");
+        assert!(!wrong_branch_file.exists(), "File should NOT be on disk2 (different branch)");
+    }
+
+    #[test]
+    fn cp_share_path_same_branch() {
+        let ctx = TestContext::new("cp_share_same_branch");
+
+        // Create multiple branches
+        let _ = ctx.create_branch("disk1/source", &["file.txt"]);
+        let _ = ctx.create_branch("disk1/dest", &[]);
+        let _ = ctx.create_branch("disk2/other", &[]);
+
+        let config = format!(
+            r#"
+[share.test]
+paths = ["{0}/disk1", "{0}/disk2"]
+"#,
+            ctx.root.display()
+        );
+
+        ctx.write_config(&config);
+
+        let output = ctx.run_nofs(&[
+            "--config",
+            ctx.config_path.to_str().unwrap(),
+            "cp",
+            "test:source/file.txt",
+            "test:dest/",
+        ]);
+
+        assert!(output.success(), "Command failed: {}\nstdout: {}\nstderr: {}", output.status, output.stdout, output.stderr);
+        
+        // Verify file was copied within disk1 (same branch as source)
+        let copied_file = ctx.root.join("disk1/dest/file.txt");
+        let original_file = ctx.root.join("disk1/source/file.txt");
+        let wrong_branch_file = ctx.root.join("disk2/dest/file.txt");
+        
+        assert!(copied_file.exists(), "File should be copied to disk1/dest (same branch as source)");
+        assert!(original_file.exists(), "Original file should still exist after copy");
+        assert!(!wrong_branch_file.exists(), "File should NOT be on disk2 (different branch)");
+    }
 }
