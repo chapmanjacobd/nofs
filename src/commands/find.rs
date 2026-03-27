@@ -1,6 +1,6 @@
 //! find command - Find files matching patterns
 
-use crate::error::Result;
+use crate::error::{NofsError, Result};
 use crate::pool::Pool;
 use std::io::{self, Write};
 use std::path::Path;
@@ -10,7 +10,7 @@ use walkdir::WalkDir;
 ///
 /// # Errors
 ///
-/// Returns an error if there is an IO error during output.
+/// Returns an error if there is an IO error during output or if the path is not found.
 #[allow(clippy::too_many_lines)]
 pub fn execute(
     pool: &Pool,
@@ -26,16 +26,17 @@ pub fn execute(
     let branches = pool.find_all_branches(pool_path);
 
     if branches.is_empty() {
-        eprintln!("nofs: cannot access '{path}': No such file or directory");
-        return Ok(());
+        return Err(NofsError::Command(format!(
+            "cannot access '{path}': No such file or directory"
+        )));
     }
 
     if verbose {
         let stderr = io::stderr();
         let mut h = stderr.lock();
-        let _ = writeln!(h, "found in:");
+        writeln!(h, "found in:")?;
         for branch in &branches {
-            let _ = writeln!(h, "  {}", branch.path.join(pool_path).display());
+            writeln!(h, "  {}", branch.path.join(pool_path).display())?;
         }
     }
 
@@ -52,7 +53,21 @@ pub fn execute(
             walker = walker.max_depth(depth);
         }
 
-        for entry in walker.into_iter().flatten() {
+        for entry_result in walker {
+            let entry = match entry_result {
+                Ok(e) => e,
+                Err(e) => {
+                    if verbose {
+                        eprintln!(
+                            "nofs: warning: error traversing '{}': {}",
+                            branch_path.display(),
+                            e
+                        );
+                    }
+                    continue;
+                }
+            };
+
             let entry_path = entry.path();
 
             // Get path relative to branch
@@ -102,7 +117,7 @@ pub fn execute(
             }
 
             // Output the path
-            let _ = writeln!(handle, "{}", pool_relative.display());
+            writeln!(handle, "{}", pool_relative.display())?;
         }
     }
 

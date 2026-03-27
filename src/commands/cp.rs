@@ -610,6 +610,12 @@ fn process_file(
 }
 
 fn copy_file_contents(source: &Path, dest: &Path) -> Result<()> {
+    // Try reflink first for copy-on-write benefits on supported filesystems
+    if reflink::reflink(source, dest).is_ok() {
+        return Ok(());
+    }
+
+    // Fallback to manual copy if reflink is not supported
     let mut src_file = fs::File::open(source)?;
     let mut dst_file = fs::File::create(dest)?;
     io::copy(&mut src_file, &mut dst_file)?;
