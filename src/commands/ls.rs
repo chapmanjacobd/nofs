@@ -153,6 +153,8 @@ fn output_json(
                 .map(|b| ConflictBranch {
                     path: b.path.clone(),
                     size: b.size,
+                    mtime: b.mtime,
+                    ctime: b.ctime,
                 })
                 .collect(),
         })

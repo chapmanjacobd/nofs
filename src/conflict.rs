@@ -120,8 +120,8 @@ pub fn detect_conflicts(
 
         // Check if files have different content
         if files_differ(&branch_files, use_hash) {
-            // Sort branches by path for consistent output
-            branch_files.sort_by(|a, b| a.path.cmp(&b.path));
+            // Sort branches by mtime (newest first), then by path for consistent output
+            branch_files.sort_by(|a, b| b.mtime.cmp(&a.mtime).then_with(|| a.path.cmp(&b.path)));
 
             conflicts.push(FileConflict {
                 name,
@@ -313,7 +313,8 @@ pub fn detect_single_file_conflict(
     }
 
     if files_differ(&branch_files, use_hash) {
-        branch_files.sort_by(|a, b| a.path.cmp(&b.path));
+        // Sort branches by mtime (newest first), then by path for consistent output
+        branch_files.sort_by(|a, b| b.mtime.cmp(&a.mtime).then_with(|| a.path.cmp(&b.path)));
 
         let file_name = relative_path.file_name().map_or_else(
             || relative_path.to_string_lossy().to_string(),

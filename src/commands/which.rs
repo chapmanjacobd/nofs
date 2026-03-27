@@ -85,6 +85,8 @@ pub fn execute(
                 .map(|b| ConflictBranch {
                     path: b.path.clone(),
                     size: b.size,
+                    mtime: b.mtime,
+                    ctime: b.ctime,
                 })
                 .collect(),
         });

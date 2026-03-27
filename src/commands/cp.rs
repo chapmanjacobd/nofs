@@ -195,65 +195,64 @@ pub enum FolderConflictMode {
     Merge,
 }
 
+/// Attribute to compare in a rule
+#[non_exhaustive]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Attribute {
+    Hash,
+    Size,
+    Modified,
+    Created,
+}
+
+/// Comparison operator in a rule
+#[non_exhaustive]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Comparison {
+    Equal,
+    Greater,
+    Less,
+}
+
+/// Target of comparison (source or destination file)
+#[non_exhaustive]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Target {
+    Src,
+    Dest,
+}
+
+/// Action to take when a rule matches
+#[non_exhaustive]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RuleAction {
+    Skip,
+    DeleteSrc,
+    DeleteDest,
+}
+
+/// A single rule for file-over-file conflict resolution
+#[non_exhaustive]
+#[derive(Debug, Clone)]
+pub struct Rule {
+    pub action: RuleAction,
+    pub attribute: Attribute,
+    pub comparison: Comparison,
+    pub target: Target,
+}
+
 /// File-over-file strategy with optional conditions
 #[non_exhaustive]
 #[derive(Debug, Clone)]
-#[allow(clippy::struct_excessive_bools)]
 pub struct FileOverFileStrategy {
-    pub skip_hash: bool,
-    pub skip_size: bool,
-    pub skip_larger: bool,
-    pub skip_smaller: bool,
-    pub skip_modified_newer: bool,
-    pub skip_modified_older: bool,
-    pub skip_created_newer: bool,
-    pub skip_created_older: bool,
-    pub delete_dest_hash: bool,
-    pub delete_dest_size: bool,
-    pub delete_dest_larger: bool,
-    pub delete_dest_smaller: bool,
-    pub delete_dest_modified_newer: bool,
-    pub delete_dest_modified_older: bool,
-    pub delete_dest_created_newer: bool,
-    pub delete_dest_created_older: bool,
-    pub delete_src_hash: bool,
-    pub delete_src_size: bool,
-    pub delete_src_larger: bool,
-    pub delete_src_smaller: bool,
-    pub delete_src_modified_newer: bool,
-    pub delete_src_modified_older: bool,
-    pub delete_src_created_newer: bool,
-    pub delete_src_created_older: bool,
+    pub rules: Vec<Rule>,
     pub required: FileOverFileMode,
 }
 
 impl Default for FileOverFileStrategy {
     fn default() -> Self {
         Self {
-            skip_hash: false,
-            skip_size: false,
-            skip_larger: false,
-            skip_smaller: false,
-            skip_modified_newer: false,
-            skip_modified_older: false,
-            skip_created_newer: false,
-            skip_created_older: false,
-            delete_dest_hash: false,
-            delete_dest_size: false,
-            delete_dest_larger: false,
-            delete_dest_smaller: false,
-            delete_dest_modified_newer: false,
-            delete_dest_modified_older: false,
-            delete_dest_created_newer: false,
-            delete_dest_created_older: false,
-            delete_src_hash: false,
-            delete_src_size: false,
-            delete_src_larger: false,
-            delete_src_smaller: false,
-            delete_src_modified_newer: false,
-            delete_src_modified_older: false,
-            delete_src_created_newer: false,
-            delete_src_created_older: false,
+            rules: Vec::new(),
             required: FileOverFileMode::DeleteDest,
         }
     }
@@ -267,16 +266,19 @@ impl Default for FileOverFileStrategy {
 ///
 /// Returns an error if an unknown mode or option is provided.
 pub fn parse_file_over_file(spec: &str) -> Result<FileOverFileStrategy> {
-    let mut strategy = FileOverFileStrategy::default();
+    let mut rules = Vec::new();
     let parts: Vec<&str> = spec.split_whitespace().collect();
 
     if parts.is_empty() {
-        return Ok(strategy);
+        return Ok(FileOverFileStrategy {
+            rules,
+            required: FileOverFileMode::DeleteDest,
+        });
     }
 
     // Last part is the required mode
     let required_str = parts.last().copied().unwrap_or("skip");
-    strategy.required = match required_str {
+    let required = match required_str {
         "skip" => FileOverFileMode::Skip,
         "rename-src" => FileOverFileMode::RenameSrc,
         "rename-dest" => FileOverFileMode::RenameDest,
@@ -289,42 +291,316 @@ pub fn parse_file_over_file(spec: &str) -> Result<FileOverFileStrategy> {
         }
     };
 
-    // Previous parts are optional conditions
+    // Previous parts are optional conditions - convert to rules
     for opt in parts.iter().take(parts.len().saturating_sub(1)) {
-        match *opt {
-            "skip-hash" => strategy.skip_hash = true,
-            "skip-size" => strategy.skip_size = true,
-            "skip-larger" => strategy.skip_larger = true,
-            "skip-smaller" => strategy.skip_smaller = true,
-            "skip-modified-newer" => strategy.skip_modified_newer = true,
-            "skip-modified-older" => strategy.skip_modified_older = true,
-            "skip-created-newer" => strategy.skip_created_newer = true,
-            "skip-created-older" => strategy.skip_created_older = true,
-            "delete-dest-hash" => strategy.delete_dest_hash = true,
-            "delete-dest-size" => strategy.delete_dest_size = true,
-            "delete-dest-larger" => strategy.delete_dest_larger = true,
-            "delete-dest-smaller" => strategy.delete_dest_smaller = true,
-            "delete-dest-modified-newer" => strategy.delete_dest_modified_newer = true,
-            "delete-dest-modified-older" => strategy.delete_dest_modified_older = true,
-            "delete-dest-created-newer" => strategy.delete_dest_created_newer = true,
-            "delete-dest-created-older" => strategy.delete_dest_created_older = true,
-            "delete-src-hash" => strategy.delete_src_hash = true,
-            "delete-src-size" => strategy.delete_src_size = true,
-            "delete-src-larger" => strategy.delete_src_larger = true,
-            "delete-src-smaller" => strategy.delete_src_smaller = true,
-            "delete-src-modified-newer" => strategy.delete_src_modified_newer = true,
-            "delete-src-modified-older" => strategy.delete_src_modified_older = true,
-            "delete-src-created-newer" => strategy.delete_src_created_newer = true,
-            "delete-src-created-older" => strategy.delete_src_created_older = true,
-            _ => {
-                return Err(NofsError::Parse(format!(
-                    "Unknown file-over-file option: {opt}"
-                )))
+        let rule = parse_rule_token(opt)?;
+        rules.push(rule);
+    }
+
+    Ok(FileOverFileStrategy { rules, required })
+}
+
+/// Parse a single rule token into a Rule struct
+///
+/// # Errors
+///
+/// Returns an error if the token is not recognized.
+fn parse_rule_token(token: &str) -> Result<Rule> {
+    match token {
+        // Skip rules
+        "skip-hash" => Ok(Rule {
+            action: RuleAction::Skip,
+            attribute: Attribute::Hash,
+            comparison: Comparison::Equal,
+            target: Target::Dest,
+        }),
+        "skip-size" => Ok(Rule {
+            action: RuleAction::Skip,
+            attribute: Attribute::Size,
+            comparison: Comparison::Equal,
+            target: Target::Dest,
+        }),
+        "skip-larger" => Ok(Rule {
+            action: RuleAction::Skip,
+            attribute: Attribute::Size,
+            comparison: Comparison::Greater,
+            target: Target::Src,
+        }),
+        "skip-smaller" => Ok(Rule {
+            action: RuleAction::Skip,
+            attribute: Attribute::Size,
+            comparison: Comparison::Less,
+            target: Target::Src,
+        }),
+        "skip-modified-newer" => Ok(Rule {
+            action: RuleAction::Skip,
+            attribute: Attribute::Modified,
+            comparison: Comparison::Greater,
+            target: Target::Src,
+        }),
+        "skip-modified-older" => Ok(Rule {
+            action: RuleAction::Skip,
+            attribute: Attribute::Modified,
+            comparison: Comparison::Less,
+            target: Target::Src,
+        }),
+        "skip-created-newer" => Ok(Rule {
+            action: RuleAction::Skip,
+            attribute: Attribute::Created,
+            comparison: Comparison::Greater,
+            target: Target::Src,
+        }),
+        "skip-created-older" => Ok(Rule {
+            action: RuleAction::Skip,
+            attribute: Attribute::Created,
+            comparison: Comparison::Less,
+            target: Target::Src,
+        }),
+        // Delete-dest rules
+        "delete-dest-hash" => Ok(Rule {
+            action: RuleAction::DeleteDest,
+            attribute: Attribute::Hash,
+            comparison: Comparison::Equal,
+            target: Target::Dest,
+        }),
+        "delete-dest-size" => Ok(Rule {
+            action: RuleAction::DeleteDest,
+            attribute: Attribute::Size,
+            comparison: Comparison::Equal,
+            target: Target::Dest,
+        }),
+        "delete-dest-larger" => Ok(Rule {
+            action: RuleAction::DeleteDest,
+            attribute: Attribute::Size,
+            comparison: Comparison::Greater,
+            target: Target::Src,
+        }),
+        "delete-dest-smaller" => Ok(Rule {
+            action: RuleAction::DeleteDest,
+            attribute: Attribute::Size,
+            comparison: Comparison::Less,
+            target: Target::Src,
+        }),
+        "delete-dest-modified-newer" => Ok(Rule {
+            action: RuleAction::DeleteDest,
+            attribute: Attribute::Modified,
+            comparison: Comparison::Greater,
+            target: Target::Src,
+        }),
+        "delete-dest-modified-older" => Ok(Rule {
+            action: RuleAction::DeleteDest,
+            attribute: Attribute::Modified,
+            comparison: Comparison::Less,
+            target: Target::Src,
+        }),
+        "delete-dest-created-newer" => Ok(Rule {
+            action: RuleAction::DeleteDest,
+            attribute: Attribute::Created,
+            comparison: Comparison::Greater,
+            target: Target::Src,
+        }),
+        "delete-dest-created-older" => Ok(Rule {
+            action: RuleAction::DeleteDest,
+            attribute: Attribute::Created,
+            comparison: Comparison::Less,
+            target: Target::Src,
+        }),
+        // Delete-src rules
+        "delete-src-hash" => Ok(Rule {
+            action: RuleAction::DeleteSrc,
+            attribute: Attribute::Hash,
+            comparison: Comparison::Equal,
+            target: Target::Dest,
+        }),
+        "delete-src-size" => Ok(Rule {
+            action: RuleAction::DeleteSrc,
+            attribute: Attribute::Size,
+            comparison: Comparison::Equal,
+            target: Target::Dest,
+        }),
+        "delete-src-larger" => Ok(Rule {
+            action: RuleAction::DeleteSrc,
+            attribute: Attribute::Size,
+            comparison: Comparison::Greater,
+            target: Target::Src,
+        }),
+        "delete-src-smaller" => Ok(Rule {
+            action: RuleAction::DeleteSrc,
+            attribute: Attribute::Size,
+            comparison: Comparison::Less,
+            target: Target::Src,
+        }),
+        "delete-src-modified-newer" => Ok(Rule {
+            action: RuleAction::DeleteSrc,
+            attribute: Attribute::Modified,
+            comparison: Comparison::Greater,
+            target: Target::Src,
+        }),
+        "delete-src-modified-older" => Ok(Rule {
+            action: RuleAction::DeleteSrc,
+            attribute: Attribute::Modified,
+            comparison: Comparison::Less,
+            target: Target::Src,
+        }),
+        "delete-src-created-newer" => Ok(Rule {
+            action: RuleAction::DeleteSrc,
+            attribute: Attribute::Created,
+            comparison: Comparison::Greater,
+            target: Target::Src,
+        }),
+        "delete-src-created-older" => Ok(Rule {
+            action: RuleAction::DeleteSrc,
+            attribute: Attribute::Created,
+            comparison: Comparison::Less,
+            target: Target::Src,
+        }),
+        _ => Err(NofsError::Parse(format!(
+            "Unknown file-over-file option: {token}"
+        ))),
+    }
+}
+
+/// Evaluate a single rule against file metadata
+///
+/// Returns true if the rule condition matches.
+#[must_use]
+pub(crate) fn evaluate_rule(
+    rule: &Rule,
+    hashes_match: bool,
+    src_size: u64,
+    dest_size: u64,
+    src_modified: Option<u64>,
+    dest_modified: Option<u64>,
+    src_created: Option<u64>,
+    dest_created: Option<u64>,
+) -> bool {
+    match rule.attribute {
+        Attribute::Hash => {
+            // For hash, we only have a boolean match, not a numeric value
+            // The comparison is always "Equal" for hash
+            rule.comparison == Comparison::Equal && hashes_match
+        }
+        Attribute::Size => match rule.comparison {
+            Comparison::Equal => src_size == dest_size,
+            Comparison::Greater => src_size > dest_size,
+            Comparison::Less => src_size < dest_size,
+        },
+        Attribute::Modified => {
+            let (Some(src_m), Some(dest_m)) = (src_modified, dest_modified) else {
+                return false;
+            };
+            match rule.comparison {
+                Comparison::Equal => src_m == dest_m,
+                Comparison::Greater => src_m > dest_m,
+                Comparison::Less => src_m < dest_m,
+            }
+        }
+        Attribute::Created => {
+            let (Some(src_c), Some(dest_c)) = (src_created, dest_created) else {
+                return false;
+            };
+            match rule.comparison {
+                Comparison::Equal => src_c == dest_c,
+                Comparison::Greater => src_c > dest_c,
+                Comparison::Less => src_c < dest_c,
             }
         }
     }
+}
 
-    Ok(strategy)
+/// Result of evaluating rules
+#[non_exhaustive]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RuleResult {
+    Skip,
+    DeleteSrc,
+    DeleteDest,
+    NoMatch,
+}
+
+/// Evaluate all rules and return the first matching action
+///
+/// # Errors
+///
+/// Returns an error if file operations fail during rule evaluation.
+#[allow(clippy::too_many_arguments)]
+fn evaluate_rules(
+    strategy: &FileOverFileStrategy,
+    hashes_match: bool,
+    src_size: u64,
+    dest_size: u64,
+    src_modified: Option<u64>,
+    dest_modified: Option<u64>,
+    src_created: Option<u64>,
+    dest_created: Option<u64>,
+    config: &CopyConfig,
+    source: &Path,
+    dest: &Path,
+    stats: &Arc<CopyStats>,
+    file_count: &Arc<Mutex<u64>>,
+    byte_count: &Arc<Mutex<u64>>,
+) -> Result<RuleResult> {
+    for rule in &strategy.rules {
+        if evaluate_rule(
+            rule,
+            hashes_match,
+            src_size,
+            dest_size,
+            src_modified,
+            dest_modified,
+            src_created,
+            dest_created,
+        ) {
+            match rule.action {
+                RuleAction::Skip => {
+                    if config.verbose {
+                        eprintln!(
+                            "Skipping {} (rule: {:?} {:?} {:?}",
+                            shell_quote(source.to_string_lossy().as_ref()),
+                            rule.attribute,
+                            rule.comparison,
+                            rule.target
+                        );
+                    }
+                    stats.files_skipped.fetch_add(1, Ordering::Relaxed);
+                    return Ok(RuleResult::Skip);
+                }
+                RuleAction::DeleteDest => {
+                    if config.verbose {
+                        eprintln!(
+                            "Deleting destination {} (rule: {:?} {:?} {:?}",
+                            shell_quote(dest.to_string_lossy().as_ref()),
+                            rule.attribute,
+                            rule.comparison,
+                            rule.target
+                        );
+                    }
+                    if !config.simulate {
+                        fs::remove_file(dest)?;
+                    }
+                    return process_file(source, dest, config, stats, file_count, byte_count)
+                        .map(|()| RuleResult::DeleteDest);
+                }
+                RuleAction::DeleteSrc => {
+                    if config.verbose {
+                        eprintln!(
+                            "Deleting source {} (rule: {:?} {:?} {:?}",
+                            shell_quote(source.to_string_lossy().as_ref()),
+                            rule.attribute,
+                            rule.comparison,
+                            rule.target
+                        );
+                    }
+                    if !config.simulate {
+                        fs::remove_file(source)?;
+                    }
+                    stats.files_skipped.fetch_add(1, Ordering::Relaxed);
+                    return Ok(RuleResult::DeleteSrc);
+                }
+            }
+        }
+    }
+    Ok(RuleResult::NoMatch)
 }
 
 /// Statistics for copy/move operations
@@ -747,15 +1023,18 @@ fn handle_file_over_file(
         .map(|d| d.as_secs());
 
     // Check hash-based conditions if needed
-    let hashes_match =
-        if strategy.skip_hash || strategy.delete_dest_hash || strategy.delete_src_hash {
-            files_match_by_hash(source, dest, stats)?
-        } else {
-            false
-        };
+    let hashes_match = if strategy
+        .rules
+        .iter()
+        .any(|r| r.attribute == Attribute::Hash)
+    {
+        files_match_by_hash(source, dest, stats)?
+    } else {
+        false
+    };
 
-    // Evaluate optional conditions
-    if check_skip_conditions(
+    // Evaluate all rules
+    match evaluate_rules(
         strategy,
         hashes_match,
         src_size,
@@ -766,560 +1045,23 @@ fn handle_file_over_file(
         dest_created,
         config,
         source,
-        stats,
-    ) {
-        return Ok(());
-    }
-
-    if check_delete_dest_conditions(
-        strategy,
-        hashes_match,
-        src_size,
-        dest_size,
-        src_modified,
-        dest_modified,
-        src_created,
-        dest_created,
-        config,
         dest,
-        source,
         stats,
         file_count,
         byte_count,
     )? {
-        return Ok(());
-    }
-
-    if check_delete_src_conditions(
-        strategy,
-        hashes_match,
-        src_size,
-        dest_size,
-        src_modified,
-        dest_modified,
-        src_created,
-        dest_created,
-        config,
-        source,
-        dest,
-        stats,
-    )? {
-        return Ok(());
+        RuleResult::Skip => return Ok(()),
+        RuleResult::DeleteDest => return Ok(()),
+        RuleResult::DeleteSrc => return Ok(()),
+        RuleResult::NoMatch => {
+            // No rules matched, apply required fallback
+        }
     }
 
     // Apply required fallback
     apply_required_strategy(
         strategy, source, dest, config, stats, file_count, byte_count,
     )
-}
-
-/// Check skip conditions for file-over-file conflicts
-///
-/// Returns true if the file should be skipped based on hash/size/larger/smaller conditions.
-#[must_use]
-#[allow(clippy::too_many_arguments)]
-fn check_skip_conditions(
-    strategy: &FileOverFileStrategy,
-    hashes_match: bool,
-    src_size: u64,
-    dest_size: u64,
-    src_modified: Option<u64>,
-    dest_modified: Option<u64>,
-    src_created: Option<u64>,
-    dest_created: Option<u64>,
-    config: &CopyConfig,
-    source: &Path,
-    stats: &Arc<CopyStats>,
-) -> bool {
-    if strategy.skip_hash && hashes_match {
-        if config.verbose {
-            eprintln!(
-                "Skipping {} (hash matches)",
-                shell_quote(source.to_string_lossy().as_ref())
-            );
-        }
-        stats.files_skipped.fetch_add(1, Ordering::Relaxed);
-        return true;
-    }
-
-    if strategy.skip_size && src_size == dest_size {
-        if config.verbose {
-            eprintln!(
-                "Skipping {} (size matches)",
-                shell_quote(source.to_string_lossy().as_ref())
-            );
-        }
-        stats.files_skipped.fetch_add(1, Ordering::Relaxed);
-        return true;
-    }
-
-    if strategy.skip_larger && src_size > dest_size {
-        if config.verbose {
-            eprintln!(
-                "Skipping {} (source is larger)",
-                shell_quote(source.to_string_lossy().as_ref())
-            );
-        }
-        stats.files_skipped.fetch_add(1, Ordering::Relaxed);
-        return true;
-    }
-
-    if strategy.skip_smaller && src_size < dest_size {
-        if config.verbose {
-            eprintln!(
-                "Skipping {} (source is smaller)",
-                shell_quote(source.to_string_lossy().as_ref())
-            );
-        }
-        stats.files_skipped.fetch_add(1, Ordering::Relaxed);
-        return true;
-    }
-
-    // Check mtime-based conditions
-    if let (Some(src_m), Some(dest_m)) = (src_modified, dest_modified) {
-        if strategy.skip_modified_newer && src_m > dest_m {
-            if config.verbose {
-                eprintln!(
-                    "Skipping {} (source modified newer)",
-                    shell_quote(source.to_string_lossy().as_ref())
-                );
-            }
-            stats.files_skipped.fetch_add(1, Ordering::Relaxed);
-            return true;
-        }
-
-        if strategy.skip_modified_older && src_m < dest_m {
-            if config.verbose {
-                eprintln!(
-                    "Skipping {} (source modified older)",
-                    shell_quote(source.to_string_lossy().as_ref())
-                );
-            }
-            stats.files_skipped.fetch_add(1, Ordering::Relaxed);
-            return true;
-        }
-    }
-
-    // Check ctime-based conditions
-    if let (Some(src_c), Some(dest_c)) = (src_created, dest_created) {
-        if strategy.skip_created_newer && src_c > dest_c {
-            if config.verbose {
-                eprintln!(
-                    "Skipping {} (source created newer)",
-                    shell_quote(source.to_string_lossy().as_ref())
-                );
-            }
-            stats.files_skipped.fetch_add(1, Ordering::Relaxed);
-            return true;
-        }
-
-        if strategy.skip_created_older && src_c < dest_c {
-            if config.verbose {
-                eprintln!(
-                    "Skipping {} (source created older)",
-                    shell_quote(source.to_string_lossy().as_ref())
-                );
-            }
-            stats.files_skipped.fetch_add(1, Ordering::Relaxed);
-            return true;
-        }
-    }
-
-    false
-}
-
-/// Check mtime-based conditions for delete-dest strategy
-///
-/// # Errors
-///
-/// Returns an error if file operations fail.
-#[allow(clippy::too_many_arguments)]
-fn check_delete_dest_mtime_conditions(
-    strategy: &FileOverFileStrategy,
-    src_modified: Option<u64>,
-    dest_modified: Option<u64>,
-    config: &CopyConfig,
-    dest: &Path,
-    source: &Path,
-    stats: &Arc<CopyStats>,
-    file_count: &Arc<Mutex<u64>>,
-    byte_count: &Arc<Mutex<u64>>,
-) -> Result<Option<bool>> {
-    if let (Some(src_m), Some(dest_m)) = (src_modified, dest_modified) {
-        if strategy.delete_dest_modified_newer && src_m > dest_m {
-            if config.verbose {
-                eprintln!(
-                    "Deleting destination {} (source modified newer)",
-                    shell_quote(dest.to_string_lossy().as_ref())
-                );
-            }
-            if !config.simulate {
-                fs::remove_file(dest)?;
-            }
-            return process_file(source, dest, config, stats, file_count, byte_count)
-                .map(|()| Some(true));
-        }
-
-        if strategy.delete_dest_modified_older && src_m < dest_m {
-            if config.verbose {
-                eprintln!(
-                    "Deleting destination {} (source modified older)",
-                    shell_quote(dest.to_string_lossy().as_ref())
-                );
-            }
-            if !config.simulate {
-                fs::remove_file(dest)?;
-            }
-            return process_file(source, dest, config, stats, file_count, byte_count)
-                .map(|()| Some(true));
-        }
-    }
-    Ok(None)
-}
-
-/// Check ctime-based conditions for delete-dest strategy
-///
-/// # Errors
-///
-/// Returns an error if file operations fail.
-#[allow(clippy::too_many_arguments)]
-fn check_delete_dest_ctime_conditions(
-    strategy: &FileOverFileStrategy,
-    src_created: Option<u64>,
-    dest_created: Option<u64>,
-    config: &CopyConfig,
-    dest: &Path,
-    source: &Path,
-    stats: &Arc<CopyStats>,
-    file_count: &Arc<Mutex<u64>>,
-    byte_count: &Arc<Mutex<u64>>,
-) -> Result<Option<bool>> {
-    if let (Some(src_c), Some(dest_c)) = (src_created, dest_created) {
-        if strategy.delete_dest_created_newer && src_c > dest_c {
-            if config.verbose {
-                eprintln!(
-                    "Deleting destination {} (source created newer)",
-                    shell_quote(dest.to_string_lossy().as_ref())
-                );
-            }
-            if !config.simulate {
-                fs::remove_file(dest)?;
-            }
-            return process_file(source, dest, config, stats, file_count, byte_count)
-                .map(|()| Some(true));
-        }
-
-        if strategy.delete_dest_created_older && src_c < dest_c {
-            if config.verbose {
-                eprintln!(
-                    "Deleting destination {} (source created older)",
-                    shell_quote(dest.to_string_lossy().as_ref())
-                );
-            }
-            if !config.simulate {
-                fs::remove_file(dest)?;
-            }
-            return process_file(source, dest, config, stats, file_count, byte_count)
-                .map(|()| Some(true));
-        }
-    }
-    Ok(None)
-}
-
-/// Check delete-dest conditions for file-over-file conflicts
-///
-/// Returns true if the destination was deleted and processing should continue.
-///
-/// # Errors
-///
-/// Returns an error if file operations fail.
-#[allow(clippy::too_many_arguments)]
-fn check_delete_dest_conditions(
-    strategy: &FileOverFileStrategy,
-    hashes_match: bool,
-    src_size: u64,
-    dest_size: u64,
-    src_modified: Option<u64>,
-    dest_modified: Option<u64>,
-    src_created: Option<u64>,
-    dest_created: Option<u64>,
-    config: &CopyConfig,
-    dest: &Path,
-    source: &Path,
-    stats: &Arc<CopyStats>,
-    file_count: &Arc<Mutex<u64>>,
-    byte_count: &Arc<Mutex<u64>>,
-) -> Result<bool> {
-    if strategy.delete_dest_hash && hashes_match {
-        if config.verbose {
-            eprintln!(
-                "Deleting destination {} (hash matches)",
-                shell_quote(dest.to_string_lossy().as_ref())
-            );
-        }
-        if !config.simulate {
-            fs::remove_file(dest)?;
-        }
-        return process_file(source, dest, config, stats, file_count, byte_count).map(|()| true);
-    }
-
-    if strategy.delete_dest_size && src_size == dest_size {
-        if config.verbose {
-            eprintln!(
-                "Deleting destination {} (size matches)",
-                shell_quote(dest.to_string_lossy().as_ref())
-            );
-        }
-        if !config.simulate {
-            fs::remove_file(dest)?;
-        }
-        return process_file(source, dest, config, stats, file_count, byte_count).map(|()| true);
-    }
-
-    if strategy.delete_dest_larger && src_size > dest_size {
-        if config.verbose {
-            eprintln!(
-                "Deleting destination {} (source is larger)",
-                shell_quote(dest.to_string_lossy().as_ref())
-            );
-        }
-        if !config.simulate {
-            fs::remove_file(dest)?;
-        }
-        return process_file(source, dest, config, stats, file_count, byte_count).map(|()| true);
-    }
-
-    if strategy.delete_dest_smaller && src_size < dest_size {
-        if config.verbose {
-            eprintln!(
-                "Deleting destination {} (source is smaller)",
-                shell_quote(dest.to_string_lossy().as_ref())
-            );
-        }
-        if !config.simulate {
-            fs::remove_file(dest)?;
-        }
-        return process_file(source, dest, config, stats, file_count, byte_count).map(|()| true);
-    }
-
-    // Check mtime-based conditions
-    if let Some(result) = check_delete_dest_mtime_conditions(
-        strategy,
-        src_modified,
-        dest_modified,
-        config,
-        dest,
-        source,
-        stats,
-        file_count,
-        byte_count,
-    )? {
-        return Ok(result);
-    }
-
-    // Check ctime-based conditions
-    if let Some(result) = check_delete_dest_ctime_conditions(
-        strategy,
-        src_created,
-        dest_created,
-        config,
-        dest,
-        source,
-        stats,
-        file_count,
-        byte_count,
-    )? {
-        return Ok(result);
-    }
-
-    Ok(false)
-}
-
-/// Check mtime-based conditions for delete-src strategy
-fn check_delete_src_mtime_conditions(
-    strategy: &FileOverFileStrategy,
-    src_modified: Option<u64>,
-    dest_modified: Option<u64>,
-    config: &CopyConfig,
-    source: &Path,
-    stats: &Arc<CopyStats>,
-) -> Result<Option<bool>> {
-    if let (Some(src_m), Some(dest_m)) = (src_modified, dest_modified) {
-        if strategy.delete_src_modified_newer && src_m > dest_m {
-            if config.verbose {
-                eprintln!(
-                    "Deleting source {} (source modified newer)",
-                    shell_quote(source.to_string_lossy().as_ref())
-                );
-            }
-            if !config.simulate {
-                fs::remove_file(source)?;
-            }
-            stats.files_skipped.fetch_add(1, Ordering::Relaxed);
-            return Ok(Some(true));
-        }
-
-        if strategy.delete_src_modified_older && src_m < dest_m {
-            if config.verbose {
-                eprintln!(
-                    "Deleting source {} (source modified older)",
-                    shell_quote(source.to_string_lossy().as_ref())
-                );
-            }
-            if !config.simulate {
-                fs::remove_file(source)?;
-            }
-            stats.files_skipped.fetch_add(1, Ordering::Relaxed);
-            return Ok(Some(true));
-        }
-    }
-    Ok(None)
-}
-
-/// Check ctime-based conditions for delete-src strategy
-fn check_delete_src_ctime_conditions(
-    strategy: &FileOverFileStrategy,
-    src_created: Option<u64>,
-    dest_created: Option<u64>,
-    config: &CopyConfig,
-    source: &Path,
-    stats: &Arc<CopyStats>,
-) -> Result<Option<bool>> {
-    if let (Some(src_c), Some(dest_c)) = (src_created, dest_created) {
-        if strategy.delete_src_created_newer && src_c > dest_c {
-            if config.verbose {
-                eprintln!(
-                    "Deleting source {} (source created newer)",
-                    shell_quote(source.to_string_lossy().as_ref())
-                );
-            }
-            if !config.simulate {
-                fs::remove_file(source)?;
-            }
-            stats.files_skipped.fetch_add(1, Ordering::Relaxed);
-            return Ok(Some(true));
-        }
-
-        if strategy.delete_src_created_older && src_c < dest_c {
-            if config.verbose {
-                eprintln!(
-                    "Deleting source {} (source created older)",
-                    shell_quote(source.to_string_lossy().as_ref())
-                );
-            }
-            if !config.simulate {
-                fs::remove_file(source)?;
-            }
-            stats.files_skipped.fetch_add(1, Ordering::Relaxed);
-            return Ok(Some(true));
-        }
-    }
-    Ok(None)
-}
-
-/// Check delete-src conditions for file-over-file conflicts
-///
-/// Returns true if the source was deleted and processing should stop.
-///
-/// # Errors
-///
-/// Returns an error if file operations fail.
-#[allow(clippy::too_many_arguments)]
-fn check_delete_src_conditions(
-    strategy: &FileOverFileStrategy,
-    hashes_match: bool,
-    src_size: u64,
-    dest_size: u64,
-    src_modified: Option<u64>,
-    dest_modified: Option<u64>,
-    src_created: Option<u64>,
-    dest_created: Option<u64>,
-    config: &CopyConfig,
-    source: &Path,
-    _dest: &Path,
-    stats: &Arc<CopyStats>,
-) -> Result<bool> {
-    if strategy.delete_src_hash && hashes_match {
-        if config.verbose {
-            eprintln!(
-                "Deleting source {} (hash matches)",
-                shell_quote(source.to_string_lossy().as_ref())
-            );
-        }
-        if !config.simulate {
-            fs::remove_file(source)?;
-        }
-        stats.files_skipped.fetch_add(1, Ordering::Relaxed);
-        return Ok(true);
-    }
-
-    if strategy.delete_src_size && src_size == dest_size {
-        if config.verbose {
-            eprintln!(
-                "Deleting source {} (size matches)",
-                shell_quote(source.to_string_lossy().as_ref())
-            );
-        }
-        if !config.simulate {
-            fs::remove_file(source)?;
-        }
-        stats.files_skipped.fetch_add(1, Ordering::Relaxed);
-        return Ok(true);
-    }
-
-    if strategy.delete_src_larger && src_size > dest_size {
-        if config.verbose {
-            eprintln!(
-                "Deleting source {} (source is larger)",
-                shell_quote(source.to_string_lossy().as_ref())
-            );
-        }
-        if !config.simulate {
-            fs::remove_file(source)?;
-        }
-        stats.files_skipped.fetch_add(1, Ordering::Relaxed);
-        return Ok(true);
-    }
-
-    if strategy.delete_src_smaller && src_size < dest_size {
-        if config.verbose {
-            eprintln!(
-                "Deleting source {} (source is smaller)",
-                shell_quote(source.to_string_lossy().as_ref())
-            );
-        }
-        if !config.simulate {
-            fs::remove_file(source)?;
-        }
-        stats.files_skipped.fetch_add(1, Ordering::Relaxed);
-        return Ok(true);
-    }
-
-    // Check mtime-based conditions
-    if let Some(result) = check_delete_src_mtime_conditions(
-        strategy,
-        src_modified,
-        dest_modified,
-        config,
-        source,
-        stats,
-    )? {
-        return Ok(result);
-    }
-
-    // Check ctime-based conditions
-    if let Some(result) = check_delete_src_ctime_conditions(
-        strategy,
-        src_created,
-        dest_created,
-        config,
-        source,
-        stats,
-    )? {
-        return Ok(result);
-    }
-
-    Ok(false)
 }
 
 /// Apply the required file-over-file strategy when no optional conditions match

@@ -1,7 +1,8 @@
 //! Tests for cp/mv commands
 
 use crate::commands::cp::{
-    execute as cp_execute, parse_file_over_file, CopyConfig, FileOverFileMode, FolderConflictMode,
+    execute as cp_execute, parse_file_over_file, Attribute, Comparison, CopyConfig,
+    FileOverFileMode, FolderConflictMode, Rule, RuleAction, Target,
 };
 use crate::commands::mv::execute as mv_execute;
 use std::fs;
@@ -721,19 +722,170 @@ fn test_parse_file_over_file() {
     // Test simple strategy
     let strategy = parse_file_over_file("skip").unwrap();
     assert_eq!(strategy.required, FileOverFileMode::Skip);
+    assert!(strategy.rules.is_empty());
 
-    // Test strategy with optional
+    // Test strategy with one rule
     let strategy2 = parse_file_over_file("skip-hash rename-dest").unwrap();
-    assert!(strategy2.skip_hash);
+    assert_eq!(strategy2.rules.len(), 1);
+    assert_eq!(strategy2.rules[0].action, RuleAction::Skip);
+    assert_eq!(strategy2.rules[0].attribute, Attribute::Hash);
+    assert_eq!(strategy2.rules[0].comparison, Comparison::Equal);
     assert_eq!(strategy2.required, FileOverFileMode::RenameDest);
 
-    // Test multiple optionals
+    // Test strategy with multiple rules
     let strategy3 =
         parse_file_over_file("skip-hash skip-size delete-dest-larger delete-dest").unwrap();
-    assert!(strategy3.skip_hash);
-    assert!(strategy3.skip_size);
-    assert!(strategy3.delete_dest_larger);
+    assert_eq!(strategy3.rules.len(), 3);
+    assert_eq!(strategy3.rules[0].action, RuleAction::Skip);
+    assert_eq!(strategy3.rules[0].attribute, Attribute::Hash);
+    assert_eq!(strategy3.rules[1].action, RuleAction::Skip);
+    assert_eq!(strategy3.rules[1].attribute, Attribute::Size);
+    assert_eq!(strategy3.rules[2].action, RuleAction::DeleteDest);
+    assert_eq!(strategy3.rules[2].attribute, Attribute::Size);
+    assert_eq!(strategy3.rules[2].comparison, Comparison::Greater);
     assert_eq!(strategy3.required, FileOverFileMode::DeleteDest);
+}
+
+#[test]
+fn test_rule_evaluation() {
+    use crate::commands::cp::evaluate_rule;
+
+    // Test hash rule
+    let hash_rule = Rule {
+        action: RuleAction::Skip,
+        attribute: Attribute::Hash,
+        comparison: Comparison::Equal,
+        target: Target::Dest,
+    };
+    assert!(evaluate_rule(
+        &hash_rule, true, 100, 100, None, None, None, None
+    ));
+    assert!(!evaluate_rule(
+        &hash_rule, false, 100, 100, None, None, None, None
+    ));
+
+    // Test size equal rule
+    let size_equal_rule = Rule {
+        action: RuleAction::Skip,
+        attribute: Attribute::Size,
+        comparison: Comparison::Equal,
+        target: Target::Dest,
+    };
+    assert!(evaluate_rule(
+        &size_equal_rule,
+        false,
+        100,
+        100,
+        None,
+        None,
+        None,
+        None
+    ));
+    assert!(!evaluate_rule(
+        &size_equal_rule,
+        false,
+        100,
+        200,
+        None,
+        None,
+        None,
+        None
+    ));
+
+    // Test size greater rule
+    let size_greater_rule = Rule {
+        action: RuleAction::Skip,
+        attribute: Attribute::Size,
+        comparison: Comparison::Greater,
+        target: Target::Src,
+    };
+    assert!(evaluate_rule(
+        &size_greater_rule,
+        false,
+        200,
+        100,
+        None,
+        None,
+        None,
+        None
+    ));
+    assert!(!evaluate_rule(
+        &size_greater_rule,
+        false,
+        100,
+        200,
+        None,
+        None,
+        None,
+        None
+    ));
+
+    // Test modified greater rule
+    let modified_greater_rule = Rule {
+        action: RuleAction::Skip,
+        attribute: Attribute::Modified,
+        comparison: Comparison::Greater,
+        target: Target::Src,
+    };
+    assert!(evaluate_rule(
+        &modified_greater_rule,
+        false,
+        100,
+        100,
+        Some(200),
+        Some(100),
+        None,
+        None
+    ));
+    assert!(!evaluate_rule(
+        &modified_greater_rule,
+        false,
+        100,
+        100,
+        Some(100),
+        Some(200),
+        None,
+        None
+    ));
+    // Should return false if timestamps are None
+    assert!(!evaluate_rule(
+        &modified_greater_rule,
+        false,
+        100,
+        100,
+        None,
+        Some(100),
+        None,
+        None
+    ));
+
+    // Test created less rule
+    let created_less_rule = Rule {
+        action: RuleAction::Skip,
+        attribute: Attribute::Created,
+        comparison: Comparison::Less,
+        target: Target::Src,
+    };
+    assert!(evaluate_rule(
+        &created_less_rule,
+        false,
+        100,
+        100,
+        None,
+        None,
+        Some(100),
+        Some(200)
+    ));
+    assert!(!evaluate_rule(
+        &created_less_rule,
+        false,
+        100,
+        100,
+        None,
+        None,
+        Some(200),
+        Some(100)
+    ));
 }
 
 #[test]

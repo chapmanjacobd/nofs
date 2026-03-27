@@ -168,6 +168,10 @@ pub struct ConflictEntry {
 pub struct ConflictBranch {
     pub path: String,
     pub size: u64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mtime: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ctime: Option<u64>,
 }
 
 /// Generic error output
