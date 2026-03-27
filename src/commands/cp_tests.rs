@@ -719,10 +719,15 @@ fn test_multiple_sources() {
 
 #[test]
 fn test_parse_file_over_file() {
+    // Test empty spec (default)
+    let strategy_default = parse_file_over_file("").unwrap();
+    assert_eq!(strategy_default.required, FileOverFileMode::RenameDest);
+    assert!(strategy_default.rules.is_empty());
+
     // Test simple strategy
-    let strategy = parse_file_over_file("skip").unwrap();
-    assert_eq!(strategy.required, FileOverFileMode::Skip);
-    assert!(strategy.rules.is_empty());
+    let strategy_skip = parse_file_over_file("skip").unwrap();
+    assert_eq!(strategy_skip.required, FileOverFileMode::Skip);
+    assert!(strategy_skip.rules.is_empty());
 
     // Test strategy with one rule
     let strategy2 = parse_file_over_file("skip-hash rename-dest").unwrap();

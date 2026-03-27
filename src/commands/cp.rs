@@ -272,7 +272,7 @@ pub fn parse_file_over_file(spec: &str) -> Result<FileOverFileStrategy> {
     if parts.is_empty() {
         return Ok(FileOverFileStrategy {
             rules,
-            required: FileOverFileMode::DeleteDest,
+            required: FileOverFileMode::RenameDest,
         });
     }
 
@@ -321,11 +321,7 @@ const fn make_size_rule(action: RuleAction, comparison: Comparison, target: Targ
 }
 
 /// Helper to create a rule with modified attribute
-const fn make_modified_rule(
-    action: RuleAction,
-    comparison: Comparison,
-    target: Target,
-) -> Rule {
+const fn make_modified_rule(action: RuleAction, comparison: Comparison, target: Target) -> Rule {
     Rule {
         action,
         attribute: Attribute::Modified,
@@ -349,13 +345,26 @@ const fn make_created_rule(action: RuleAction, comparison: Comparison, target: T
 /// # Errors
 ///
 /// Returns an error if the token is not recognized.
+#[allow(clippy::too_many_lines)]
 fn parse_rule_token(token: &str) -> Result<Rule> {
     match token {
         // Skip rules
         "skip-hash" => Ok(make_hash_rule(RuleAction::Skip)),
-        "skip-size" => Ok(make_size_rule(RuleAction::Skip, Comparison::Equal, Target::Dest)),
-        "skip-larger" => Ok(make_size_rule(RuleAction::Skip, Comparison::Greater, Target::Src)),
-        "skip-smaller" => Ok(make_size_rule(RuleAction::Skip, Comparison::Less, Target::Src)),
+        "skip-size" => Ok(make_size_rule(
+            RuleAction::Skip,
+            Comparison::Equal,
+            Target::Dest,
+        )),
+        "skip-larger" => Ok(make_size_rule(
+            RuleAction::Skip,
+            Comparison::Greater,
+            Target::Src,
+        )),
+        "skip-smaller" => Ok(make_size_rule(
+            RuleAction::Skip,
+            Comparison::Less,
+            Target::Src,
+        )),
         "skip-modified-newer" => Ok(make_modified_rule(
             RuleAction::Skip,
             Comparison::Greater,
@@ -378,15 +387,21 @@ fn parse_rule_token(token: &str) -> Result<Rule> {
         )),
         // Delete-dest rules
         "delete-dest-hash" => Ok(make_hash_rule(RuleAction::DeleteDest)),
-        "delete-dest-size" => {
-            Ok(make_size_rule(RuleAction::DeleteDest, Comparison::Equal, Target::Dest))
-        }
-        "delete-dest-larger" => {
-            Ok(make_size_rule(RuleAction::DeleteDest, Comparison::Greater, Target::Src))
-        }
-        "delete-dest-smaller" => {
-            Ok(make_size_rule(RuleAction::DeleteDest, Comparison::Less, Target::Src))
-        }
+        "delete-dest-size" => Ok(make_size_rule(
+            RuleAction::DeleteDest,
+            Comparison::Equal,
+            Target::Dest,
+        )),
+        "delete-dest-larger" => Ok(make_size_rule(
+            RuleAction::DeleteDest,
+            Comparison::Greater,
+            Target::Src,
+        )),
+        "delete-dest-smaller" => Ok(make_size_rule(
+            RuleAction::DeleteDest,
+            Comparison::Less,
+            Target::Src,
+        )),
         "delete-dest-modified-newer" => Ok(make_modified_rule(
             RuleAction::DeleteDest,
             Comparison::Greater,
@@ -409,9 +424,21 @@ fn parse_rule_token(token: &str) -> Result<Rule> {
         )),
         // Delete-src rules
         "delete-src-hash" => Ok(make_hash_rule(RuleAction::DeleteSrc)),
-        "delete-src-size" => Ok(make_size_rule(RuleAction::DeleteSrc, Comparison::Equal, Target::Dest)),
-        "delete-src-larger" => Ok(make_size_rule(RuleAction::DeleteSrc, Comparison::Greater, Target::Src)),
-        "delete-src-smaller" => Ok(make_size_rule(RuleAction::DeleteSrc, Comparison::Less, Target::Src)),
+        "delete-src-size" => Ok(make_size_rule(
+            RuleAction::DeleteSrc,
+            Comparison::Equal,
+            Target::Dest,
+        )),
+        "delete-src-larger" => Ok(make_size_rule(
+            RuleAction::DeleteSrc,
+            Comparison::Greater,
+            Target::Src,
+        )),
+        "delete-src-smaller" => Ok(make_size_rule(
+            RuleAction::DeleteSrc,
+            Comparison::Less,
+            Target::Src,
+        )),
         "delete-src-modified-newer" => Ok(make_modified_rule(
             RuleAction::DeleteSrc,
             Comparison::Greater,
