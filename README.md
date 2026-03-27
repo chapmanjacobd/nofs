@@ -47,8 +47,8 @@ create_policy = "lfs"  # Fill SSD first (least free space)
 ```toml
 # /etc/nofs/config.toml
 [share.movies]
-paths = ["/hdd1/movies", "/hdd2/movies", "/hdd3/movies"]
-modes = ["RW", "RW", "RO"]
+paths = ["/hdd1/movies", "/hdd2/movies"]
+ro_paths = ["/hdd3/movies"]  # Read-only backup
 create_policy = "pfrd"
 
 [share.tv]
@@ -88,8 +88,9 @@ create_policy = "mfs"
 
 ```toml
 [share.name]
-paths = ["/path1", "/path2"]      # Required: branch paths
-modes = ["RW", "RO"]               # Optional: branch modes (parallel to paths)
+paths = ["/path1", "/path2"]       # Required: RW branch paths
+ro_paths = ["/path3"]              # Optional: read-only branches
+nc_paths = ["/path4"]              # Optional: no-create branches
 create_policy = "pfrd"             # Policy for create operations
 search_policy = "ff"               # Policy for search operations
 action_policy = "epall"            # Policy for action operations
