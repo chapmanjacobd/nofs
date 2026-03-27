@@ -360,3 +360,5 @@ EXAMPLES:
 - Require POSIX filesystem semantics
 - Want applications to see unified shares automatically
 - Many more features!
+
+Read more here: https://github.com/trapexit/mergerfs/blob/master/mkdocs/docs/project_comparisons.md#nofs
