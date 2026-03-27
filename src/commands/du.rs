@@ -44,8 +44,12 @@ pub fn execute(
     let stdout = io::stdout();
     let mut handle = stdout.lock();
 
+    // Normalize the path: strip leading `/` to make it relative to share root
+    let normalized_path = normalize_pool_path(pool_path);
+    let pool_path_obj = Path::new(&normalized_path);
+
     // Resolve the path across all branches
-    let resolved_paths = pool.resolve_path(Path::new(pool_path));
+    let resolved_paths = pool.resolve_path(pool_path_obj);
 
     if resolved_paths.is_empty() {
         return Err(crate::error::NofsError::Io(std::io::Error::new(
@@ -194,6 +198,15 @@ fn calculate_directory_usage(path: &Path, max_depth: Option<usize>, all: bool) -
 /// This is a helper to avoid borrowing issues with `entry.path().components().count()`
 fn entry_path_components_count(entry: &walkdir::DirEntry) -> usize {
     entry.path().components().count()
+}
+
+/// Normalize a pool path by stripping leading `/` to make it relative to share root
+///
+/// In the nofs context, paths like `/`, `/dir`, `/dir/subdir` should be treated
+/// as relative to the share root, not as absolute filesystem paths.
+fn normalize_pool_path(pool_path: &str) -> String {
+    // Strip leading `/` characters to make the path relative
+    pool_path.trim_start_matches('/').to_string()
 }
 
 /// Format size in human-readable format

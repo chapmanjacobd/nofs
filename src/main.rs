@@ -12,6 +12,7 @@ pub mod error;
 pub mod output;
 pub mod policy;
 pub mod pool;
+pub mod utils;
 
 use anyhow::Result;
 use clap::Parser;
