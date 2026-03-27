@@ -251,14 +251,14 @@ pub fn compute_file_hash(path: &Path) -> Result<String> {
 ///
 /// # Errors
 ///
-/// Returns an error if there is an IO error reading files.
+/// Returns an error if there is an IO error reading files or if a worker thread panics.
 #[allow(clippy::missing_panics_doc)]
 pub fn detect_single_file_conflict(
     branches: &[&Branch],
     relative_path: &Path,
     use_hash: bool,
 ) -> Result<Option<FileConflict>> {
-    let mut branch_files = std::thread::scope(|s| {
+    let mut branch_files = std::thread::scope(|s| -> Vec<BranchConflict> {
         let mut handles = Vec::new();
 
         for branch_ref in branches {
@@ -304,7 +304,9 @@ pub fn detect_single_file_conflict(
 
         let mut branch_files = Vec::new();
         for handle in handles {
-            if let Some(conflict) = handle.join().ok().flatten() {
+            // Propagate panics from worker threads
+            #[allow(clippy::expect_used)]
+            if let Some(conflict) = handle.join().expect("Worker thread panicked") {
                 branch_files.push(conflict);
             }
         }
@@ -393,7 +395,7 @@ mod tests {
     fn test_compute_file_hash_large() {
         let temp_dir = TempDir::new().unwrap();
         let file_path = temp_dir.path().join("large.txt");
-        
+
         // Create a file larger than 1MB to trigger sampling
         #[allow(clippy::cast_possible_truncation, clippy::as_conversions)]
         let content = "x".repeat(2 * MB as usize);
@@ -500,13 +502,13 @@ mod tests {
     #[test]
     fn test_detect_conflicts_with_conflicts() {
         let temp_dir = TempDir::new().expect("Failed to create temp dir");
-        
+
         // Create two branch directories
         let dir1 = temp_dir.path().join("branch1");
         let dir2 = temp_dir.path().join("branch2");
         fs::create_dir_all(&dir1).unwrap();
         fs::create_dir_all(&dir2).unwrap();
-        
+
         // Create files with different content (different sizes) directly in branch dirs
         fs::write(dir1.join("diff.txt"), "content AAAA").unwrap();
         fs::write(dir2.join("diff.txt"), "content B").unwrap();
@@ -617,13 +619,13 @@ mod tests {
     #[allow(clippy::get_unwrap)]
     fn test_detect_conflicts_sorted_output() {
         let temp_dir = TempDir::new().expect("Failed to create temp dir");
-        
+
         // Create two branch directories
         let dir1 = temp_dir.path().join("branch1");
         let dir2 = temp_dir.path().join("branch2");
         fs::create_dir_all(&dir1).unwrap();
         fs::create_dir_all(&dir2).unwrap();
-        
+
         // Create files with different content (different sizes)
         fs::write(dir1.join("zebra.txt"), "content AAAA").unwrap();
         fs::write(dir2.join("zebra.txt"), "content B").unwrap();
@@ -643,7 +645,7 @@ mod tests {
 
         let branches = vec![&branch1, &branch2];
         let conflicts = detect_conflicts(&branches, Path::new(""), false).unwrap();
-        
+
         // Should be sorted alphabetically
         assert_eq!(conflicts.len(), 2);
         assert_eq!(conflicts.first().unwrap().name, "apple.txt");
@@ -671,7 +673,7 @@ mod tests {
 
         let mut conflicts = [bc1, bc2];
         conflicts.sort_by(|a, b| b.mtime.cmp(&a.mtime).then_with(|| a.path.cmp(&b.path)));
-        
+
         // Newest first
         assert_eq!(conflicts.first().unwrap().mtime, Some(2000));
         assert_eq!(conflicts.get(1).unwrap().mtime, Some(1000));

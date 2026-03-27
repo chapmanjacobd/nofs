@@ -594,7 +594,7 @@ mod tests {
     fn test_pool_cached_methods() {
         let (temp, pool) = create_test_pool();
         let cache = OperationCache::new();
-        
+
         let file_path = temp.path().join("branch1").join("test.txt");
         fs::write(&file_path, "content").unwrap();
 

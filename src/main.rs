@@ -16,6 +16,7 @@ pub mod utils;
 
 use anyhow::Result;
 use clap::Parser;
+use error::NofsError;
 
 /// Command-line interface for nofs
 #[derive(Parser, Debug)]
@@ -855,8 +856,8 @@ fn main() -> Result<()> {
                 workers,
                 verbose: cli.verbose,
                 file_over_file: commands::cp::parse_file_over_file(&file_over_file)?,
-                file_over_folder: parse_folder_conflict_mode(&file_over_folder)?,
-                folder_over_file: parse_folder_conflict_mode(&folder_over_file)?,
+                file_over_folder: commands::cp::parse_folder_conflict_mode(&file_over_folder)?,
+                folder_over_file: commands::cp::parse_folder_conflict_mode(&folder_over_file)?,
                 extensions: ext,
                 exclude,
                 include,
@@ -866,7 +867,7 @@ fn main() -> Result<()> {
 
             let stats = commands::cp::execute(sources, destination, &config, share)?;
             if stats.errors.load(std::sync::atomic::Ordering::Relaxed) > 0 {
-                return Err(anyhow::anyhow!("Some copy operations failed"));
+                return Err(NofsError::Command("Some copy operations failed".to_string()).into());
             }
         }
         Commands::Mv {
@@ -885,7 +886,9 @@ fn main() -> Result<()> {
         } => {
             // Parse sources and destination
             let Some((destination, sources)) = paths.split_last() else {
-                return Err(anyhow::anyhow!("At least one source and one destination are required"));
+                return Err(
+                    NofsError::CopyMove("At least one source and one destination are required".to_string()).into(),
+                );
             };
 
             // Parse size limit
@@ -912,7 +915,7 @@ fn main() -> Result<()> {
             )?;
 
             if stats.errors.load(std::sync::atomic::Ordering::Relaxed) > 0 {
-                return Err(anyhow::anyhow!("Some move operations failed"));
+                return Err(NofsError::Command("Some move operations failed".to_string()).into());
             }
         }
         Commands::Rm {
@@ -929,7 +932,7 @@ fn main() -> Result<()> {
                 }
             }
             if any_failed {
-                return Err(anyhow::anyhow!("Some removal operations failed"));
+                return Err(NofsError::Command("Some removal operations failed".to_string()).into());
             }
         }
         Commands::Mkdir { path, parents, verbose } => {
@@ -960,24 +963,6 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-/// Parse folder conflict mode from string
-///
-/// # Errors
-///
-/// Returns an error if the mode string is not recognized.
-fn parse_folder_conflict_mode(s: &str) -> Result<commands::cp::FolderConflictMode> {
-    use commands::cp::FolderConflictMode;
-    match s.to_lowercase().as_str() {
-        "skip" => Ok(FolderConflictMode::Skip),
-        "rename-src" => Ok(FolderConflictMode::RenameSrc),
-        "rename-dest" => Ok(FolderConflictMode::RenameDest),
-        "delete-src" => Ok(FolderConflictMode::DeleteSrc),
-        "delete-dest" => Ok(FolderConflictMode::DeleteDest),
-        "merge" => Ok(FolderConflictMode::Merge),
-        _ => Err(anyhow::anyhow!("Unknown folder conflict mode: {s}")),
-    }
-}
-
 /// Parse human-readable size string to bytes
 ///
 /// # Errors
@@ -985,7 +970,7 @@ fn parse_folder_conflict_mode(s: &str) -> Result<commands::cp::FolderConflictMod
 /// Returns an error if the size string cannot be parsed.
 fn parse_size(s: &str) -> Result<u64> {
     use crate::policy::parse_size as policy_parse_size;
-    policy_parse_size(s).map_err(|e| anyhow::anyhow!("Parse error: {e}"))
+    policy_parse_size(s).map_err(|e| NofsError::Parse(format!("Parse error: {e}")).into())
 }
 
 /// Try to extract a share from paths that contain context prefixes

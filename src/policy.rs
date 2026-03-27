@@ -185,80 +185,112 @@ impl<'ctx> CreatePolicy<'ctx> {
             }
             Policy::EpMfs | Policy::EpFf | Policy::EpRand | Policy::EpAll => {
                 // For existing path policies, check if path exists
-                if let Some(rel_path) = relative_path {
-                    let with_path: Vec<(&'ctx Branch, u64)> = eligible_with_space
-                        .iter()
-                        .copied()
-                        .filter(|(b, _)| {
-                            self.cache.map_or_else(
-                                || b.path.join(rel_path).exists(),
-                                |cache| b.path_exists_cached(rel_path, cache),
-                            )
-                        })
-                        .collect();
+                #[allow(clippy::option_if_let_else)]
+                match relative_path {
+                    Some(rel_path) => {
+                        let with_path: Vec<(&'ctx Branch, u64)> = eligible_with_space
+                            .iter()
+                            .copied()
+                            .filter(|(b, _)| {
+                                self.cache.map_or_else(
+                                    || b.path.join(rel_path).exists(),
+                                    |cache| b.path_exists_cached(rel_path, cache),
+                                )
+                            })
+                            .collect();
 
-                    if with_path.is_empty() {
-                        // Fall back to non-path-preserving variant
-                        return Self::select_fallback(policy, &eligible_with_space);
+                        if with_path.is_empty() {
+                            // Fall back to non-path-preserving variant based on the policy type
+                            match policy {
+                                Policy::EpMfs | Policy::Mfs => Self::select_mfs(&eligible_with_space),
+                                Policy::EpFf | Policy::EpAll | Policy::Ff | Policy::All => {
+                                    Self::select_ff(&eligible_with_space)
+                                }
+                                Policy::EpRand | Policy::Rand => Ok(Self::select_rand_with_space(&eligible_with_space)),
+                                Policy::Pfrd => Self::select_pfrd_with_space(&eligible_with_space),
+                                Policy::Lfs => Self::select_lfs(&eligible_with_space),
+                                Policy::Lus => {
+                                    let eligible: Vec<&Branch> = eligible_with_space.iter().map(|(b, _)| *b).collect();
+                                    Self::select_lus(&eligible)
+                                }
+                                Policy::Lup => {
+                                    let eligible: Vec<&Branch> = eligible_with_space.iter().map(|(b, _)| *b).collect();
+                                    Self::select_lup(&eligible)
+                                }
+                            }
+                        } else {
+                            // Path exists in some branches, apply the Ep* policy
+                            match policy {
+                                Policy::EpMfs => with_path
+                                    .into_iter()
+                                    .max_by_key(|(_, space)| *space)
+                                    .map(|(b, _)| b)
+                                    .ok_or(NofsError::NoSuitableBranch),
+                                Policy::EpFf | Policy::EpAll => {
+                                    with_path.first().map(|(b, _)| *b).ok_or(NofsError::NoSuitableBranch)
+                                }
+                                Policy::EpRand => Ok(Self::select_rand_with_space(&with_path)),
+                                // These cases shouldn't happen, but handle them gracefully
+                                Policy::Pfrd
+                                | Policy::Mfs
+                                | Policy::Ff
+                                | Policy::Rand
+                                | Policy::Lfs
+                                | Policy::Lus
+                                | Policy::Lup
+                                | Policy::All => eligible_with_space
+                                    .first()
+                                    .map(|(b, _)| *b)
+                                    .ok_or(NofsError::NoSuitableBranch),
+                            }
+                        }
                     }
-
-                    match policy {
-                        Policy::EpMfs => with_path
-                            .into_iter()
-                            .max_by_key(|(_, space)| *space)
-                            .map(|(b, _)| b)
-                            .ok_or(NofsError::NoSuitableBranch),
-                        Policy::EpFf => with_path.first().map(|(b, _)| *b).ok_or(NofsError::NoSuitableBranch),
-                        Policy::EpRand => Ok(Self::select_rand_with_space(&with_path)),
-                        Policy::Pfrd
-                        | Policy::Mfs
-                        | Policy::Ff
-                        | Policy::Rand
-                        | Policy::Lfs
-                        | Policy::Lus
-                        | Policy::Lup
-                        | Policy::EpAll
-                        | Policy::All => eligible_with_space
-                            .first()
-                            .map(|(b, _)| *b)
-                            .ok_or(NofsError::NoSuitableBranch),
+                    None => {
+                        // No relative path provided, use the non-path-preserving variant
+                        match policy {
+                            Policy::EpMfs | Policy::Mfs => Self::select_mfs(&eligible_with_space),
+                            Policy::EpFf | Policy::EpAll | Policy::Ff | Policy::All => {
+                                Self::select_ff(&eligible_with_space)
+                            }
+                            Policy::EpRand | Policy::Rand => Ok(Self::select_rand_with_space(&eligible_with_space)),
+                            Policy::Pfrd => Self::select_pfrd_with_space(&eligible_with_space),
+                            Policy::Lfs => Self::select_lfs(&eligible_with_space),
+                            Policy::Lus => {
+                                let eligible: Vec<&Branch> = eligible_with_space.iter().map(|(b, _)| *b).collect();
+                                Self::select_lus(&eligible)
+                            }
+                            Policy::Lup => {
+                                let eligible: Vec<&Branch> = eligible_with_space.iter().map(|(b, _)| *b).collect();
+                                Self::select_lup(&eligible)
+                            }
+                        }
                     }
-                } else {
-                    Self::select_fallback(policy, &eligible_with_space)
                 }
             }
         }
     }
 
-    /// Fallback policy selection when original policy cannot be applied.
-    ///
-    /// This is called when a path-preserving policy (`Ep*`) cannot find any branches
-    /// where the path exists. In this case, we fall back to non-path-preserving behavior:
-    /// - `EpMfs` falls back to `Mfs` (select branch with most free space)
-    /// - All other policies fall back to "first eligible branch" (same as `Ff`)
-    #[allow(clippy::unnecessary_wraps)]
-    fn select_fallback(policy: Policy, eligible: &[(&'ctx Branch, u64)]) -> Result<&'ctx Branch> {
-        match policy {
-            // EpMfs → Mfs: select branch with most free space
-            Policy::EpMfs => eligible
-                .iter()
-                .max_by_key(|(_, space)| *space)
-                .map(|(b, _)| *b)
-                .ok_or(NofsError::NoSuitableBranch),
+    /// Select branch with most free space
+    fn select_mfs(eligible: &[(&'ctx Branch, u64)]) -> Result<&'ctx Branch> {
+        eligible
+            .iter()
+            .max_by_key(|(_, space)| *space)
+            .map(|(b, _)| *b)
+            .ok_or(NofsError::NoSuitableBranch)
+    }
 
-            // All other policies → Ff: select first eligible branch
-            Policy::EpFf
-            | Policy::EpAll
-            | Policy::EpRand
-            | Policy::Pfrd
-            | Policy::Mfs
-            | Policy::Ff
-            | Policy::Rand
-            | Policy::Lfs
-            | Policy::Lus
-            | Policy::Lup
-            | Policy::All => eligible.first().map(|(b, _)| *b).ok_or(NofsError::NoSuitableBranch),
-        }
+    /// Select first eligible branch (Ff policy)
+    fn select_ff(eligible: &[(&'ctx Branch, u64)]) -> Result<&'ctx Branch> {
+        eligible.first().map(|(b, _)| *b).ok_or(NofsError::NoSuitableBranch)
+    }
+
+    /// Select branch with least free space
+    fn select_lfs(eligible: &[(&'ctx Branch, u64)]) -> Result<&'ctx Branch> {
+        eligible
+            .iter()
+            .min_by_key(|(_, space)| *space)
+            .map(|(b, _)| *b)
+            .ok_or(NofsError::NoSuitableBranch)
     }
 
     /// Select branch based on percentage free random distribution
@@ -454,10 +486,13 @@ use crate::utils::{GB, KB, MB, PB, TB};
 
 /// Parse human-readable size string to bytes
 ///
+/// Supports suffixes: B, K/KB, M/MB, G/GB, T/TB, P/PB (decimal)
+/// and KiB, MiB, GiB, TiB, PiB (binary).
+///
 /// # Errors
 ///
 /// Returns an error if the size string cannot be parsed.
-#[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss, clippy::as_conversions)]
+#[allow(clippy::cast_possible_truncation, clippy::as_conversions)]
 pub fn parse_size(s: &str) -> Result<u64> {
     let trimmed = s.trim();
 
@@ -475,17 +510,49 @@ pub fn parse_size(s: &str) -> Result<u64> {
         .trim()
         .to_uppercase();
 
-    let num: f64 = num_str
+    // Check if the number has a decimal point
+    if num_str.contains('.') {
+        // For decimal numbers, use f64 arithmetic
+        let num: f64 = num_str
+            .parse()
+            .map_err(|e| NofsError::Parse(format!("Invalid size number {num_str} in {s}: {e}")))?;
+
+        let multiplier = match suffix.as_str() {
+            "" | "B" => 1_u64,
+            "K" | "KB" => KB,
+            "M" | "MB" => MB,
+            "G" | "GB" => GB,
+            "T" | "TB" => TB,
+            "P" | "PB" => PB,
+            "KIB" => 1024,
+            "MIB" => 1024 * 1024,
+            "GIB" => 1024 * 1024 * 1024,
+            "TIB" => 1024 * 1024 * 1024 * 1024,
+            "PIB" => 1024 * 1024 * 1024 * 1024 * 1024,
+            _ => return Err(NofsError::Parse(format!("Invalid size suffix: {s}"))),
+        };
+
+        #[allow(
+            clippy::cast_precision_loss,
+            clippy::as_conversions,
+            clippy::float_arithmetic,
+            clippy::cast_sign_loss
+        )]
+        return Ok((num * multiplier as f64) as u64);
+    }
+
+    // For integer numbers, use u128 to avoid overflow during multiplication
+    let num: u128 = num_str
         .parse()
         .map_err(|e| NofsError::Parse(format!("Invalid size number {num_str} in {s}: {e}")))?;
 
-    let multiplier = match suffix.as_str() {
-        "" | "B" => 1_u64,
-        "K" | "KB" => KB,
-        "M" | "MB" => MB,
-        "G" | "GB" => GB,
-        "T" | "TB" => TB,
-        "P" | "PB" => PB,
+    let multiplier: u128 = match suffix.as_str() {
+        "" | "B" => 1,
+        "K" | "KB" => u128::from(KB),
+        "M" | "MB" => u128::from(MB),
+        "G" | "GB" => u128::from(GB),
+        "T" | "TB" => u128::from(TB),
+        "P" | "PB" => u128::from(PB),
         "KIB" => 1024,
         "MIB" => 1024 * 1024,
         "GIB" => 1024 * 1024 * 1024,
@@ -494,8 +561,17 @@ pub fn parse_size(s: &str) -> Result<u64> {
         _ => return Err(NofsError::Parse(format!("Invalid size suffix: {s}"))),
     };
 
-    #[allow(clippy::cast_precision_loss, clippy::as_conversions, clippy::float_arithmetic)]
-    Ok((num * multiplier as f64) as u64)
+    let result = num.saturating_mul(multiplier);
+
+    // Check for overflow
+    if result > u128::from(u64::MAX) {
+        return Err(NofsError::Parse(format!(
+            "Size {s} exceeds maximum value ({})",
+            u64::MAX
+        )));
+    }
+
+    Ok(result as u64)
 }
 
 #[cfg(test)]
@@ -598,7 +674,7 @@ mod tests {
 
         let branches = vec![branch1, branch2];
         let policy = CreatePolicy::new(&branches, 0);
-        
+
         let selected = policy.select(Policy::Ff, None).unwrap();
         assert_eq!(selected.path, branches.first().unwrap().path);
     }
@@ -674,7 +750,7 @@ mod tests {
 
         let branches = vec![branch_ro];
         let policy = CreatePolicy::new(&branches, 0);
-        
+
         let result = policy.select(Policy::Mfs, None);
         assert!(result.is_err());
     }
@@ -693,14 +769,14 @@ mod tests {
     fn test_create_policy_epmfs_with_existing_path() {
         let (_temp1, branch1) = create_test_branch("disk1");
         let (_temp2, branch2) = create_test_branch("disk2");
-        
+
         // Create file only in disk1's branch path
         let file_path = branch1.path.join("existing.txt");
         fs::write(&file_path, "content").unwrap();
 
         let branches = vec![branch1, branch2];
         let policy = CreatePolicy::new(&branches, 0);
-        
+
         let selected = policy.select(Policy::EpMfs, Some(Path::new("existing.txt"))).unwrap();
         assert!(selected.can_create());
     }
@@ -724,12 +800,12 @@ mod tests {
     fn test_create_policy_epff_with_existing_path() {
         let (_temp1, branch1) = create_test_branch("disk1");
         let (_temp2, branch2) = create_test_branch("disk2");
-        
+
         fs::write(branch1.path.join("existing.txt"), "content").unwrap();
 
         let branches = vec![branch1, branch2];
         let policy = CreatePolicy::new(&branches, 0);
-        
+
         let selected = policy.select(Policy::EpFf, Some(Path::new("existing.txt"))).unwrap();
         assert_eq!(selected.path, branches.first().unwrap().path);
     }
@@ -738,12 +814,12 @@ mod tests {
     fn test_create_policy_eprand_with_existing_path() {
         let (_temp1, branch1) = create_test_branch("disk1");
         let (_temp2, branch2) = create_test_branch("disk2");
-        
+
         fs::write(branch1.path.join("existing.txt"), "content").unwrap();
 
         let branches = vec![branch1, branch2];
         let policy = CreatePolicy::new(&branches, 0);
-        
+
         let selected = policy.select(Policy::EpRand, Some(Path::new("existing.txt"))).unwrap();
         assert_eq!(selected.path, branches.first().unwrap().path);
     }
@@ -773,7 +849,7 @@ mod tests {
 
         let branches = vec![branch];
         let policy = SearchPolicy::new(&branches);
-        
+
         let selected = policy.select(Policy::Ff, Path::new("file.txt")).unwrap();
         assert_eq!(selected.path, branches.first().unwrap().path);
     }
@@ -795,7 +871,7 @@ mod tests {
 
         let branches = vec![branch];
         let policy = SearchPolicy::new(&branches);
-        
+
         let selected = policy.select(Policy::All, Path::new("any.txt")).unwrap();
         assert_eq!(selected.path, branches.first().unwrap().path);
     }
@@ -806,7 +882,7 @@ mod tests {
 
         let branches = vec![branch];
         let policy = SearchPolicy::new(&branches);
-        
+
         let selected = policy.select(Policy::EpAll, Path::new("any.txt")).unwrap();
         assert_eq!(selected.path, branches.first().unwrap().path);
     }
@@ -819,7 +895,7 @@ mod tests {
 
         let branches = vec![branch];
         let policy = SearchPolicy::new(&branches);
-        
+
         let selected = policy.select(Policy::Mfs, Path::new("file.txt")).unwrap();
         assert_eq!(selected.path, branches.first().unwrap().path);
     }
@@ -832,7 +908,7 @@ mod tests {
 
         let branches = vec![branch];
         let policy = SearchPolicy::new(&branches);
-        
+
         let selected = policy.select(Policy::Lfs, Path::new("file.txt")).unwrap();
         assert_eq!(selected.path, branches.first().unwrap().path);
     }
@@ -853,14 +929,14 @@ mod tests {
     fn test_search_policy_find_all() {
         let (_temp1, branch1) = create_test_branch("disk1");
         let (_temp2, branch2) = create_test_branch("disk2");
-        
+
         // Create file in both branch paths
         fs::write(branch1.path.join("shared.txt"), "content1").unwrap();
         fs::write(branch2.path.join("shared.txt"), "content2").unwrap();
 
         let branches = vec![branch1, branch2];
         let policy = SearchPolicy::new(&branches);
-        
+
         let found = policy.find_all(Path::new("shared.txt"));
         assert_eq!(found.len(), 2);
     }

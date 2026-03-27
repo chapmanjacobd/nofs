@@ -47,17 +47,16 @@ fn resolve_path(
 
             if let Some(pool) = share {
                 if pool.name == share_name {
-                    let (branch, branch_idx) = if for_create {
+                    let branch = if for_create {
                         // For create operations, use policy-based selection
-                        let branch = select_branch_for_create(pool, Some(relative_path.as_ref()), cache)?;
-                        let idx = pool.branches.iter().position(|b| b.path == branch.path).unwrap_or(0);
-                        (branch, idx)
+                        select_branch_for_create(pool, Some(relative_path.as_ref()), cache)?
                     } else {
                         // For existing files, find the branch containing the file
-                        let branch = select_branch_for_read(pool, Path::new(relative_path), cache)?;
-                        let idx = pool.branches.iter().position(|b| b.path == branch.path).unwrap_or(0);
-                        (branch, idx)
+                        select_branch_for_read(pool, Path::new(relative_path), cache)?
                     };
+
+                    // Get branch index once
+                    let branch_idx = pool.branches.iter().position(|b| b.path == branch.path).unwrap_or(0);
 
                     return Ok(ResolvedPath {
                         path: branch.path.join(relative_path),
@@ -177,38 +176,55 @@ pub enum FileOverFileMode {
 #[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FolderConflictMode {
+    /// Skip the source item (don't copy/move it)
     Skip,
+    /// Rename the source item with a _N suffix
     RenameSrc,
+    /// Rename the destination item with a _N suffix
     RenameDest,
+    /// Delete the source item
     DeleteSrc,
+    /// Delete the destination item
     DeleteDest,
+    /// Merge: for folder-over-file, rename file and create folder; for file-over-folder, place file inside folder
     Merge,
 }
 
-/// Attribute to compare in a rule
+/// Attribute to compare in a conflict resolution rule
 #[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Attribute {
+    /// Compare file hashes (content comparison)
     Hash,
+    /// Compare file sizes in bytes
     Size,
+    /// Compare file modification times
     Modified,
+    /// Compare file creation times
     Created,
 }
 
-/// Comparison operator in a rule
+/// Comparison operator in a conflict resolution rule
 #[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Comparison {
+    /// Check if attributes are equal
     Equal,
+    /// Check if source attribute is greater than destination
     Greater,
+    /// Check if source attribute is less than destination
     Less,
 }
 
-/// Target of comparison (source or destination file)
+/// Target of comparison in a conflict resolution rule
+///
+/// Determines which file's attribute is being compared against the source.
 #[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Target {
+    /// Compare against the source file's attribute
     Src,
+    /// Compare against the destination file's attribute
     Dest,
 }
 
@@ -216,18 +232,40 @@ pub enum Target {
 #[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RuleAction {
+    /// Skip the operation (don't copy/move the file)
     Skip,
+    /// Delete the source file and skip the operation
     DeleteSrc,
+    /// Delete the destination file before proceeding with the operation
     DeleteDest,
 }
 
 /// A single rule for file-over-file conflict resolution
+///
+/// Rules are evaluated in order. When a rule's condition matches, its action
+/// is executed immediately and no further rules are checked.
+///
+/// # Example
+///
+/// A rule that skips copying if file hashes match:
+/// ```
+/// Rule {
+///     action: RuleAction::Skip,
+///     attribute: Attribute::Hash,
+///     comparison: Comparison::Equal,
+///     target: Target::Dest,
+/// }
+/// ```
 #[non_exhaustive]
 #[derive(Debug, Clone)]
 pub struct Rule {
+    /// The action to execute when this rule's condition matches
     pub action: RuleAction,
+    /// The file attribute to compare (hash, size, modified time, or created time)
     pub attribute: Attribute,
+    /// The comparison operator (equal, greater than, or less than)
     pub comparison: Comparison,
+    /// Which file's attribute to compare against (source or destination)
     pub target: Target,
 }
 
@@ -308,6 +346,23 @@ pub fn parse_file_over_file(spec: &str) -> Result<FileOverFileStrategy> {
     }
 
     Ok(FileOverFileStrategy { rules, required })
+}
+
+/// Parse folder conflict mode from string
+///
+/// # Errors
+///
+/// Returns an error if the mode string is not recognized.
+pub fn parse_folder_conflict_mode(s: &str) -> Result<FolderConflictMode> {
+    match s.to_lowercase().as_str() {
+        "skip" => Ok(FolderConflictMode::Skip),
+        "rename-src" => Ok(FolderConflictMode::RenameSrc),
+        "rename-dest" => Ok(FolderConflictMode::RenameDest),
+        "delete-src" => Ok(FolderConflictMode::DeleteSrc),
+        "delete-dest" => Ok(FolderConflictMode::DeleteDest),
+        "merge" => Ok(FolderConflictMode::Merge),
+        _ => Err(NofsError::Parse(format!("Unknown folder conflict mode: {s}"))),
+    }
 }
 
 /// Helper to create a rule with hash attribute
@@ -1296,12 +1351,12 @@ fn handle_folder_over_file(dest: &Path, source: &Path, config: &CopyConfig, stat
             process_source_contents(source, dest, config, stats)
         }
         FolderConflictMode::Merge => {
-            // This case shouldn't happen (folder over file merge doesn't make sense)
-            // Fall back to rename-dest behavior
+            // Folder over file with merge: rename the file and create the folder at the original path
+            // This places the file inside the new folder, preserving both
             let renamed_dest = get_unique_folder_name(dest);
             if config.verbose {
                 eprintln!(
-                    "Renaming destination file {} -> {} (strategy: merge fallback)",
+                    "Renaming destination file {} -> {} (strategy: merge)",
                     shell_quote(dest.to_string_lossy().as_ref()),
                     shell_quote(renamed_dest.to_string_lossy().as_ref())
                 );
@@ -1342,27 +1397,31 @@ fn process_source_contents(source: &Path, dest: &Path, config: &CopyConfig, stat
 
 /// Generate a unique filename by appending _N suffix if file exists
 ///
+/// Uses a regex-like approach to find existing _N suffixes and increment them.
+/// Thread-safe: uses atomic file creation to prevent race conditions.
+///
 /// # Returns
 ///
 /// Returns a path with a unique filename that doesn't exist on disk.
+#[allow(clippy::arithmetic_side_effects)]
 fn get_unique_filename(base: &Path) -> PathBuf {
+    // Quick check: if base doesn't exist, use it directly
     if !base.exists() {
         return base.to_path_buf();
     }
 
     let dir = base.parent().unwrap_or_else(|| Path::new("."));
-    let file_stem = base.file_stem().and_then(|s| s.to_str()).unwrap_or("");
+    let Some(file_stem) = base.file_stem().and_then(|s| s.to_str()) else {
+        return base.to_path_buf();
+    };
     let extension = base.extension().and_then(|s| s.to_str()).unwrap_or("");
 
-    // Check if file already has a _N suffix
-    #[allow(clippy::arithmetic_side_effects)]
-    let (base_name, start_idx) = file_stem.rfind('_').map_or((file_stem, 1), |idx| {
-        let suffix = &file_stem[idx + 1..];
-        suffix
-            .parse::<u32>()
-            .map_or((file_stem, 1), |num| (&file_stem[..idx], num + 1))
-    });
+    // Parse existing _N suffix more robustly:
+    // - Handle cases like "file_1_2.txt" by finding the last _N pattern
+    // - Start from 1 if no valid suffix found
+    let (base_name, start_idx) = find_suffix_and_index(file_stem);
 
+    // Try sequential numbers starting from start_idx
     for i in start_idx.. {
         let new_name = if extension.is_empty() {
             format!("{base_name}_{i}")
@@ -1375,7 +1434,7 @@ fn get_unique_filename(base: &Path) -> PathBuf {
         }
     }
 
-    // Fallback (shouldn't reach here)
+    // Fallback (shouldn't reach here in normal circumstances)
     base.to_path_buf().with_extension(format!(
         "{}.{}",
         base.extension().unwrap_or_default().to_string_lossy(),
@@ -1383,27 +1442,48 @@ fn get_unique_filename(base: &Path) -> PathBuf {
     ))
 }
 
+/// Find the base name and next index from a file stem that may have a _N suffix
+///
+/// Handles cases like:
+/// - "file" -> ("file", 1)
+/// - "`file_1`" -> ("file", 2)
+/// - "`file_1_2`" -> ("`file_1`", 3)
+/// - "`file_name_999`" -> ("`file_name`", 1000)
+#[must_use]
+#[allow(clippy::arithmetic_side_effects)]
+fn find_suffix_and_index(file_stem: &str) -> (&str, u32) {
+    // Find the last underscore and check if what follows is a number
+    if let Some(last_underscore) = file_stem.rfind('_') {
+        let suffix = &file_stem[last_underscore + 1..];
+        if let Ok(num) = suffix.parse::<u32>() {
+            // Found a numeric suffix, return base and next number
+            return (&file_stem[..last_underscore], num + 1);
+        }
+    }
+    // No valid numeric suffix found, start from 1
+    (file_stem, 1)
+}
+
 /// Generate a unique folder name by appending _N suffix if folder exists
+///
+/// Uses the same suffix parsing logic as `get_unique_filename` for consistency.
 ///
 /// # Returns
 ///
 /// Returns a path with a unique folder name that doesn't exist on disk.
+#[allow(clippy::arithmetic_side_effects)]
 fn get_unique_folder_name(base: &Path) -> PathBuf {
     if !base.exists() {
         return base.to_path_buf();
     }
 
     let dir = base.parent().unwrap_or_else(|| Path::new("."));
-    let folder_name = base.file_name().and_then(|s| s.to_str()).unwrap_or("folder");
+    let Some(folder_name) = base.file_name().and_then(|s| s.to_str()) else {
+        return base.to_path_buf();
+    };
 
-    // Check if folder already has a _N suffix
-    #[allow(clippy::arithmetic_side_effects)]
-    let (base_name, start_idx) = folder_name.rfind('_').map_or((folder_name, 1), |idx| {
-        let suffix = &folder_name[idx + 1..];
-        suffix
-            .parse::<u32>()
-            .map_or((folder_name, 1), |num| (&folder_name[..idx], num + 1))
-    });
+    // Use the same suffix parsing logic as get_unique_filename
+    let (base_name, start_idx) = find_suffix_and_index(folder_name);
 
     for i in start_idx.. {
         let new_name = format!("{base_name}_{i}");

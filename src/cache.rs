@@ -4,11 +4,8 @@
 //! to eliminate redundant statvfs and `path.exists()` calls within a single
 //! command execution.
 
-use crate::branch::Branch;
-use crate::error::Result;
 use dashmap::DashMap;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
 
 /// Cached space information for a branch
 #[derive(Clone, Copy, Debug)]
@@ -29,10 +26,10 @@ pub struct SpaceInfo {
 /// # Thread Safety
 ///
 /// Unlike `RwLock<HashMap>`, `DashMap` provides per-key locking, meaning
-/// concurrent access to different keys does not block. Additionally,
-/// the `get_or_insert_*` methods provide atomic get-or-compute semantics,
-/// preventing TOCTOU race conditions where multiple threads might
-/// compute the same value simultaneously.
+/// concurrent access to different keys does not block. The `get_or_insert_*`
+/// methods provide atomic get-or-compute semantics using `DashMap`'s entry API,
+/// ensuring the compute closure is called at most once per key even when
+/// multiple threads access the same key concurrently.
 ///
 /// # Example
 ///
@@ -55,12 +52,6 @@ impl OperationCache {
     #[must_use]
     pub fn new() -> Self {
         Self::default()
-    }
-
-    /// Create a new empty operation cache (alias for `new()`)
-    #[must_use]
-    pub fn create() -> Self {
-        Self::new()
     }
 
     /// Get cached space info, or None if not cached
@@ -153,62 +144,13 @@ impl OperationCache {
     }
 }
 
-/// Helper trait for cache-aware branch operations
-pub trait CachedBranch {
-    /// Get available space, using cache if available
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if the space cannot be determined.
-    fn available_space_cached(&self, cache: &OperationCache) -> Result<u64>;
-
-    /// Get total space, using cache if available
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if the space cannot be determined.
-    fn total_space_cached(&self, cache: &OperationCache) -> Result<u64>;
-
-    /// Check path existence with caching
-    fn path_exists_cached(&self, relative_path: &Path, cache: &OperationCache) -> bool;
-}
-
-impl CachedBranch for Branch {
-    /// Get available space, using cache if available
-    fn available_space_cached(&self, cache: &OperationCache) -> Result<u64> {
-        let info = cache.get_or_insert_space(&self.path, || {
-            // This closure runs at most once per branch, even with concurrent access
-            let available = self.available_space().unwrap_or(0);
-            let total = self.total_space().unwrap_or(0);
-            SpaceInfo { available, total }
-        });
-        Ok(info.available)
-    }
-
-    /// Get total space, using cache if available
-    fn total_space_cached(&self, cache: &OperationCache) -> Result<u64> {
-        let info = cache.get_or_insert_space(&self.path, || {
-            let available = self.available_space().unwrap_or(0);
-            let total = self.total_space().unwrap_or(0);
-            SpaceInfo { available, total }
-        });
-        Ok(info.total)
-    }
-
-    /// Check path existence with caching
-    fn path_exists_cached(&self, relative_path: &Path, cache: &OperationCache) -> bool {
-        cache.get_or_insert_exists(&self.path, relative_path, || self.path.join(relative_path).exists())
-    }
-}
-
-/// Arc-wrapped cache for easy sharing across threads
-pub type SharedCache = Arc<OperationCache>;
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::branch::Branch;
     use std::fs;
     use std::path::PathBuf;
+    use std::sync::Arc;
 
     fn setup_test_branch() -> (Branch, PathBuf) {
         let test_id = format!(
