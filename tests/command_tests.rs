@@ -1173,4 +1173,290 @@ paths = ["{0}/disk1"]
             "Error should mention 'No such file'"
         );
     }
+
+    #[test]
+    fn ls_conflicts_detection() {
+        let ctx = TestContext::new("cmd_ls_conflicts");
+
+        // Create same file with different content in different branches
+        let branch1 = ctx.create_branch("disk1/dir", &["file1.txt"]);
+        let branch2 = ctx.create_branch("disk2/dir", &["file1.txt"]);
+
+        // Overwrite content in branch2 to create conflict
+        fs::write(branch1.join("file1.txt"), "original content").unwrap();
+        fs::write(branch2.join("file1.txt"), "different content").unwrap();
+
+        let config = format!(
+            r#"
+[share.test]
+paths = ["{0}/disk1", "{0}/disk2"]
+"#,
+            ctx.root.display()
+        );
+
+        ctx.write_config(&config);
+
+        let output = ctx.run_nofs(&[
+            "--config",
+            ctx.config_path.to_str().unwrap(),
+            "ls",
+            "--conflicts",
+            "test:dir",
+        ]);
+
+        assert!(output.success(), "Command failed: {}", output.stderr);
+        assert!(
+            output.stderr.contains("conflict"),
+            "Should report conflict in stderr: {}",
+            output.stderr
+        );
+        assert!(
+            output.stdout.contains("file1.txt !"),
+            "Should mark conflicting file with !: {}",
+            output.stdout
+        );
+    }
+
+    #[test]
+    fn ls_conflicts_verbose() {
+        let ctx = TestContext::new("cmd_ls_conflicts_verbose");
+
+        let branch1 = ctx.create_branch("disk1/dir", &["conflict.txt"]);
+        let branch2 = ctx.create_branch("disk2/dir", &["conflict.txt"]);
+
+        // Create different content
+        fs::write(branch1.join("conflict.txt"), "original").unwrap();
+        fs::write(branch2.join("conflict.txt"), "different").unwrap();
+
+        let config = format!(
+            r#"
+[share.test]
+paths = ["{0}/disk1", "{0}/disk2"]
+"#,
+            ctx.root.display()
+        );
+
+        ctx.write_config(&config);
+
+        let output = ctx.run_nofs(&[
+            "--config",
+            ctx.config_path.to_str().unwrap(),
+            "ls",
+            "--conflicts",
+            "-v",
+            "test:dir",
+        ]);
+
+        assert!(output.success(), "Command failed: {}", output.stderr);
+        assert!(
+            output.stderr.contains("conflicts detected"),
+            "Should mention conflicts: {}",
+            output.stderr
+        );
+        assert!(
+            output.stderr.contains("disk1"),
+            "Should mention branch disk1: {}",
+            output.stderr
+        );
+        assert!(
+            output.stderr.contains("disk2"),
+            "Should mention branch disk2: {}",
+            output.stderr
+        );
+    }
+
+    #[test]
+    fn ls_no_conflicts() {
+        let ctx = TestContext::new("cmd_ls_no_conflicts");
+
+        // Create different files in each branch (no conflicts)
+        let _ = ctx.create_branch("disk1/dir", &["file1.txt"]);
+        let _ = ctx.create_branch("disk2/dir", &["file2.txt"]);
+
+        let config = format!(
+            r#"
+[share.test]
+paths = ["{0}/disk1", "{0}/disk2"]
+"#,
+            ctx.root.display()
+        );
+
+        ctx.write_config(&config);
+
+        let output = ctx.run_nofs(&[
+            "--config",
+            ctx.config_path.to_str().unwrap(),
+            "ls",
+            "--conflicts",
+            "test:dir",
+        ]);
+
+        assert!(output.success(), "Command failed: {}", output.stderr);
+        assert!(
+            !output.stderr.contains("conflict"),
+            "Should not report conflicts: {}",
+            output.stderr
+        );
+    }
+
+    #[test]
+    fn ls_conflicts_same_size_different_content() {
+        let ctx = TestContext::new("cmd_ls_conflicts_same_size");
+
+        let branch1 = ctx.create_branch("disk1/dir", &["same_size.txt"]);
+        let branch2 = ctx.create_branch("disk2/dir", &["same_size.txt"]);
+
+        // Create files with same size but different content
+        fs::write(branch1.join("same_size.txt"), "AAAA").unwrap();
+        fs::write(branch2.join("same_size.txt"), "BBBB").unwrap();
+
+        let config = format!(
+            r#"
+[share.test]
+paths = ["{0}/disk1", "{0}/disk2"]
+"#,
+            ctx.root.display()
+        );
+
+        ctx.write_config(&config);
+
+        let output = ctx.run_nofs(&[
+            "--config",
+            ctx.config_path.to_str().unwrap(),
+            "ls",
+            "--conflicts",
+            "--hash",
+            "test:dir",
+        ]);
+
+        assert!(output.success(), "Command failed: {}", output.stderr);
+        assert!(
+            output.stderr.contains("conflict"),
+            "Should detect conflict with hash comparison: {}",
+            output.stderr
+        );
+    }
+
+    #[test]
+    fn which_conflicts_detection() {
+        let ctx = TestContext::new("cmd_which_conflicts");
+
+        let branch1 = ctx.create_branch("disk1/dir", &["file.txt"]);
+        let branch2 = ctx.create_branch("disk2/dir", &["file.txt"]);
+
+        // Create different content
+        fs::write(branch1.join("file.txt"), "original").unwrap();
+        fs::write(branch2.join("file.txt"), "different").unwrap();
+
+        let config = format!(
+            r#"
+[share.test]
+paths = ["{0}/disk1", "{0}/disk2"]
+"#,
+            ctx.root.display()
+        );
+
+        ctx.write_config(&config);
+
+        let output = ctx.run_nofs(&[
+            "--config",
+            ctx.config_path.to_str().unwrap(),
+            "which",
+            "--all",
+            "--conflicts",
+            "test:dir/file.txt",
+        ]);
+
+        assert!(output.success(), "Command failed: {}", output.stderr);
+        assert!(
+            output.stderr.contains("conflict"),
+            "Should report conflict: {}",
+            output.stderr
+        );
+    }
+
+    #[test]
+    fn which_conflicts_verbose() {
+        let ctx = TestContext::new("cmd_which_conflicts_verbose");
+
+        let branch1 = ctx.create_branch("disk1/dir", &["file.txt"]);
+        let branch2 = ctx.create_branch("disk2/dir", &["file.txt"]);
+
+        // Create different content
+        fs::write(branch1.join("file.txt"), "original").unwrap();
+        fs::write(branch2.join("file.txt"), "different content").unwrap();
+
+        let config = format!(
+            r#"
+[share.test]
+paths = ["{0}/disk1", "{0}/disk2"]
+"#,
+            ctx.root.display()
+        );
+
+        ctx.write_config(&config);
+
+        let output = ctx.run_nofs(&[
+            "--config",
+            ctx.config_path.to_str().unwrap(),
+            "which",
+            "--all",
+            "--conflicts",
+            "-v",
+            "test:dir/file.txt",
+        ]);
+
+        assert!(output.success(), "Command failed: {}", output.stderr);
+        assert!(
+            output.stderr.contains("conflict detected"),
+            "Should mention conflict: {}",
+            output.stderr
+        );
+        assert!(
+            output.stderr.contains("disk1"),
+            "Should mention branch disk1: {}",
+            output.stderr
+        );
+        assert!(
+            output.stderr.contains("disk2"),
+            "Should mention branch disk2: {}",
+            output.stderr
+        );
+    }
+
+    #[test]
+    fn which_no_conflicts() {
+        let ctx = TestContext::new("cmd_which_no_conflicts");
+
+        // Same file in multiple branches with identical content
+        let _ = ctx.create_branch("disk1/dir", &["file.txt"]);
+        let _ = ctx.create_branch("disk2/dir", &["file.txt"]);
+
+        let config = format!(
+            r#"
+[share.test]
+paths = ["{0}/disk1", "{0}/disk2"]
+"#,
+            ctx.root.display()
+        );
+
+        ctx.write_config(&config);
+
+        let output = ctx.run_nofs(&[
+            "--config",
+            ctx.config_path.to_str().unwrap(),
+            "which",
+            "--all",
+            "--conflicts",
+            "-v",
+            "test:dir/file.txt",
+        ]);
+
+        assert!(output.success(), "Command failed: {}", output.stderr);
+        assert!(
+            !output.stderr.contains("conflict detected"),
+            "Should not report conflict: {}",
+            output.stderr
+        );
+    }
 }

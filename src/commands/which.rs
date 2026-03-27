@@ -1,5 +1,6 @@
 //! which command - Find which branch contains a file
 
+use crate::conflict::detect_single_file_conflict;
 use crate::error::Result;
 use crate::pool::Pool;
 use std::io::{self, Write};
@@ -10,7 +11,14 @@ use std::path::Path;
 /// # Errors
 ///
 /// Returns an error if there is an IO error during output.
-pub fn execute(pool: &Pool, path: &str, all: bool, verbose: bool) -> Result<()> {
+pub fn execute(
+    pool: &Pool,
+    path: &str,
+    all: bool,
+    verbose: bool,
+    conflicts: bool,
+    hash: bool,
+) -> Result<()> {
     let pool_path = Path::new(path);
 
     if all {
@@ -20,6 +28,15 @@ pub fn execute(pool: &Pool, path: &str, all: bool, verbose: bool) -> Result<()> 
         if branches.is_empty() {
             eprintln!("nofs: '{path}' not found in share");
             return Ok(());
+        }
+
+        // Detect conflicts if requested
+        if conflicts {
+            if let Some(conflict) = detect_single_file_conflict(&branches, pool_path, hash)? {
+                report_conflict(&conflict, verbose)?;
+            } else if verbose {
+                eprintln!("no conflict: file content is identical across branches");
+            }
         }
 
         if verbose {
@@ -48,6 +65,32 @@ pub fn execute(pool: &Pool, path: &str, all: bool, verbose: bool) -> Result<()> 
         println!("{}", full_path.display());
     } else {
         eprintln!("nofs: '{path}' not found in share");
+    }
+
+    Ok(())
+}
+
+/// Report a conflict to stderr
+///
+/// # Errors
+///
+/// Returns an error if there is an IO error during output.
+fn report_conflict(conflict: &crate::conflict::FileConflict, verbose: bool) -> Result<()> {
+    let stderr = io::stderr();
+    let mut h = stderr.lock();
+
+    writeln!(
+        h,
+        "conflict detected: file '{}' differs across branches",
+        conflict.name
+    )?;
+
+    if verbose {
+        for branch in &conflict.branches {
+            writeln!(h, "  {} ({} bytes)", branch.path, branch.size)?;
+        }
+    } else {
+        writeln!(h, "  {} versions found", conflict.branches.len())?;
     }
 
     Ok(())

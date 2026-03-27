@@ -18,23 +18,23 @@ pub fn execute(pool: &Pool, human: bool, _verbose: bool) -> Result<()> {
     let used = pool.total_used_space();
     let available = pool.total_available_space();
 
-    let _ = writeln!(handle, "Share: {}", pool.name);
-    let _ = writeln!(
+    writeln!(handle, "Share: {}", pool.name)?;
+    writeln!(
         handle,
         "Branches: {} ({} writable)",
         pool.branch_count(),
         pool.writable_branch_count()
-    );
-    let _ = writeln!(handle);
+    )?;
+    writeln!(handle)?;
 
     if human {
-        let _ = writeln!(handle, "Total:     {}", format_size(total));
-        let _ = writeln!(handle, "Used:      {}", format_size(used));
-        let _ = writeln!(handle, "Available: {}", format_size(available));
+        writeln!(handle, "Total:     {}", format_size(total))?;
+        writeln!(handle, "Used:      {}", format_size(used))?;
+        writeln!(handle, "Available: {}", format_size(available))?;
     } else {
-        let _ = writeln!(handle, "Total:     {total} bytes");
-        let _ = writeln!(handle, "Used:      {used} bytes");
-        let _ = writeln!(handle, "Available: {available} bytes");
+        writeln!(handle, "Total:     {total} bytes")?;
+        writeln!(handle, "Used:      {used} bytes")?;
+        writeln!(handle, "Available: {available} bytes")?;
     }
 
     if total > 0 {
@@ -44,17 +44,17 @@ pub fn execute(pool: &Pool, human: bool, _verbose: bool) -> Result<()> {
             clippy::float_arithmetic
         )]
         let percent_used = (used as f64 / total as f64) * 100.0;
-        let _ = writeln!(handle, "Use%:      {percent_used:.1}%");
+        writeln!(handle, "Use%:      {percent_used:.1}%")?;
     }
 
     // Show per-branch stats
-    let _ = writeln!(handle);
-    let _ = writeln!(handle, "Per-branch statistics:");
-    let _ = writeln!(
+    writeln!(handle)?;
+    writeln!(handle, "Per-branch statistics:")?;
+    writeln!(
         handle,
         "{:<40} {:>12} {:>12} {:>12} {:>8}",
         "Branch", "Total", "Used", "Available", "Use%"
-    );
+    )?;
 
     for branch in &pool.branches {
         let branch_total = branch.total_space().unwrap_or(0);
@@ -76,7 +76,7 @@ pub fn execute(pool: &Pool, human: bool, _verbose: bool) -> Result<()> {
         let path_str = format!("{} {}", branch.path.display(), mode_str);
 
         if human {
-            let _ = writeln!(
+            writeln!(
                 handle,
                 "{:<40} {:>12} {:>12} {:>12} {:>7.1}%",
                 truncate_path(&path_str, 40),
@@ -84,9 +84,9 @@ pub fn execute(pool: &Pool, human: bool, _verbose: bool) -> Result<()> {
                 format_size(branch_used),
                 format_size(branch_available),
                 percent
-            );
+            )?;
         } else {
-            let _ = writeln!(
+            writeln!(
                 handle,
                 "{:<40} {:>12} {:>12} {:>12} {:>7.1}%",
                 truncate_path(&path_str, 40),
@@ -94,7 +94,7 @@ pub fn execute(pool: &Pool, human: bool, _verbose: bool) -> Result<()> {
                 branch_used,
                 branch_available,
                 percent
-            );
+            )?;
         }
     }
 

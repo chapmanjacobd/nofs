@@ -1,5 +1,6 @@
 //! ls command - List directory contents
 
+use crate::conflict::{detect_conflicts, FileConflict};
 use crate::error::{NofsError, Result};
 use crate::pool::Pool;
 use std::fs;
@@ -13,7 +14,15 @@ use std::path::Path;
 ///
 /// Returns an error if there is an IO error during output.
 #[allow(clippy::fn_params_excessive_bools)]
-pub fn execute(pool: &Pool, path: &str, long: bool, all: bool, verbose: bool) -> Result<()> {
+pub fn execute(
+    pool: &Pool,
+    path: &str,
+    long: bool,
+    all: bool,
+    verbose: bool,
+    conflicts: bool,
+    hash: bool,
+) -> Result<()> {
     let pool_path = Path::new(path);
 
     // Find all branches with this path
@@ -34,6 +43,18 @@ pub fn execute(pool: &Pool, path: &str, long: bool, all: bool, verbose: bool) ->
         }
     }
 
+    // Detect conflicts if requested
+    let conflict_list = if conflicts {
+        detect_conflicts(&branches, pool_path, hash)?
+    } else {
+        Vec::new()
+    };
+
+    // Report conflicts
+    if conflicts && !conflict_list.is_empty() {
+        report_conflicts(&conflict_list, verbose)?;
+    }
+
     // Collect all entries from all branches
     let mut entries: Vec<(std::path::PathBuf, String)> = Vec::new();
 
@@ -42,16 +63,28 @@ pub fn execute(pool: &Pool, path: &str, long: bool, all: bool, verbose: bool) ->
 
         match fs::read_dir(&branch_path) {
             Ok(read_dir) => {
-                for entry in read_dir.flatten() {
-                    let file_name = entry.file_name();
-                    let file_name_str = file_name.to_string_lossy().to_string();
+                for entry_result in read_dir {
+                    match entry_result {
+                        Ok(entry) => {
+                            let file_name = entry.file_name();
+                            let file_name_str = file_name.to_string_lossy().to_string();
 
-                    // Skip hidden files unless --all
-                    if !all && file_name_str.starts_with('.') {
-                        continue;
+                            // Skip hidden files unless --all
+                            if !all && file_name_str.starts_with('.') {
+                                continue;
+                            }
+
+                            entries.push((entry.path(), file_name_str));
+                        }
+                        Err(e) if verbose => {
+                            eprintln!(
+                                "nofs: warning: failed to read entry in '{}': {}",
+                                branch_path.display(),
+                                e
+                            );
+                        }
+                        Err(_) => {}
                     }
-
-                    entries.push((entry.path(), file_name_str));
                 }
             }
             Err(e) if verbose => {
@@ -75,10 +108,16 @@ pub fn execute(pool: &Pool, path: &str, long: bool, all: bool, verbose: bool) ->
         .filter(|(_, name)| seen.insert(name.clone()))
         .collect();
 
+    // Build a set of conflicting file names for quick lookup
+    let conflict_names: std::collections::HashSet<&str> =
+        conflict_list.iter().map(|c| c.name.as_str()).collect();
+
     let stdout = io::stdout();
     let mut handle = stdout.lock();
 
     for (entry_path, file_name) in unique_entries {
+        let is_conflict = conflict_names.contains(file_name.as_str());
+
         if long {
             // Long format: show details
             if let Ok(metadata) = fs::metadata(&entry_path) {
@@ -93,12 +132,14 @@ pub fn execute(pool: &Pool, path: &str, long: bool, all: bool, verbose: bool) ->
                 let permissions = format_permissions(metadata.st_mode());
                 let size = metadata.len();
 
+                let conflict_marker = if is_conflict { " !" } else { "" };
                 writeln!(
                     handle,
-                    "{} {} {:>8} {}",
+                    "{} {} {:>8} {}{}",
                     file_type,
                     permissions,
                     human_size(size),
+                    conflict_marker,
                     file_name
                 )?;
             }
@@ -108,7 +149,35 @@ pub fn execute(pool: &Pool, path: &str, long: bool, all: bool, verbose: bool) ->
         else if entry_path.is_dir() {
             writeln!(handle, "{file_name}/")?;
         } else {
-            writeln!(handle, "{file_name}")?;
+            let conflict_marker = if is_conflict { " !" } else { "" };
+            writeln!(handle, "{file_name}{conflict_marker}")?;
+        }
+    }
+
+    Ok(())
+}
+
+/// Report conflicts to stderr
+///
+/// # Errors
+///
+/// Returns an error if there is an IO error during output.
+fn report_conflicts(conflicts: &[FileConflict], verbose: bool) -> Result<()> {
+    let stderr = io::stderr();
+    let mut h = stderr.lock();
+
+    writeln!(
+        h,
+        "conflicts detected: {} file(s) differ across branches",
+        conflicts.len()
+    )?;
+
+    if verbose {
+        for conflict in conflicts {
+            writeln!(h, "  {}:", conflict.name)?;
+            for branch in &conflict.branches {
+                writeln!(h, "    {} ({} bytes)", branch.path, branch.size)?;
+            }
         }
     }
 

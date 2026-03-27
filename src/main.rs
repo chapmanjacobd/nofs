@@ -6,6 +6,7 @@
 pub mod branch;
 pub mod commands;
 pub mod config;
+pub mod conflict;
 pub mod error;
 pub mod policy;
 pub mod pool;
@@ -57,6 +58,14 @@ enum Commands {
         /// Show hidden files.
         #[arg(short, long)]
         all: bool,
+
+        /// Detect and report conflicts (files with same name but different content).
+        #[arg(long)]
+        conflicts: bool,
+
+        /// Use hash comparison for conflict detection (slower but more accurate).
+        #[arg(long, requires = "conflicts")]
+        hash: bool,
     },
 
     /// Find files matching a pattern.
@@ -86,6 +95,14 @@ enum Commands {
         /// Show all branches containing the file.
         #[arg(short, long)]
         all: bool,
+
+        /// Detect and report conflicts (files with same name but different content).
+        #[arg(long)]
+        conflicts: bool,
+
+        /// Use hash comparison for conflict detection (slower but more accurate).
+        #[arg(long, requires = "conflicts")]
+        hash: bool,
     },
 
     /// Get the best branch path for creating a new file.
@@ -295,9 +312,15 @@ fn main() -> Result<()> {
 
     // Execute the command
     match cli.command {
-        Commands::Ls { path, long, all } => {
+        Commands::Ls {
+            path,
+            long,
+            all,
+            conflicts,
+            hash,
+        } => {
             let (pool, pool_path) = pool_mgr.resolve_context_path(&path)?;
-            commands::ls::execute(pool, pool_path, long, all, cli.verbose)?;
+            commands::ls::execute(pool, pool_path, long, all, cli.verbose, conflicts, hash)?;
         }
         Commands::Find {
             path,
@@ -315,9 +338,14 @@ fn main() -> Result<()> {
                 cli.verbose,
             )?;
         }
-        Commands::Which { path, all } => {
+        Commands::Which {
+            path,
+            all,
+            conflicts,
+            hash,
+        } => {
             let (pool, pool_path) = pool_mgr.resolve_context_path(&path)?;
-            commands::which::execute(pool, pool_path, all, cli.verbose)?;
+            commands::which::execute(pool, pool_path, all, cli.verbose, conflicts, hash)?;
         }
         Commands::Create { path } => {
             let (pool, pool_path) = pool_mgr.resolve_context_path(&path)?;
@@ -394,7 +422,10 @@ fn main() -> Result<()> {
                 size_limit: parsed_size_limit,
             };
 
-            commands::cp::execute(sources, destination, &config, share)?;
+            let stats = commands::cp::execute(sources, destination, &config, share)?;
+            if stats.errors.load(std::sync::atomic::Ordering::Relaxed) > 0 {
+                return Err(anyhow::anyhow!("Some copy operations failed"));
+            }
         }
         Commands::Mv {
             paths,
@@ -427,7 +458,7 @@ fn main() -> Result<()> {
             // Get share for context-aware paths
             let share = extract_share_from_paths(&pool_mgr, sources, destination)?;
 
-            commands::mv::execute(
+            let stats = commands::mv::execute(
                 sources,
                 destination,
                 &file_over_file,
@@ -443,6 +474,10 @@ fn main() -> Result<()> {
                 parsed_size_limit,
                 share,
             )?;
+
+            if stats.errors.load(std::sync::atomic::Ordering::Relaxed) > 0 {
+                return Err(anyhow::anyhow!("Some move operations failed"));
+            }
         }
         Commands::Rm {
             paths,

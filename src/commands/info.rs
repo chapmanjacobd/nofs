@@ -14,29 +14,29 @@ pub fn execute_single(pool: &Pool, _verbose: bool) -> Result<()> {
     let stdout = io::stdout();
     let mut handle = stdout.lock();
 
-    let _ = writeln!(handle, "Share: {}", pool.name);
-    let _ = writeln!(handle, "======");
-    let _ = writeln!(handle);
+    writeln!(handle, "Share: {}", pool.name)?;
+    writeln!(handle, "======")?;
+    writeln!(handle)?;
 
-    let _ = writeln!(handle, "Branches:     {}", pool.branch_count());
-    let _ = writeln!(handle, "  Writable:   {}", pool.writable_branch_count());
-    let _ = writeln!(
+    writeln!(handle, "Branches:     {}", pool.branch_count())?;
+    writeln!(handle, "  Writable:   {}", pool.writable_branch_count())?;
+    writeln!(
         handle,
         "  Read-only:  {}",
         pool.branch_count()
             .saturating_sub(pool.writable_branch_count())
-    );
-    let _ = writeln!(handle);
+    )?;
+    writeln!(handle)?;
 
-    let _ = writeln!(handle, "Policies:");
-    let _ = writeln!(handle, "  Create:     {}", pool.create_policy);
-    let _ = writeln!(handle, "  Search:     {}", pool.search_policy);
-    let _ = writeln!(handle);
+    writeln!(handle, "Policies:")?;
+    writeln!(handle, "  Create:     {}", pool.create_policy)?;
+    writeln!(handle, "  Search:     {}", pool.search_policy)?;
+    writeln!(handle)?;
 
-    let _ = writeln!(handle, "Min Free Space: {} bytes", pool.minfreespace);
-    let _ = writeln!(handle);
+    writeln!(handle, "Min Free Space: {} bytes", pool.minfreespace)?;
+    writeln!(handle)?;
 
-    let _ = writeln!(handle, "Branch List:");
+    writeln!(handle, "Branch List:")?;
     for (i, branch) in pool.branches.iter().enumerate() {
         let mode = branch.mode;
         let minfree = branch
@@ -45,14 +45,14 @@ pub fn execute_single(pool: &Pool, _verbose: bool) -> Result<()> {
             .map(|s| format!(" (min: {s})"))
             .unwrap_or_default();
 
-        let _ = writeln!(
+        writeln!(
             handle,
             "  {}. {} [{}]{}",
             i.saturating_add(1),
             branch.path.display(),
             mode,
             minfree
-        );
+        )?;
     }
 
     Ok(())
@@ -67,26 +67,26 @@ pub fn execute_all(pool_mgr: &PoolManager, _verbose: bool) -> Result<()> {
     let stdout = io::stdout();
     let mut handle = stdout.lock();
 
-    let _ = writeln!(handle, "Shares");
-    let _ = writeln!(handle, "======");
-    let _ = writeln!(handle);
+    writeln!(handle, "Shares")?;
+    writeln!(handle, "======")?;
+    writeln!(handle)?;
 
     // Get all share names
     for name in pool_mgr.pool_names() {
         if let Ok(pool) = pool_mgr.get_pool(name) {
-            let _ = writeln!(handle, "{name}:");
-            let _ = writeln!(
+            writeln!(handle, "{name}:")?;
+            writeln!(
                 handle,
                 "  Branches: {} ({} writable)",
                 pool.branch_count(),
                 pool.writable_branch_count()
-            );
-            let _ = writeln!(
+            )?;
+            writeln!(
                 handle,
                 "  Policy: {} / {}",
                 pool.create_policy, pool.search_policy
-            );
-            let _ = writeln!(handle);
+            )?;
+            writeln!(handle)?;
         }
     }
 
