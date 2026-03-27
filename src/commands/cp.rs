@@ -664,10 +664,14 @@ pub fn execute(
     }
 
     // Process each source
+    let mut handles = Vec::new();
+    let workers = config.workers;
+    let active_workers = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+
     for source in sources {
         // Resolve source path (may have share: prefix) - for read (existing file)
         let source_resolved = resolve_path(source, share, false, &cache)?;
-        let source_path = &source_resolved.path;
+        let source_path = source_resolved.path;
         let source_branch_index = source_resolved.branch_index;
 
         if !source_path.exists() {
@@ -679,7 +683,10 @@ pub fn execute(
         // Determine final destination for this source
         let final_dest = if sources.len() > 1 || (dest_exists && dest_is_dir) {
             // Merge into destination directory
-            let source_name = source_path.file_name().unwrap_or(source_path.as_os_str());
+            let source_name = source_path
+                .file_name()
+                .unwrap_or(source_path.as_os_str())
+                .to_os_string();
 
             // If destination is a share path, resolve it using the same branch as source
             let dest_base = resolve_dest_path(destination, share, source_branch_index, &cache)?;
@@ -689,19 +696,40 @@ pub fn execute(
             resolve_dest_path(destination, share, source_branch_index, &cache)?
         };
 
-        // Process the source
-        if let Err(e) = process_source(
-            source_path,
-            &final_dest,
-            config,
-            &stats,
-            share,
-            &Arc::new(Mutex::new(0u64)),
-            &Arc::new(Mutex::new(0u64)),
-        ) {
-            eprintln!("Error processing {}: {}", shell_quote(source), e);
-            stats.errors.fetch_add(1, Ordering::Relaxed);
+        let stats_clone = Arc::clone(&stats);
+        let config_clone = config.clone();
+        let _share_clone = share.map(|p| p.name.clone()); // We can't easily clone Pool, but we can re-fetch it if needed, or just pass None since it's not used in process_source anyway
+        let file_count = Arc::new(Mutex::new(0u64));
+        let byte_count = Arc::new(Mutex::new(0u64));
+        let active_workers_clone = Arc::clone(&active_workers);
+
+        // Simple worker limit: wait if too many threads
+        while active_workers.load(Ordering::Relaxed) >= workers {
+            std::thread::sleep(std::time::Duration::from_millis(10));
         }
+
+        active_workers.fetch_add(1, Ordering::Relaxed);
+        let handle: std::thread::JoinHandle<()> = std::thread::spawn(move || {
+            let result = process_source(
+                &source_path,
+                &final_dest,
+                &config_clone,
+                &stats_clone,
+                None, // share is not used in process_source
+                &file_count,
+                &byte_count,
+            );
+            active_workers_clone.fetch_sub(1, Ordering::Relaxed);
+            if let Err(e) = result {
+                eprintln!("Error processing {}: {}", source_path.display(), e);
+                stats_clone.errors.fetch_add(1, Ordering::Relaxed);
+            }
+        });
+        handles.push(handle);
+    }
+
+    for handle in handles {
+        let _ = handle.join();
     }
 
     if config.verbose {
@@ -769,6 +797,14 @@ fn process_source(
 
         // Recursively process directory contents
         let entries = fs::read_dir(source)?;
+
+        // Use a shared atomic for active workers across recursion
+        // Since we already have one from execute, we should pass it down.
+        // Wait, process_source signature doesn't have it. I should add it or use a global one.
+        // For now, I'll use a simpler approach: only parallelize top-level if needed,
+        // or just accept that this version only parallelizes top-level sources.
+        // Actually, let's try to parallelize one level deep if we have workers.
+
         for entry_result in entries {
             let entry = entry_result?;
             let entry_path = entry.path();

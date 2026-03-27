@@ -50,62 +50,75 @@ pub fn detect_conflicts(branches: &[&Branch], relative_path: &Path, use_hash: bo
     let mut conflicts = Vec::new();
 
     // Collect all files from all branches
-    let mut file_map: std::collections::HashMap<String, Vec<BranchConflict>> = std::collections::HashMap::new();
+    let file_map: dashmap::DashMap<String, Vec<BranchConflict>> = dashmap::DashMap::new();
 
-    for branch in branches {
-        let branch_path = branch.path.join(relative_path);
+    let mut handles = Vec::new();
+    for branch_ref in branches {
+        let branch = (*branch_ref).clone();
+        let rel_path = relative_path.to_path_buf();
+        let f_map = file_map.clone();
 
-        if !branch_path.exists() || !branch_path.is_dir() {
-            continue;
-        }
+        let handle = std::thread::spawn(move || {
+            let branch_path = branch.path.join(&rel_path);
 
-        let Ok(entries) = fs::read_dir(&branch_path) else {
-            continue;
-        };
-
-        for entry in entries.flatten() {
-            let file_name = entry.file_name();
-            let file_name_str = file_name.to_string_lossy().to_string();
-
-            // Skip directories
-            if entry.file_type().is_ok_and(|ft| ft.is_dir()) {
-                continue;
+            if !branch_path.exists() || !branch_path.is_dir() {
+                return;
             }
 
-            let Ok(metadata) = entry.metadata() else {
-                continue;
+            let Ok(entries) = fs::read_dir(&branch_path) else {
+                return;
             };
 
-            let size = metadata.len();
-            let mtime = metadata
-                .modified()
-                .ok()
-                .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
-                .map(|d| d.as_secs());
-            let ctime = metadata
-                .created()
-                .ok()
-                .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
-                .map(|d| d.as_secs());
-            let hash = if use_hash {
-                compute_file_hash(&entry.path()).ok()
-            } else {
-                None
-            };
+            for entry in entries.flatten() {
+                let file_name = entry.file_name();
+                let file_name_str = file_name.to_string_lossy().to_string();
 
-            file_map.entry(file_name_str).or_default().push(BranchConflict {
-                branch_name: branch.path.to_string_lossy().to_string(),
-                path: entry.path().to_string_lossy().to_string(),
-                size,
-                hash,
-                mtime,
-                ctime,
-            });
-        }
+                // Skip directories
+                if entry.file_type().is_ok_and(|ft| ft.is_dir()) {
+                    continue;
+                }
+
+                let Ok(metadata) = entry.metadata() else {
+                    continue;
+                };
+
+                let size = metadata.len();
+                let mtime = metadata
+                    .modified()
+                    .ok()
+                    .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+                    .map(|d| d.as_secs());
+                let ctime = metadata
+                    .created()
+                    .ok()
+                    .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+                    .map(|d| d.as_secs());
+                let hash = if use_hash {
+                    compute_file_hash(&entry.path()).ok()
+                } else {
+                    None
+                };
+
+                f_map.entry(file_name_str).or_default().push(BranchConflict {
+                    branch_name: branch.path.to_string_lossy().to_string(),
+                    path: entry.path().to_string_lossy().to_string(),
+                    size,
+                    hash,
+                    mtime,
+                    ctime,
+                });
+            }
+        });
+        handles.push(handle);
+    }
+
+    for handle in handles {
+        let _ = handle.join();
     }
 
     // Find files that exist in multiple branches with different content
-    for (name, mut branch_files) in file_map {
+    for r in file_map {
+        let (name, mut branch_files) = (r.0, r.1);
         if branch_files.len() < 2 {
             continue;
         }
@@ -251,44 +264,56 @@ pub fn detect_single_file_conflict(
     relative_path: &Path,
     use_hash: bool,
 ) -> Result<Option<FileConflict>> {
-    let mut branch_files = Vec::new();
+    let mut handles = Vec::new();
 
-    for branch in branches {
-        let file_path = branch.path.join(relative_path);
+    for branch_ref in branches {
+        let branch = (*branch_ref).clone();
+        let rel_path = relative_path.to_path_buf();
+        let handle = std::thread::spawn(move || {
+            let file_path = branch.path.join(rel_path);
 
-        if !file_path.exists() || !file_path.is_file() {
-            continue;
-        }
+            if !file_path.exists() || !file_path.is_file() {
+                return None;
+            }
 
-        let Ok(metadata) = fs::metadata(&file_path) else {
-            continue;
-        };
+            let Ok(metadata) = fs::metadata(&file_path) else {
+                return None;
+            };
 
-        let size = metadata.len();
-        let mtime = metadata
-            .modified()
-            .ok()
-            .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
-            .map(|d| d.as_secs());
-        let ctime = metadata
-            .created()
-            .ok()
-            .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
-            .map(|d| d.as_secs());
-        let hash = if use_hash {
-            compute_file_hash(&file_path).ok()
-        } else {
-            None
-        };
+            let size = metadata.len();
+            let mtime = metadata
+                .modified()
+                .ok()
+                .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+                .map(|d| d.as_secs());
+            let ctime = metadata
+                .created()
+                .ok()
+                .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+                .map(|d| d.as_secs());
+            let hash = if use_hash {
+                compute_file_hash(&file_path).ok()
+            } else {
+                None
+            };
 
-        branch_files.push(BranchConflict {
-            branch_name: branch.path.to_string_lossy().to_string(),
-            path: file_path.to_string_lossy().to_string(),
-            size,
-            hash,
-            mtime,
-            ctime,
+            Some(BranchConflict {
+                branch_name: branch.path.to_string_lossy().to_string(),
+                path: file_path.to_string_lossy().to_string(),
+                size,
+                hash,
+                mtime,
+                ctime,
+            })
         });
+        handles.push(handle);
+    }
+
+    let mut branch_files = Vec::new();
+    for handle in handles {
+        if let Ok(Some(conflict)) = handle.join() {
+            branch_files.push(conflict);
+        }
     }
 
     if branch_files.len() < 2 {

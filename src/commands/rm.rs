@@ -25,24 +25,44 @@ pub fn execute(pool: &Pool, path: &str, recursive: bool, verbose: bool) -> Resul
         )));
     }
 
-    for branch in branches {
-        let full_path = branch.path.join(pool_path);
-        if recursive {
-            if verbose {
-                eprintln!("removing: {}", full_path.display());
+    let mut handles = Vec::new();
+
+    for branch_ref in branches {
+        let branch = branch_ref.clone();
+        let p_path = pool_path.to_path_buf();
+        let handle = std::thread::spawn(move || -> Result<()> {
+            let full_path = branch.path.join(p_path);
+            if recursive {
+                if verbose {
+                    eprintln!("removing: {}", full_path.display());
+                }
+                std::fs::remove_dir_all(&full_path)?;
+            } else if full_path.is_dir() {
+                if verbose {
+                    eprintln!("removing directory: {}", full_path.display());
+                }
+                std::fs::remove_dir(&full_path)?;
+            } else {
+                if verbose {
+                    eprintln!("removing: {}", full_path.display());
+                }
+                std::fs::remove_file(&full_path)?;
             }
-            std::fs::remove_dir_all(&full_path)?;
-        } else if full_path.is_dir() {
-            if verbose {
-                eprintln!("removing directory: {}", full_path.display());
-            }
-            std::fs::remove_dir(&full_path)?;
-        } else {
-            if verbose {
-                eprintln!("removing: {}", full_path.display());
-            }
-            std::fs::remove_file(&full_path)?;
+            Ok(())
+        });
+        handles.push(handle);
+    }
+
+    let mut any_failed = false;
+    for handle in handles {
+        if let Ok(Err(e)) = handle.join() {
+            eprintln!("nofs: error removing: {e}");
+            any_failed = true;
         }
+    }
+
+    if any_failed {
+        return Err(NofsError::Command("Some removal operations failed".to_string()));
     }
 
     Ok(())

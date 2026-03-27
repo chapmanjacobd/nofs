@@ -61,15 +61,25 @@ pub fn execute(
     // Collect disk usage from all branches
     let mut branch_usage: BTreeMap<PathBuf, DuBranchData> = BTreeMap::new();
 
-    for branch_path in &resolved_paths {
+    let mut thread_handles = Vec::new();
+    for branch_path in resolved_paths {
         // Verify this path belongs to a branch
         if !pool.branches.iter().any(|b| branch_path.starts_with(&b.path)) {
             continue;
         }
 
-        let data = calculate_directory_usage(branch_path, max_depth, all);
+        let branch_path_clone = branch_path.clone();
+        let thread_handle = std::thread::spawn(move || {
+            let data = calculate_directory_usage(&branch_path_clone, max_depth, all);
+            (branch_path_clone, data)
+        });
+        thread_handles.push(thread_handle);
+    }
 
-        branch_usage.insert(branch_path.clone(), data);
+    for thread_handle in thread_handles {
+        if let Ok((path, data)) = thread_handle.join() {
+            branch_usage.insert(path, data);
+        }
     }
 
     if json {

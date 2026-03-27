@@ -252,49 +252,63 @@ fn collect_directory_entries(
     all: bool,
     verbose: bool,
 ) -> Vec<(std::path::PathBuf, String)> {
-    let mut entries: Vec<(std::path::PathBuf, String)> = Vec::new();
+    let mut handles = Vec::new();
 
-    for branch in branches {
-        let branch_path = branch.path.join(pool_path);
+    for branch_ref in branches {
+        let branch = (*branch_ref).clone();
+        let p_path = pool_path.to_path_buf();
+        let handle = std::thread::spawn(move || {
+            let mut entries = Vec::new();
+            let branch_path = branch.path.join(&p_path);
 
-        match fs::read_dir(&branch_path) {
-            Ok(read_dir) => {
-                for entry_result in read_dir {
-                    match entry_result {
-                        Ok(entry) => {
-                            let file_name = entry.file_name();
-                            let file_name_str = file_name.to_string_lossy().to_string();
+            match fs::read_dir(&branch_path) {
+                Ok(read_dir) => {
+                    for entry_result in read_dir {
+                        match entry_result {
+                            Ok(entry) => {
+                                let file_name = entry.file_name();
+                                let file_name_str = file_name.to_string_lossy().to_string();
 
-                            // Skip hidden files unless --all
-                            if !all && file_name_str.starts_with('.') {
-                                continue;
+                                // Skip hidden files unless --all
+                                if !all && file_name_str.starts_with('.') {
+                                    continue;
+                                }
+
+                                entries.push((entry.path(), file_name_str));
                             }
-
-                            entries.push((entry.path(), file_name_str));
+                            Err(e) if verbose => {
+                                eprintln!(
+                                    "nofs: warning: failed to read entry in '{}': {}",
+                                    branch_path.display(),
+                                    e
+                                );
+                            }
+                            Err(_) => {}
                         }
-                        Err(e) if verbose => {
-                            eprintln!(
-                                "nofs: warning: failed to read entry in '{}': {}",
-                                branch_path.display(),
-                                e
-                            );
-                        }
-                        Err(_) => {}
                     }
                 }
+                Err(e) if verbose => {
+                    eprintln!(
+                        "nofs: warning: cannot read directory '{}': {}",
+                        branch_path.display(),
+                        e
+                    );
+                }
+                Err(_) => {}
             }
-            Err(e) if verbose => {
-                eprintln!(
-                    "nofs: warning: cannot read directory '{}': {}",
-                    branch_path.display(),
-                    e
-                );
-            }
-            Err(_) => {}
+            entries
+        });
+        handles.push(handle);
+    }
+
+    let mut all_entries = Vec::new();
+    for handle in handles {
+        if let Ok(entries) = handle.join() {
+            all_entries.extend(entries);
         }
     }
 
-    entries
+    all_entries
 }
 
 /// Format file permissions as rwx string
