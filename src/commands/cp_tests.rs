@@ -588,6 +588,47 @@ fn test_copy_with_file_limit() {
 }
 
 #[test]
+fn test_global_file_limit() {
+    let test_dir = setup_test_dir("global_limit");
+    let src1 = test_dir.join("src1");
+    let src2 = test_dir.join("src2");
+    let dest = test_dir.join("dest");
+    fs::create_dir_all(&src1).unwrap();
+    fs::create_dir_all(&src2).unwrap();
+    fs::create_dir_all(&dest).unwrap();
+
+    create_file(&src1.join("file1.txt"), "1");
+    create_file(&src1.join("file2.txt"), "2");
+    create_file(&src2.join("file3.txt"), "3");
+    create_file(&src2.join("file4.txt"), "4");
+
+    let config = CopyConfig {
+        copy: true,
+        simulate: false,
+        workers: 1,
+        verbose: false,
+        limit: Some(2),
+        ..Default::default()
+    };
+
+    let result = cp_execute(
+        &[src1.to_string_lossy().to_string(), src2.to_string_lossy().to_string()],
+        &dest.to_string_lossy(),
+        &config,
+        None,
+    );
+
+    assert!(result.is_ok());
+    let stats = result.unwrap();
+    
+    // If it's global, files_copied should be 2.
+    // If it's per-source, it will be 4.
+    assert_eq!(stats.files_copied.load(std::sync::atomic::Ordering::Relaxed), 2, "Should have created only 2 files globally");
+
+    cleanup_test_dir(&test_dir);
+}
+
+#[test]
 fn test_folder_over_file_conflict() {
     let test_dir = setup_test_dir("folder_over_file");
     let src = test_dir.join("src");

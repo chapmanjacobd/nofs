@@ -36,83 +36,84 @@ opt-level = 3
 
 [lints.clippy]
 # Base: pedantic lints (sensible warnings for production code)
-pedantic = { level = "warn", priority = -1 }
+pedantic = { level = "deny", priority = -1 }
 
 # === Safety lints (restriction category) ===
 # Require documentation for unsafe blocks
-undocumented_unsafe_blocks = "warn"
+undocumented_unsafe_blocks = "deny"
 
 # Warn on unwrap/expect/panic (prefer proper error handling)
-unwrap_used = "warn"
-unwrap_in_result = "warn"
-expect_used = "warn"
-expect_fun_call = "warn"
-panic = "warn"
-panic_in_result_fn = "warn"
-todo = "warn"
-unimplemented = "warn"
+unwrap_used = "deny"
+unwrap_in_result = "deny"
+expect_used = "deny"
+expect_fun_call = "deny"
+panic = "deny"
+panic_in_result_fn = "deny"
+todo = "deny"
+unimplemented = "deny"
 unreachable = "allow"
 
 # Warn on operations that can panic
-indexing_slicing = "warn"
-arithmetic_side_effects = "warn"
-integer_division = "warn"
-modulo_arithmetic = "warn"
-float_arithmetic = "warn"
-float_cmp_const = "warn"
-unchecked_time_subtraction = "warn"
+indexing_slicing = "deny"
+arithmetic_side_effects = "deny"
+integer_division = "deny"
+modulo_arithmetic = "deny"
+float_arithmetic = "deny"
+float_cmp_const = "deny"
+unchecked_time_subtraction = "deny"
 
 # Warn on dangerous patterns
-mem_forget = "warn"
-get_unwrap = "warn"
+mem_forget = "deny"
+get_unwrap = "deny"
 
 # === Code quality (restriction category) ===
 # Prefer explicit pattern matching
-exhaustive_enums = "warn"
-exhaustive_structs = "warn"
-wildcard_enum_match_arm = "warn"
-match_bool = "warn"
-single_match = "warn"
-match_same_arms = "warn"
+exhaustive_enums = "deny"
+exhaustive_structs = "deny"
+wildcard_enum_match_arm = "deny"
+match_bool = "deny"
+single_match = "deny"
+match_same_arms = "deny"
 
 # Prefer explicit casts
-as_conversions = "warn"
-cast_lossless = "warn"
-cast_possible_truncation = "warn"
-cast_possible_wrap = "warn"
-cast_precision_loss = "warn"
-cast_sign_loss = "warn"
-cast_ptr_alignment = "warn"
+as_conversions = "deny"
+cast_lossless = "deny"
+cast_precision_loss = "deny"
+cast_possible_truncation = "deny"
+cast_possible_wrap = "deny"
+cast_sign_loss = "deny"
+cast_ptr_alignment = "deny"
 
 # Cleaner code
-shadow_reuse = "warn"
-shadow_same = "warn"
-shadow_unrelated = "warn"
-else_if_without_else = "warn"
-if_then_some_else_none = "warn"
-option_if_let_else = "warn"
+shadow_reuse = "deny"
+shadow_same = "deny"
+shadow_unrelated = "deny"
+else_if_without_else = "deny"
+if_then_some_else_none = "deny"
+option_if_let_else = "deny"
 
 # Error handling
-unused_result_ok = "warn"
-map_unwrap_or = "warn"
-manual_assert = "warn"
-manual_unwrap_or_default = "warn"
+unused_result_ok = "deny"
+map_unwrap_or = "deny"
+manual_assert = "deny"
+manual_unwrap_or_default = "deny"
 
 # Redundancy
-redundant_clone = "warn"
-redundant_type_annotations = "warn"
-redundant_field_names = "warn"
-needless_parens_on_range_literals = "warn"
-needless_raw_string_hashes = "warn"
+redundant_clone = "deny"
+redundant_type_annotations = "deny"
+redundant_field_names = "deny"
+needless_parens_on_range_literals = "deny"
+needless_raw_string_hashes = "deny"
 
 # === LLM & Strict Quality ===
-nursery = { level = "warn", priority = -1 }
-cargo = { level = "warn", priority = -1 }
-missing_errors_doc = "warn"
-missing_panics_doc = "warn"
-missing_docs_in_private_items = "warn"
-exit = "warn"
-items_after_statements = "warn"
-implicit_clone = "warn"
+nursery = { level = "deny", priority = -1 }
+cargo = { level = "deny", priority = -1 }
+missing_errors_doc = "deny"
+missing_panics_doc = "deny"
+missing_docs_in_private_items = "deny"
+exit = "deny"
+items_after_statements = "deny"
+implicit_clone = "deny"
 use_self = "allow"
 collapsible_else_if = "allow"
+useless_attribute = "warn"
