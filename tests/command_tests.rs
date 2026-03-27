@@ -6,6 +6,7 @@ mod common;
 #[cfg(test)]
 mod tests {
     use super::common::TestContext;
+    use std::fs;
 
     #[test]
     fn ls_command() {
@@ -430,5 +431,183 @@ paths = ["{0}/disk1", "{0}/disk2", "{0}/disk3"]
         // Should only show "shared.txt" once despite being in 3 branches
         let count = output.stdout.matches("shared.txt").count();
         assert_eq!(count, 1, "File should appear only once (deduplicated)");
+    }
+
+    #[test]
+    fn cp_share_path_to_local() {
+        let ctx = TestContext::new("cp_share_to_local");
+
+        // Create source file in share
+        let _ = ctx.create_branch("disk1/source", &["file.txt"]);
+
+        let config = format!(
+            r#"
+[share.test]
+paths = ["{0}/disk1"]
+"#,
+            ctx.root.display()
+        );
+
+        ctx.write_config(&config);
+
+        let dest_dir = ctx.root.join("dest");
+        fs::create_dir_all(&dest_dir).expect("Failed to create dest dir");
+
+        let output = ctx.run_nofs(&[
+            "--config",
+            ctx.config_path.to_str().unwrap(),
+            "cp",
+            "test:source/file.txt",
+            dest_dir.to_str().unwrap(),
+        ]);
+
+        assert!(output.success(), "Command failed: {}\nstdout: {}\nstderr: {}", output.status, output.stdout, output.stderr);
+        
+        // Verify file was copied
+        let copied_file = dest_dir.join("file.txt");
+        assert!(copied_file.exists(), "File should be copied to destination");
+    }
+
+    #[test]
+    fn cp_local_to_share_path() {
+        let ctx = TestContext::new("cp_local_to_share");
+
+        // Create destination branch in share
+        let _ = ctx.create_branch("disk1/dest", &[]);
+
+        let config = format!(
+            r#"
+[share.test]
+paths = ["{0}/disk1"]
+"#,
+            ctx.root.display()
+        );
+
+        ctx.write_config(&config);
+
+        // Create local source file
+        let source_file = ctx.root.join("source.txt");
+        fs::write(&source_file, "test content").expect("Failed to create source file");
+
+        let output = ctx.run_nofs(&[
+            "--config",
+            ctx.config_path.to_str().unwrap(),
+            "cp",
+            source_file.to_str().unwrap(),
+            "test:dest/",
+        ]);
+
+        assert!(output.success(), "Command failed: {}\nstdout: {}\nstderr: {}", output.status, output.stdout, output.stderr);
+        
+        // Verify file was copied to share
+        let copied_file = ctx.root.join("disk1/dest/source.txt");
+        assert!(copied_file.exists(), "File should be copied to share destination");
+    }
+
+    #[test]
+    fn cp_share_path_to_share_path() {
+        let ctx = TestContext::new("cp_share_to_share");
+
+        // Create source and destination in share
+        let _ = ctx.create_branch("disk1/source", &["file.txt"]);
+        let _ = ctx.create_branch("disk1/dest", &[]);
+
+        let config = format!(
+            r#"
+[share.test]
+paths = ["{0}/disk1"]
+"#,
+            ctx.root.display()
+        );
+
+        ctx.write_config(&config);
+
+        let output = ctx.run_nofs(&[
+            "--config",
+            ctx.config_path.to_str().unwrap(),
+            "cp",
+            "test:source/file.txt",
+            "test:dest/",
+        ]);
+
+        assert!(output.success(), "Command failed: {}\nstdout: {}\nstderr: {}", output.status, output.stdout, output.stderr);
+        
+        // Verify file was copied within share
+        let copied_file = ctx.root.join("disk1/dest/file.txt");
+        assert!(copied_file.exists(), "File should be copied within share");
+    }
+
+    #[test]
+    fn cp_share_directory_recursive() {
+        let ctx = TestContext::new("cp_share_recursive");
+
+        // Create source directory with nested structure in share
+        let _ = ctx.create_branch("disk1/source/subdir", &["file1.txt", "file2.txt"]);
+
+        let config = format!(
+            r#"
+[share.test]
+paths = ["{0}/disk1"]
+"#,
+            ctx.root.display()
+        );
+
+        ctx.write_config(&config);
+
+        let dest_dir = ctx.root.join("dest");
+        fs::create_dir_all(&dest_dir).expect("Failed to create dest dir");
+
+        let output = ctx.run_nofs(&[
+            "--config",
+            ctx.config_path.to_str().unwrap(),
+            "cp",
+            "test:source/",
+            dest_dir.to_str().unwrap(),
+        ]);
+
+        assert!(output.success(), "Command failed: {}\nstdout: {}\nstderr: {}", output.status, output.stdout, output.stderr);
+        
+        // Verify directory structure was copied
+        let copied_file1 = dest_dir.join("source/subdir/file1.txt");
+        let copied_file2 = dest_dir.join("source/subdir/file2.txt");
+        assert!(copied_file1.exists(), "Nested file1 should be copied");
+        assert!(copied_file2.exists(), "Nested file2 should be copied");
+    }
+
+    #[test]
+    fn mv_share_path_to_local() {
+        let ctx = TestContext::new("mv_share_to_local");
+
+        // Create source file in share
+        let _ = ctx.create_branch("disk1/source", &["file.txt"]);
+
+        let config = format!(
+            r#"
+[share.test]
+paths = ["{0}/disk1"]
+"#,
+            ctx.root.display()
+        );
+
+        ctx.write_config(&config);
+
+        let dest_dir = ctx.root.join("dest");
+        fs::create_dir_all(&dest_dir).expect("Failed to create dest dir");
+
+        let output = ctx.run_nofs(&[
+            "--config",
+            ctx.config_path.to_str().unwrap(),
+            "mv",
+            "test:source/file.txt",
+            dest_dir.to_str().unwrap(),
+        ]);
+
+        assert!(output.success(), "Command failed: {}\nstdout: {}\nstderr: {}", output.status, output.stdout, output.stderr);
+        
+        // Verify file was moved (exists at dest, not at source)
+        let copied_file = dest_dir.join("file.txt");
+        let original_file = ctx.root.join("disk1/source/file.txt");
+        assert!(copied_file.exists(), "File should be moved to destination");
+        assert!(!original_file.exists(), "Original file should be removed after move");
     }
 }

@@ -32,7 +32,7 @@ pub fn execute(
     include: Vec<String>,
     limit: Option<u64>,
     size_limit: Option<u64>,
-    pool: Option<&Pool>,
+    share: Option<&Pool>,
 ) -> Result<Arc<CopyStats>> {
     // Parse conflict resolution strategies
     let file_over_file_strategy = parse_file_over_file(file_over_file)?;
@@ -54,7 +54,7 @@ pub fn execute(
         size_limit,
     };
 
-    copy_execute(sources, destination, &config, pool)
+    copy_execute(sources, destination, &config, share)
 }
 
 fn parse_folder_conflict_mode(s: &str) -> Result<FolderConflictMode> {

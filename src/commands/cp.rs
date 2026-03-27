@@ -12,6 +12,50 @@ use std::sync::atomic::{AtomicI64, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
+/// Resolve a path that may have a share: prefix
+///
+/// If the path has a share prefix (e.g., <media:/path>), it will be resolved
+/// using the provided share. Otherwise, the path is returned as-is.
+///
+/// # Errors
+///
+/// Returns an error if the share is not found or if path resolution fails.
+#[allow(clippy::arithmetic_side_effects)]
+fn resolve_path(path_str: &str, share: Option<&Pool>) -> Result<PathBuf> {
+    if let Some(colon_idx) = path_str.find(':') {
+        // Check if this looks like a share prefix (no slashes before colon)
+        let potential_prefix = &path_str[..colon_idx];
+        if !potential_prefix.contains('/') {
+            // This is a share prefix
+            let share_name = potential_prefix;
+            let relative_path = &path_str[colon_idx + 1..];
+
+            // Get the branch path from the share
+            if let Some(pool) = share {
+                if pool.name == share_name {
+                    // Use the first writable branch for simplicity
+                    // TODO: Use policy-based branch selection
+                    for branch in &pool.branches {
+                        if branch.can_create() {
+                            return Ok(branch.path.join(relative_path));
+                        }
+                    }
+                    // No writable branch found, use first branch
+                    if let Some(branch) = pool.branches.first() {
+                        return Ok(branch.path.join(relative_path));
+                    }
+                }
+            }
+            return Err(NofsError::CopyMove(format!(
+                "Share '{share_name}' not found or has no branches"
+            )));
+        }
+    }
+
+    // No share prefix, return as-is
+    Ok(PathBuf::from(path_str))
+}
+
 /// Conflict resolution mode for file-over-file conflicts
 #[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -192,7 +236,7 @@ pub fn execute(
     sources: &[String],
     destination: &str,
     config: &CopyConfig,
-    pool: Option<&Pool>,
+    share: Option<&Pool>,
 ) -> Result<Arc<CopyStats>> {
     let stats = Arc::new(CopyStats::default());
     let start_time = Instant::now();
@@ -203,8 +247,8 @@ pub fn execute(
         ));
     }
 
-    // Normalize destination path
-    let dest_path = PathBuf::from(destination);
+    // Resolve destination path (may have share: prefix)
+    let dest_path = resolve_path(destination, share)?;
 
     // Check if destination exists
     let dest_exists = dest_path.exists();
@@ -224,7 +268,8 @@ pub fn execute(
 
     // Process each source
     for source in sources {
-        let source_path = PathBuf::from(source);
+        // Resolve source path (may have share: prefix)
+        let source_path = resolve_path(source, share)?;
 
         if !source_path.exists() {
             eprintln!("Source {} does not exist", shell_quote(source));
@@ -247,7 +292,7 @@ pub fn execute(
             &final_dest,
             config,
             &stats,
-            pool,
+            share,
             &Arc::new(Mutex::new(0u64)),
             &Arc::new(Mutex::new(0u64)),
         ) {
@@ -275,7 +320,7 @@ fn process_source(
     dest: &Path,
     config: &CopyConfig,
     stats: &Arc<CopyStats>,
-    pool: Option<&Pool>,
+    _share: Option<&Pool>,
     file_count: &Arc<Mutex<u64>>,
     byte_count: &Arc<Mutex<u64>>,
 ) -> Result<()> {
@@ -325,7 +370,7 @@ fn process_source(
                 &entry_dest,
                 config,
                 stats,
-                pool,
+                _share,
                 file_count,
                 byte_count,
             ) {
@@ -1010,7 +1055,7 @@ fn process_source_contents(
             &entry_dest,
             config,
             stats,
-            None, // pool not used for local paths
+            None, // share not needed for already-resolved paths
             &Arc::new(Mutex::new(0u64)),
             &Arc::new(Mutex::new(0u64)),
         ) {

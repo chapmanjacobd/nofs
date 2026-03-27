@@ -1,3 +1,8 @@
+    The cp/mv implementation uses the first writable branch for share paths. We should add support for:
+     - Policy-based branch selection (mfs, pfrd, rand)
+     - Support for different source/destination shares
+     - Proper handling of NC (no-create) branches
+
 
      1. No actual file operations - The create command only returns the best branch path for creating a file, but doesn't actually create files. Similarly, there's no cp, mv, rm, mkdir,
         touch, or write commands.

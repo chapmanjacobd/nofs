@@ -325,7 +325,7 @@ fn main() -> Result<()> {
             let parsed_size_limit = size_limit.as_ref().and_then(|s| parse_size(s).ok());
 
             // Get share for context-aware paths
-            let pool = extract_pool_from_paths(&pool_mgr, sources, destination)?;
+            let share = extract_share_from_paths(&pool_mgr, sources, destination)?;
 
             let config = commands::cp::CopyConfig {
                 copy: true,
@@ -342,7 +342,7 @@ fn main() -> Result<()> {
                 size_limit: parsed_size_limit,
             };
 
-            commands::cp::execute(sources, destination, &config, pool)?;
+            commands::cp::execute(sources, destination, &config, share)?;
         }
         Commands::Mv {
             paths,
@@ -373,7 +373,7 @@ fn main() -> Result<()> {
             let parsed_size_limit = size_limit.as_ref().and_then(|s| parse_size(s).ok());
 
             // Get share for context-aware paths
-            let pool = extract_pool_from_paths(&pool_mgr, sources, destination)?;
+            let share = extract_share_from_paths(&pool_mgr, sources, destination)?;
 
             commands::mv::execute(
                 sources,
@@ -389,7 +389,7 @@ fn main() -> Result<()> {
                 include,
                 limit,
                 parsed_size_limit,
-                pool,
+                share,
             )?;
         }
     }
@@ -416,7 +416,7 @@ fn parse_size(s: &str) -> Result<u64> {
 }
 
 /// Try to extract a share from paths that contain context prefixes
-fn extract_pool_from_paths<'a>(
+fn extract_share_from_paths<'a>(
     pool_mgr: &'a pool::PoolManager,
     sources: &[String],
     destination: &str,
@@ -429,8 +429,8 @@ fn extract_pool_from_paths<'a>(
         if let Some((ctx, _)) = path.split_once(':') {
             if !ctx.contains('/') {
                 // This looks like a context prefix
-                let pool = pool_mgr.get_pool(ctx)?;
-                return Ok(Some(pool));
+                let share = pool_mgr.get_pool(ctx)?;
+                return Ok(Some(share));
             }
         }
     }
