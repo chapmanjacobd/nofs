@@ -156,9 +156,9 @@ fn files_differ(branch_files: &[BranchConflict], use_hash: bool) -> bool {
         let Some(first_hash) = hashes.first() else {
             return false;
         };
-        if let Some(first_hash) = first_hash {
+        if let Some(h0) = first_hash {
             for h in hashes.iter().skip(1) {
-                if Some(first_hash) != h.as_ref() {
+                if Some(h0) != h.as_ref() {
                     return true;
                 }
             }
@@ -175,6 +175,8 @@ fn files_differ(branch_files: &[BranchConflict], use_hash: bool) -> bool {
 /// Returns an error if the file cannot be read.
 #[allow(clippy::missing_panics_doc, clippy::integer_division)]
 pub fn compute_file_hash(path: &Path) -> Result<String> {
+    const SMALL_FILE_THRESHOLD: u64 = 1024 * 1024; // 1MB
+
     let mut file = File::open(path).map_err(|e| {
         NofsError::Conflict(format!("Failed to open file {}: {}", path.display(), e))
     })?;
@@ -187,8 +189,6 @@ pub fn compute_file_hash(path: &Path) -> Result<String> {
             e
         ))
     })?;
-
-    const SMALL_FILE_THRESHOLD: u64 = 1024 * 1024; // 1MB
 
     if metadata.len() <= SMALL_FILE_THRESHOLD {
         let mut content = Vec::new();
@@ -208,7 +208,9 @@ pub fn compute_file_hash(path: &Path) -> Result<String> {
     let bytes_read = file.read(&mut buf).map_err(|e| {
         NofsError::Conflict(format!("Failed to read file {}: {}", path.display(), e))
     })?;
-    buf[..bytes_read].hash(&mut hasher);
+    if let Some(buf_slice) = buf.get(..bytes_read) {
+        buf_slice.hash(&mut hasher);
+    }
 
     // Sample middle
     let file_size = metadata.len();
@@ -220,7 +222,9 @@ pub fn compute_file_hash(path: &Path) -> Result<String> {
     let bytes_read_middle = file.read(&mut buf).map_err(|e| {
         NofsError::Conflict(format!("Failed to read file {}: {}", path.display(), e))
     })?;
-    buf[..bytes_read_middle].hash(&mut hasher);
+    if let Some(buf_slice) = buf.get(..bytes_read_middle) {
+        buf_slice.hash(&mut hasher);
+    }
 
     // Sample end (last 8KB)
     let end_pos = file_size.saturating_sub(8192);
@@ -230,7 +234,9 @@ pub fn compute_file_hash(path: &Path) -> Result<String> {
     let bytes_read_end = file.read(&mut buf).map_err(|e| {
         NofsError::Conflict(format!("Failed to read file {}: {}", path.display(), e))
     })?;
-    buf[..bytes_read_end].hash(&mut hasher);
+    if let Some(buf_slice) = buf.get(..bytes_read_end) {
+        buf_slice.hash(&mut hasher);
+    }
 
     Ok(format!("{:x}", hasher.finish()))
 }

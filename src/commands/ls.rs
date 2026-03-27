@@ -1,5 +1,6 @@
 //! ls command - List directory contents
 
+use crate::branch::Branch;
 use crate::conflict::{detect_conflicts, FileConflict};
 use crate::error::{NofsError, Result};
 use crate::pool::Pool;
@@ -56,47 +57,8 @@ pub fn execute(
     }
 
     // Collect all entries from all branches
-    let mut entries: Vec<(std::path::PathBuf, String)> = Vec::new();
-
-    for branch in &branches {
-        let branch_path = branch.path.join(pool_path);
-
-        match fs::read_dir(&branch_path) {
-            Ok(read_dir) => {
-                for entry_result in read_dir {
-                    match entry_result {
-                        Ok(entry) => {
-                            let file_name = entry.file_name();
-                            let file_name_str = file_name.to_string_lossy().to_string();
-
-                            // Skip hidden files unless --all
-                            if !all && file_name_str.starts_with('.') {
-                                continue;
-                            }
-
-                            entries.push((entry.path(), file_name_str));
-                        }
-                        Err(e) if verbose => {
-                            eprintln!(
-                                "nofs: warning: failed to read entry in '{}': {}",
-                                branch_path.display(),
-                                e
-                            );
-                        }
-                        Err(_) => {}
-                    }
-                }
-            }
-            Err(e) if verbose => {
-                eprintln!(
-                    "nofs: warning: cannot read directory '{}': {}",
-                    branch_path.display(),
-                    e
-                );
-            }
-            Err(_) => {}
-        }
-    }
+    let mut entries: Vec<(std::path::PathBuf, String)> =
+        collect_directory_entries(&branches, pool_path, all, verbose);
 
     // Sort entries by name
     entries.sort_by(|a, b| a.1.cmp(&b.1));
@@ -182,6 +144,58 @@ fn report_conflicts(conflicts: &[FileConflict], verbose: bool) -> Result<()> {
     }
 
     Ok(())
+}
+
+/// Collect directory entries from all branches
+fn collect_directory_entries(
+    branches: &[&Branch],
+    pool_path: &Path,
+    all: bool,
+    verbose: bool,
+) -> Vec<(std::path::PathBuf, String)> {
+    let mut entries: Vec<(std::path::PathBuf, String)> = Vec::new();
+
+    for branch in branches {
+        let branch_path = branch.path.join(pool_path);
+
+        match fs::read_dir(&branch_path) {
+            Ok(read_dir) => {
+                for entry_result in read_dir {
+                    match entry_result {
+                        Ok(entry) => {
+                            let file_name = entry.file_name();
+                            let file_name_str = file_name.to_string_lossy().to_string();
+
+                            // Skip hidden files unless --all
+                            if !all && file_name_str.starts_with('.') {
+                                continue;
+                            }
+
+                            entries.push((entry.path(), file_name_str));
+                        }
+                        Err(e) if verbose => {
+                            eprintln!(
+                                "nofs: warning: failed to read entry in '{}': {}",
+                                branch_path.display(),
+                                e
+                            );
+                        }
+                        Err(_) => {}
+                    }
+                }
+            }
+            Err(e) if verbose => {
+                eprintln!(
+                    "nofs: warning: cannot read directory '{}': {}",
+                    branch_path.display(),
+                    e
+                );
+            }
+            Err(_) => {}
+        }
+    }
+
+    entries
 }
 
 fn format_permissions(mode: u32) -> String {

@@ -11,6 +11,7 @@ use std::path::Path;
 /// # Errors
 ///
 /// Returns an error if there is an IO error during output.
+#[allow(clippy::fn_params_excessive_bools)]
 pub fn execute(
     pool: &Pool,
     path: &str,
@@ -36,6 +37,8 @@ pub fn execute(
                 report_conflict(&conflict, verbose)?;
             } else if verbose {
                 eprintln!("no conflict: file content is identical across branches");
+            } else {
+                // Silent when not verbose
             }
         }
 
