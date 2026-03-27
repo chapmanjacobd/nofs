@@ -59,15 +59,31 @@ struct Cli {
 #[derive(clap::Subcommand, Debug)]
 enum Commands {
     /// List directory contents (like ls).
+    #[command(after_help = "\
+EXAMPLES:
+    nofs ls media:/                    # List root of media share
+    nofs ls -l media:/photos           # Detailed listing
+    nofs ls --conflicts media:/docs    # Detect conflicting files
+    nofs ls --conflicts --hash media:/ # Use hash for conflict detection
+
+CONFLICT DETECTION:
+    --conflicts
+        Detect files with the same name but different content across branches.
+        Files are marked in output when conflicts are found.
+    
+    --hash
+        Use full file hash comparison instead of size/mtime for conflict detection.
+        More accurate but slower on large files. Requires --conflicts flag.")]
     Ls {
         /// Path within the share (format: [context:]path).
+        #[arg(value_name = "PATH")]
         path: String,
 
-        /// Show detailed information.
+        /// Show detailed information (permissions, size, modification time).
         #[arg(short, long)]
         long: bool,
 
-        /// Show hidden files.
+        /// Show hidden files (files starting with .).
         #[arg(short, long)]
         all: bool,
 
@@ -81,30 +97,68 @@ enum Commands {
     },
 
     /// Find files matching a pattern.
+    #[command(after_help = "\
+EXAMPLES:
+    nofs find media:/ --name \"*.jpg\"           # Find all JPEG files
+    nofs find media:/photos -t f --name \"*.png\" # Find PNG files only
+    nofs find media:/ -t d --maxdepth 2          # Directories up to 2 levels deep
+    nofs find media:/ --name \"**/backup/*\"      # Files in any backup folder
+
+OPTIONS:
+    --name <PATTERN>
+        Glob pattern to match filenames. Supports * (any chars) and ** (any path).
+    
+    --type <TYPE>
+        Filter by type: 'f' for files, 'd' for directories.
+    
+    --maxdepth <N>
+        Limit directory traversal depth. 0 = only the starting directory.")]
     Find {
         /// Starting path within the share (format: [context:]path).
+        #[arg(value_name = "PATH")]
         path: String,
 
-        /// Filename pattern (glob).
-        #[arg(long)]
+        /// Filename pattern (glob syntax: *.txt, **/logs/*).
+        #[arg(long, value_name = "PATTERN")]
         name: Option<String>,
 
-        /// File type: f=file, d=directory.
-        #[arg(long)]
+        /// File type: 'f' for files, 'd' for directories.
+        #[arg(long, value_name = "TYPE")]
         type_: Option<String>,
 
-        /// Maximum depth.
-        #[arg(long)]
+        /// Maximum directory traversal depth (0 = starting directory only).
+        #[arg(long, value_name = "N")]
         maxdepth: Option<usize>,
     },
 
     /// Find which branch contains a file.
-    #[command(alias = "where")]
+    #[command(
+        alias = "where",
+        after_help = "\
+EXAMPLES:
+    nofs which media:/photos/vacation.jpg        # Find branch containing file
+    nofs which -a media:/docs/readme.txt         # Show all branches with file
+    nofs which --conflicts media:/config.toml    # Check for conflicts
+
+OUTPUT:
+    Shows the branch path(s) containing the specified file.
+    With --all, shows all branches that contain the file.
+
+CONFLICT DETECTION:
+    --conflicts
+        Check if file exists in multiple branches with different content.
+        Reports conflicts when file content differs between branches.
+    
+    --hash
+        Use full file hash comparison for conflict detection.
+        More accurate but slower. Requires --conflicts flag."
+    )]
     Which {
         /// Path within the share (format: [context:]path).
+        #[arg(value_name = "PATH")]
         path: String,
 
-        /// Show all branches containing the file.
+        /// Show all branches containing the file (not just the first).
         #[arg(short, long)]
         all: bool,
 
@@ -118,36 +172,87 @@ enum Commands {
     },
 
     /// Get the best branch path for creating a new file.
+    #[command(after_help = "\
+EXAMPLES:
+    nofs create media:/newfile.txt              # Get path for new file
+    nofs create media:/photos/vacation.jpg      # Get path in subdirectory
+
+OUTPUT:
+    Returns the full filesystem path where a new file should be created.
+    Uses the configured branch selection policy (e.g., pfrd, mfs, rand).")]
     Create {
         /// Path within the share (format: [context:]path).
+        #[arg(value_name = "PATH")]
         path: String,
     },
 
     /// Show filesystem statistics.
+    #[command(after_help = "\
+EXAMPLES:
+    nofs stat media:/                  # Stats for entire share
+    nofs stat -H media:/photos         # Human-readable sizes
+    nofs stat media:/docs/report.pdf   # Stats for specific path
+
+OUTPUT:
+    Shows total size, free space, and file counts across all branches.
+    With -H, sizes are shown in KB, MB, GB instead of bytes.")]
     Stat {
         /// Path within the share (defaults to root).
+        #[arg(value_name = "PATH")]
         path: Option<String>,
 
-        /// Show human-readable sizes.
+        /// Show human-readable sizes (KB, MB, GB instead of bytes).
         #[arg(short = 'H', long)]
         human: bool,
     },
 
     /// Show share configuration and status.
+    #[command(after_help = "\
+EXAMPLES:
+    nofs info media                    # Show media share config
+    nofs info                          # Show all shares
+
+OUTPUT:
+    Displays share configuration including:
+    - Branch paths and their types (RW, RO, NC)
+    - Policy settings (create policy, minfreespace)
+    - Branch status and statistics")]
     Info {
-        /// Context name (optional, shows all if not specified).
+        /// Context name (optional, shows all shares if not specified).
+        #[arg(value_name = "CONTEXT")]
         context: Option<String>,
     },
 
     /// Check if a file exists and return its location.
+    #[command(after_help = "\
+EXAMPLES:
+    nofs exists media:/photos/pic.jpg      # Check if file exists
+    nofs exists media:/docs/missing.txt    # Returns error if not found
+
+EXIT CODES:
+    0 - File exists
+    1 - File does not exist
+
+OUTPUT:
+    Prints the branch path containing the file if it exists.")]
     Exists {
         /// Path within the share (format: [context:]path).
+        #[arg(value_name = "PATH")]
         path: String,
     },
 
     /// Read file content (from first found branch).
+    #[command(after_help = "\
+EXAMPLES:
+    nofs cat media:/config.toml            # Print file contents
+    nofs cat media:/docs/readme.txt        # View text file
+
+NOTES:
+    Reads from the first branch containing the file.
+    For binary files, output may not be readable in terminal.")]
     Cat {
         /// Path within the share (format: [context:]path).
+        #[arg(value_name = "PATH")]
         path: String,
     },
 
@@ -240,11 +345,21 @@ PERFORMANCE OPTIONS:
         file_over_file: String,
 
         /// File-over-folder conflict strategy: skip, rename-src, rename-dest, delete-src, delete-dest, merge
-        #[arg(long, default_value = "merge", value_name = "MODE", help_heading = "Conflict Resolution")]
+        #[arg(
+            long,
+            default_value = "merge",
+            value_name = "MODE",
+            help_heading = "Conflict Resolution"
+        )]
         file_over_folder: String,
 
         /// Folder-over-file conflict strategy: skip, rename-src, rename-dest, delete-src, delete-dest, merge
-        #[arg(long, default_value = "merge", value_name = "MODE", help_heading = "Conflict Resolution")]
+        #[arg(
+            long,
+            default_value = "merge",
+            value_name = "MODE",
+            help_heading = "Conflict Resolution"
+        )]
         folder_over_file: String,
 
         // Performance options
@@ -253,7 +368,13 @@ PERFORMANCE OPTIONS:
         dry_run: bool,
 
         /// Number of parallel workers
-        #[arg(short = 'j', long, default_value = "4", value_name = "N", help_heading = "Performance")]
+        #[arg(
+            short = 'j',
+            long,
+            default_value = "4",
+            value_name = "N",
+            help_heading = "Performance"
+        )]
         workers: usize,
 
         // Filtering options
@@ -371,11 +492,21 @@ PERFORMANCE OPTIONS:
         file_over_file: String,
 
         /// File-over-folder conflict strategy: skip, rename-src, rename-dest, delete-src, delete-dest, merge
-        #[arg(long, default_value = "merge", value_name = "MODE", help_heading = "Conflict Resolution")]
+        #[arg(
+            long,
+            default_value = "merge",
+            value_name = "MODE",
+            help_heading = "Conflict Resolution"
+        )]
         file_over_folder: String,
 
         /// Folder-over-file conflict strategy: skip, rename-src, rename-dest, delete-src, delete-dest, merge
-        #[arg(long, default_value = "merge", value_name = "MODE", help_heading = "Conflict Resolution")]
+        #[arg(
+            long,
+            default_value = "merge",
+            value_name = "MODE",
+            help_heading = "Conflict Resolution"
+        )]
         folder_over_file: String,
 
         // Performance options
@@ -384,7 +515,13 @@ PERFORMANCE OPTIONS:
         dry_run: bool,
 
         /// Number of parallel workers
-        #[arg(short = 'j', long, default_value = "4", value_name = "N", help_heading = "Performance")]
+        #[arg(
+            short = 'j',
+            long,
+            default_value = "4",
+            value_name = "N",
+            help_heading = "Performance"
+        )]
         workers: usize,
 
         // Filtering options
@@ -414,53 +551,87 @@ PERFORMANCE OPTIONS:
     },
 
     /// Remove files or directories.
+    #[command(after_help = "\
+EXAMPLES:
+    nofs rm media:/temp.txt                  # Remove a file
+    nofs rm -r media:/old_folder             # Remove folder and contents
+    nofs rm -rv media:/logs/*.log            # Verbose removal of multiple files
+
+WARNING:
+    Recursive removal (-r) deletes directories and ALL their contents.
+    This operation cannot be undone. Use --verbose to see what will be deleted.")]
     Rm {
-        /// Path(s) within the share (format: [context:]path).
-        #[arg(required = true)]
+        /// Path(s) within the share (format: [context:]path). Supports glob patterns.
+        #[arg(required = true, value_name = "PATHS")]
         paths: Vec<String>,
 
         /// Remove directories and their contents recursively.
         #[arg(short, long)]
         recursive: bool,
 
-        /// Verbose output.
+        /// Print each file/directory as it is removed.
         #[arg(short, long)]
         verbose: bool,
     },
 
     /// Create directories.
+    #[command(after_help = "\
+EXAMPLES:
+    nofs mkdir media:/new_folder             # Create single directory
+    nofs mkdir -p media:/a/b/c               # Create nested directories
+    nofs mkdir -pv media:/photos/2024        # Verbose creation
+
+NOTES:
+    Without -p, fails if parent directories don't exist.
+    With -p, creates all missing parent directories.")]
     Mkdir {
         /// Path within the share (format: [context:]path).
-        #[arg(required = true)]
+        #[arg(value_name = "PATH")]
         path: String,
 
         /// Create parent directories as needed.
         #[arg(short, long)]
         parents: bool,
 
-        /// Verbose output.
+        /// Print each directory as it is created.
         #[arg(short, long)]
         verbose: bool,
     },
 
     /// Remove empty directories.
+    #[command(after_help = "\
+EXAMPLES:
+    nofs rmdir media:/empty_folder           # Remove empty directory
+    nofs rmdir -v media:/old_logs            # Verbose removal
+
+NOTES:
+    Only works on empty directories. Use 'rm -r' for non-empty directories.")]
     Rmdir {
         /// Path within the share (format: [context:]path).
-        #[arg(required = true)]
+        #[arg(value_name = "PATH")]
         path: String,
 
-        /// Verbose output.
+        /// Print the directory as it is removed.
         #[arg(short, long)]
         verbose: bool,
     },
 
     /// Create or update files.
+    #[command(after_help = "\
+EXAMPLES:
+    nofs touch media:/newfile.txt            # Create empty file
+    nofs touch media:/existing.txt           # Update modification time
+    nofs touch -v media:/data.log            # Verbose creation
+
+NOTES:
+    Creates an empty file if it doesn't exist.
+    Updates the modification time if the file already exists.")]
     Touch {
         /// Path within the share (format: [context:]path).
-        #[arg(required = true)]
+        #[arg(value_name = "PATH")]
         path: String,
 
-        /// Verbose output.
+        /// Print the file path after creation/update.
         #[arg(short, long)]
         verbose: bool,
     },
