@@ -233,7 +233,10 @@ mod tests {
     use std::path::PathBuf;
 
     fn setup_test_branch() -> (Branch, PathBuf) {
-        let test_dir = std::env::temp_dir().join("nofs_test_cache_branch");
+        let test_dir = std::env::temp_dir().join(format!(
+            "nofs_test_cache_branch_{}",
+            std::process::id()
+        ));
         let _ = fs::remove_dir_all(&test_dir);
         fs::create_dir_all(&test_dir).unwrap();
 
