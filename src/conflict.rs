@@ -33,6 +33,10 @@ pub struct BranchConflict {
     pub size: u64,
     /// File hash (if computed)
     pub hash: Option<String>,
+    /// File modification time (mtime) as Unix timestamp
+    pub mtime: Option<u64>,
+    /// File creation time (ctime) as Unix timestamp
+    pub ctime: Option<u64>,
 }
 
 /// Detect conflicts in a directory - files that exist in multiple branches
@@ -78,6 +82,16 @@ pub fn detect_conflicts(
             };
 
             let size = metadata.len();
+            let mtime = metadata
+                .modified()
+                .ok()
+                .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+                .map(|d| d.as_secs());
+            let ctime = metadata
+                .created()
+                .ok()
+                .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+                .map(|d| d.as_secs());
             let hash = if use_hash {
                 compute_file_hash(&entry.path()).ok()
             } else {
@@ -92,6 +106,8 @@ pub fn detect_conflicts(
                     path: entry.path().to_string_lossy().to_string(),
                     size,
                     hash,
+                    mtime,
+                    ctime,
                 });
         }
     }
@@ -266,6 +282,16 @@ pub fn detect_single_file_conflict(
         };
 
         let size = metadata.len();
+        let mtime = metadata
+            .modified()
+            .ok()
+            .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+            .map(|d| d.as_secs());
+        let ctime = metadata
+            .created()
+            .ok()
+            .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+            .map(|d| d.as_secs());
         let hash = if use_hash {
             compute_file_hash(&file_path).ok()
         } else {
@@ -277,6 +303,8 @@ pub fn detect_single_file_conflict(
             path: file_path.to_string_lossy().to_string(),
             size,
             hash,
+            mtime,
+            ctime,
         });
     }
 

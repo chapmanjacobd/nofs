@@ -36,6 +36,7 @@ sudo cp target/release/nofs /usr/local/bin/
 ### SSD Cache Setup
 
 ```toml
+# ~/.config/nofs/config.toml
 [share.fast]
 paths = ["/nvme/cache"]
 nc_paths = ["/hdd/storage"]  # HDD can read/modify but not create
@@ -87,6 +88,7 @@ create_policy = "mfs"
 ### Share Settings
 
 ```toml
+# .nofs.toml
 [share.name]
 paths = ["/path1", "/path2"]       # Required: RW branch paths
 ro_paths = ["/path3"]              # Optional: read-only branches

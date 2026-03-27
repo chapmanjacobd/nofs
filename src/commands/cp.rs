@@ -204,14 +204,26 @@ pub struct FileOverFileStrategy {
     pub skip_size: bool,
     pub skip_larger: bool,
     pub skip_smaller: bool,
+    pub skip_modified_newer: bool,
+    pub skip_modified_older: bool,
+    pub skip_created_newer: bool,
+    pub skip_created_older: bool,
     pub delete_dest_hash: bool,
     pub delete_dest_size: bool,
     pub delete_dest_larger: bool,
     pub delete_dest_smaller: bool,
+    pub delete_dest_modified_newer: bool,
+    pub delete_dest_modified_older: bool,
+    pub delete_dest_created_newer: bool,
+    pub delete_dest_created_older: bool,
     pub delete_src_hash: bool,
     pub delete_src_size: bool,
     pub delete_src_larger: bool,
     pub delete_src_smaller: bool,
+    pub delete_src_modified_newer: bool,
+    pub delete_src_modified_older: bool,
+    pub delete_src_created_newer: bool,
+    pub delete_src_created_older: bool,
     pub required: FileOverFileMode,
 }
 
@@ -222,14 +234,26 @@ impl Default for FileOverFileStrategy {
             skip_size: false,
             skip_larger: false,
             skip_smaller: false,
+            skip_modified_newer: false,
+            skip_modified_older: false,
+            skip_created_newer: false,
+            skip_created_older: false,
             delete_dest_hash: false,
             delete_dest_size: false,
             delete_dest_larger: false,
             delete_dest_smaller: false,
+            delete_dest_modified_newer: false,
+            delete_dest_modified_older: false,
+            delete_dest_created_newer: false,
+            delete_dest_created_older: false,
             delete_src_hash: false,
             delete_src_size: false,
             delete_src_larger: false,
             delete_src_smaller: false,
+            delete_src_modified_newer: false,
+            delete_src_modified_older: false,
+            delete_src_created_newer: false,
+            delete_src_created_older: false,
             required: FileOverFileMode::DeleteDest,
         }
     }
@@ -272,14 +296,26 @@ pub fn parse_file_over_file(spec: &str) -> Result<FileOverFileStrategy> {
             "skip-size" => strategy.skip_size = true,
             "skip-larger" => strategy.skip_larger = true,
             "skip-smaller" => strategy.skip_smaller = true,
+            "skip-modified-newer" => strategy.skip_modified_newer = true,
+            "skip-modified-older" => strategy.skip_modified_older = true,
+            "skip-created-newer" => strategy.skip_created_newer = true,
+            "skip-created-older" => strategy.skip_created_older = true,
             "delete-dest-hash" => strategy.delete_dest_hash = true,
             "delete-dest-size" => strategy.delete_dest_size = true,
             "delete-dest-larger" => strategy.delete_dest_larger = true,
             "delete-dest-smaller" => strategy.delete_dest_smaller = true,
+            "delete-dest-modified-newer" => strategy.delete_dest_modified_newer = true,
+            "delete-dest-modified-older" => strategy.delete_dest_modified_older = true,
+            "delete-dest-created-newer" => strategy.delete_dest_created_newer = true,
+            "delete-dest-created-older" => strategy.delete_dest_created_older = true,
             "delete-src-hash" => strategy.delete_src_hash = true,
             "delete-src-size" => strategy.delete_src_size = true,
             "delete-src-larger" => strategy.delete_src_larger = true,
             "delete-src-smaller" => strategy.delete_src_smaller = true,
+            "delete-src-modified-newer" => strategy.delete_src_modified_newer = true,
+            "delete-src-modified-older" => strategy.delete_src_modified_older = true,
+            "delete-src-created-newer" => strategy.delete_src_created_newer = true,
+            "delete-src-created-older" => strategy.delete_src_created_older = true,
             _ => {
                 return Err(NofsError::Parse(format!(
                     "Unknown file-over-file option: {opt}"
@@ -684,9 +720,31 @@ fn handle_file_over_file(
 ) -> Result<()> {
     let strategy = &config.file_over_file;
 
-    // Check optional conditions first
-    let src_size = fs::metadata(source)?.len();
-    let dest_size = fs::metadata(dest)?.len();
+    // Get metadata for both files
+    let src_metadata = fs::metadata(source)?;
+    let dest_metadata = fs::metadata(dest)?;
+    let src_size = src_metadata.len();
+    let dest_size = dest_metadata.len();
+    let src_modified = src_metadata
+        .modified()
+        .ok()
+        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+        .map(|d| d.as_secs());
+    let dest_modified = dest_metadata
+        .modified()
+        .ok()
+        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+        .map(|d| d.as_secs());
+    let src_created = src_metadata
+        .created()
+        .ok()
+        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+        .map(|d| d.as_secs());
+    let dest_created = dest_metadata
+        .created()
+        .ok()
+        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+        .map(|d| d.as_secs());
 
     // Check hash-based conditions if needed
     let hashes_match =
@@ -702,6 +760,10 @@ fn handle_file_over_file(
         hashes_match,
         src_size,
         dest_size,
+        src_modified,
+        dest_modified,
+        src_created,
+        dest_created,
         config,
         source,
         stats,
@@ -714,6 +776,10 @@ fn handle_file_over_file(
         hashes_match,
         src_size,
         dest_size,
+        src_modified,
+        dest_modified,
+        src_created,
+        dest_created,
         config,
         dest,
         source,
@@ -729,6 +795,10 @@ fn handle_file_over_file(
         hashes_match,
         src_size,
         dest_size,
+        src_modified,
+        dest_modified,
+        src_created,
+        dest_created,
         config,
         source,
         dest,
@@ -753,6 +823,10 @@ fn check_skip_conditions(
     hashes_match: bool,
     src_size: u64,
     dest_size: u64,
+    src_modified: Option<u64>,
+    dest_modified: Option<u64>,
+    src_created: Option<u64>,
+    dest_created: Option<u64>,
     config: &CopyConfig,
     source: &Path,
     stats: &Arc<CopyStats>,
@@ -801,7 +875,155 @@ fn check_skip_conditions(
         return true;
     }
 
+    // Check mtime-based conditions
+    if let (Some(src_m), Some(dest_m)) = (src_modified, dest_modified) {
+        if strategy.skip_modified_newer && src_m > dest_m {
+            if config.verbose {
+                eprintln!(
+                    "Skipping {} (source modified newer)",
+                    shell_quote(source.to_string_lossy().as_ref())
+                );
+            }
+            stats.files_skipped.fetch_add(1, Ordering::Relaxed);
+            return true;
+        }
+
+        if strategy.skip_modified_older && src_m < dest_m {
+            if config.verbose {
+                eprintln!(
+                    "Skipping {} (source modified older)",
+                    shell_quote(source.to_string_lossy().as_ref())
+                );
+            }
+            stats.files_skipped.fetch_add(1, Ordering::Relaxed);
+            return true;
+        }
+    }
+
+    // Check ctime-based conditions
+    if let (Some(src_c), Some(dest_c)) = (src_created, dest_created) {
+        if strategy.skip_created_newer && src_c > dest_c {
+            if config.verbose {
+                eprintln!(
+                    "Skipping {} (source created newer)",
+                    shell_quote(source.to_string_lossy().as_ref())
+                );
+            }
+            stats.files_skipped.fetch_add(1, Ordering::Relaxed);
+            return true;
+        }
+
+        if strategy.skip_created_older && src_c < dest_c {
+            if config.verbose {
+                eprintln!(
+                    "Skipping {} (source created older)",
+                    shell_quote(source.to_string_lossy().as_ref())
+                );
+            }
+            stats.files_skipped.fetch_add(1, Ordering::Relaxed);
+            return true;
+        }
+    }
+
     false
+}
+
+/// Check mtime-based conditions for delete-dest strategy
+///
+/// # Errors
+///
+/// Returns an error if file operations fail.
+#[allow(clippy::too_many_arguments)]
+fn check_delete_dest_mtime_conditions(
+    strategy: &FileOverFileStrategy,
+    src_modified: Option<u64>,
+    dest_modified: Option<u64>,
+    config: &CopyConfig,
+    dest: &Path,
+    source: &Path,
+    stats: &Arc<CopyStats>,
+    file_count: &Arc<Mutex<u64>>,
+    byte_count: &Arc<Mutex<u64>>,
+) -> Result<Option<bool>> {
+    if let (Some(src_m), Some(dest_m)) = (src_modified, dest_modified) {
+        if strategy.delete_dest_modified_newer && src_m > dest_m {
+            if config.verbose {
+                eprintln!(
+                    "Deleting destination {} (source modified newer)",
+                    shell_quote(dest.to_string_lossy().as_ref())
+                );
+            }
+            if !config.simulate {
+                fs::remove_file(dest)?;
+            }
+            return process_file(source, dest, config, stats, file_count, byte_count)
+                .map(|()| Some(true));
+        }
+
+        if strategy.delete_dest_modified_older && src_m < dest_m {
+            if config.verbose {
+                eprintln!(
+                    "Deleting destination {} (source modified older)",
+                    shell_quote(dest.to_string_lossy().as_ref())
+                );
+            }
+            if !config.simulate {
+                fs::remove_file(dest)?;
+            }
+            return process_file(source, dest, config, stats, file_count, byte_count)
+                .map(|()| Some(true));
+        }
+    }
+    Ok(None)
+}
+
+/// Check ctime-based conditions for delete-dest strategy
+///
+/// # Errors
+///
+/// Returns an error if file operations fail.
+#[allow(clippy::too_many_arguments)]
+fn check_delete_dest_ctime_conditions(
+    strategy: &FileOverFileStrategy,
+    src_created: Option<u64>,
+    dest_created: Option<u64>,
+    config: &CopyConfig,
+    dest: &Path,
+    source: &Path,
+    stats: &Arc<CopyStats>,
+    file_count: &Arc<Mutex<u64>>,
+    byte_count: &Arc<Mutex<u64>>,
+) -> Result<Option<bool>> {
+    if let (Some(src_c), Some(dest_c)) = (src_created, dest_created) {
+        if strategy.delete_dest_created_newer && src_c > dest_c {
+            if config.verbose {
+                eprintln!(
+                    "Deleting destination {} (source created newer)",
+                    shell_quote(dest.to_string_lossy().as_ref())
+                );
+            }
+            if !config.simulate {
+                fs::remove_file(dest)?;
+            }
+            return process_file(source, dest, config, stats, file_count, byte_count)
+                .map(|()| Some(true));
+        }
+
+        if strategy.delete_dest_created_older && src_c < dest_c {
+            if config.verbose {
+                eprintln!(
+                    "Deleting destination {} (source created older)",
+                    shell_quote(dest.to_string_lossy().as_ref())
+                );
+            }
+            if !config.simulate {
+                fs::remove_file(dest)?;
+            }
+            return process_file(source, dest, config, stats, file_count, byte_count)
+                .map(|()| Some(true));
+        }
+    }
+    Ok(None)
 }
 
 /// Check delete-dest conditions for file-over-file conflicts
@@ -817,6 +1039,10 @@ fn check_delete_dest_conditions(
     hashes_match: bool,
     src_size: u64,
     dest_size: u64,
+    src_modified: Option<u64>,
+    dest_modified: Option<u64>,
+    src_created: Option<u64>,
+    dest_created: Option<u64>,
     config: &CopyConfig,
     dest: &Path,
     source: &Path,
@@ -876,7 +1102,119 @@ fn check_delete_dest_conditions(
         return process_file(source, dest, config, stats, file_count, byte_count).map(|()| true);
     }
 
+    // Check mtime-based conditions
+    if let Some(result) = check_delete_dest_mtime_conditions(
+        strategy,
+        src_modified,
+        dest_modified,
+        config,
+        dest,
+        source,
+        stats,
+        file_count,
+        byte_count,
+    )? {
+        return Ok(result);
+    }
+
+    // Check ctime-based conditions
+    if let Some(result) = check_delete_dest_ctime_conditions(
+        strategy,
+        src_created,
+        dest_created,
+        config,
+        dest,
+        source,
+        stats,
+        file_count,
+        byte_count,
+    )? {
+        return Ok(result);
+    }
+
     Ok(false)
+}
+
+/// Check mtime-based conditions for delete-src strategy
+fn check_delete_src_mtime_conditions(
+    strategy: &FileOverFileStrategy,
+    src_modified: Option<u64>,
+    dest_modified: Option<u64>,
+    config: &CopyConfig,
+    source: &Path,
+    stats: &Arc<CopyStats>,
+) -> Result<Option<bool>> {
+    if let (Some(src_m), Some(dest_m)) = (src_modified, dest_modified) {
+        if strategy.delete_src_modified_newer && src_m > dest_m {
+            if config.verbose {
+                eprintln!(
+                    "Deleting source {} (source modified newer)",
+                    shell_quote(source.to_string_lossy().as_ref())
+                );
+            }
+            if !config.simulate {
+                fs::remove_file(source)?;
+            }
+            stats.files_skipped.fetch_add(1, Ordering::Relaxed);
+            return Ok(Some(true));
+        }
+
+        if strategy.delete_src_modified_older && src_m < dest_m {
+            if config.verbose {
+                eprintln!(
+                    "Deleting source {} (source modified older)",
+                    shell_quote(source.to_string_lossy().as_ref())
+                );
+            }
+            if !config.simulate {
+                fs::remove_file(source)?;
+            }
+            stats.files_skipped.fetch_add(1, Ordering::Relaxed);
+            return Ok(Some(true));
+        }
+    }
+    Ok(None)
+}
+
+/// Check ctime-based conditions for delete-src strategy
+fn check_delete_src_ctime_conditions(
+    strategy: &FileOverFileStrategy,
+    src_created: Option<u64>,
+    dest_created: Option<u64>,
+    config: &CopyConfig,
+    source: &Path,
+    stats: &Arc<CopyStats>,
+) -> Result<Option<bool>> {
+    if let (Some(src_c), Some(dest_c)) = (src_created, dest_created) {
+        if strategy.delete_src_created_newer && src_c > dest_c {
+            if config.verbose {
+                eprintln!(
+                    "Deleting source {} (source created newer)",
+                    shell_quote(source.to_string_lossy().as_ref())
+                );
+            }
+            if !config.simulate {
+                fs::remove_file(source)?;
+            }
+            stats.files_skipped.fetch_add(1, Ordering::Relaxed);
+            return Ok(Some(true));
+        }
+
+        if strategy.delete_src_created_older && src_c < dest_c {
+            if config.verbose {
+                eprintln!(
+                    "Deleting source {} (source created older)",
+                    shell_quote(source.to_string_lossy().as_ref())
+                );
+            }
+            if !config.simulate {
+                fs::remove_file(source)?;
+            }
+            stats.files_skipped.fetch_add(1, Ordering::Relaxed);
+            return Ok(Some(true));
+        }
+    }
+    Ok(None)
 }
 
 /// Check delete-src conditions for file-over-file conflicts
@@ -892,6 +1230,10 @@ fn check_delete_src_conditions(
     hashes_match: bool,
     src_size: u64,
     dest_size: u64,
+    src_modified: Option<u64>,
+    dest_modified: Option<u64>,
+    src_created: Option<u64>,
+    dest_created: Option<u64>,
     config: &CopyConfig,
     source: &Path,
     _dest: &Path,
@@ -951,6 +1293,30 @@ fn check_delete_src_conditions(
         }
         stats.files_skipped.fetch_add(1, Ordering::Relaxed);
         return Ok(true);
+    }
+
+    // Check mtime-based conditions
+    if let Some(result) = check_delete_src_mtime_conditions(
+        strategy,
+        src_modified,
+        dest_modified,
+        config,
+        source,
+        stats,
+    )? {
+        return Ok(result);
+    }
+
+    // Check ctime-based conditions
+    if let Some(result) = check_delete_src_ctime_conditions(
+        strategy,
+        src_created,
+        dest_created,
+        config,
+        source,
+        stats,
+    )? {
+        return Ok(result);
     }
 
     Ok(false)

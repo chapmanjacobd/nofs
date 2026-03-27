@@ -1519,3 +1519,179 @@ fn test_folder_over_file_rename_dest() {
 
     cleanup_test_dir(&test_dir);
 }
+
+#[test]
+fn test_copy_skip_modified_newer() {
+    let test_dir = setup_test_dir("skip_modified_newer");
+    let src = test_dir.join("src");
+    let dest = test_dir.join("dest");
+    fs::create_dir_all(&src).unwrap();
+    fs::create_dir_all(&dest).unwrap();
+
+    let src_file = src.join("file.txt");
+    let dest_src = dest.join("src");
+    fs::create_dir_all(&dest_src).unwrap();
+    let dest_file = dest_src.join("file.txt");
+
+    // Create dest file first (older)
+    create_file(&dest_file, "old content");
+    // Sleep to ensure different mtime
+    std::thread::sleep(std::time::Duration::from_millis(100));
+    // Create src file later (newer)
+    create_file(&src_file, "new content");
+
+    let strategy = parse_file_over_file("skip-modified-newer skip").unwrap();
+
+    let config = CopyConfig {
+        copy: true,
+        simulate: false,
+        workers: 1,
+        verbose: false,
+        file_over_file: strategy,
+        ..Default::default()
+    };
+
+    let result = cp_execute(
+        &[src.to_string_lossy().to_string()],
+        &dest.to_string_lossy(),
+        &config,
+        None,
+    );
+
+    assert!(result.is_ok());
+    // Dest should keep old content (src was newer, so skipped)
+    assert_eq!(read_file(&dest_file), "old content");
+    assert_eq!(read_file(&src_file), "new content");
+
+    cleanup_test_dir(&test_dir);
+}
+
+#[test]
+fn test_copy_skip_modified_older() {
+    let test_dir = setup_test_dir("skip_modified_older");
+    let src = test_dir.join("src");
+    let dest = test_dir.join("dest");
+    fs::create_dir_all(&src).unwrap();
+    fs::create_dir_all(&dest).unwrap();
+
+    let src_file = src.join("file.txt");
+    let dest_src = dest.join("src");
+    fs::create_dir_all(&dest_src).unwrap();
+    let dest_file = dest_src.join("file.txt");
+
+    // Create src file first (older)
+    create_file(&src_file, "old content");
+    // Sleep to ensure different mtime
+    std::thread::sleep(std::time::Duration::from_millis(100));
+    // Create dest file later (newer)
+    create_file(&dest_file, "new content");
+
+    let strategy = parse_file_over_file("skip-modified-older skip").unwrap();
+
+    let config = CopyConfig {
+        copy: true,
+        simulate: false,
+        workers: 1,
+        verbose: false,
+        file_over_file: strategy,
+        ..Default::default()
+    };
+
+    let result = cp_execute(
+        &[src.to_string_lossy().to_string()],
+        &dest.to_string_lossy(),
+        &config,
+        None,
+    );
+
+    assert!(result.is_ok());
+    // Dest should keep new content (src was older, so skipped)
+    assert_eq!(read_file(&dest_file), "new content");
+    assert_eq!(read_file(&src_file), "old content");
+
+    cleanup_test_dir(&test_dir);
+}
+
+#[test]
+fn test_copy_delete_dest_modified_newer() {
+    let test_dir = setup_test_dir("delete_dest_modified_newer");
+    let src = test_dir.join("src");
+    let dest = test_dir.join("dest");
+    fs::create_dir_all(&src).unwrap();
+    fs::create_dir_all(&dest).unwrap();
+
+    let src_file = src.join("file.txt");
+    let dest_src = dest.join("src");
+    fs::create_dir_all(&dest_src).unwrap();
+    let dest_file = dest_src.join("file.txt");
+
+    // Create dest file first (older)
+    create_file(&dest_file, "old content");
+    // Sleep to ensure different mtime
+    std::thread::sleep(std::time::Duration::from_millis(100));
+    // Create src file later (newer)
+    create_file(&src_file, "new content");
+
+    let strategy = parse_file_over_file("delete-dest-modified-newer delete-dest").unwrap();
+
+    let config = CopyConfig {
+        copy: true,
+        simulate: false,
+        workers: 1,
+        verbose: false,
+        file_over_file: strategy,
+        ..Default::default()
+    };
+
+    let result = cp_execute(
+        &[src.to_string_lossy().to_string()],
+        &dest.to_string_lossy(),
+        &config,
+        None,
+    );
+
+    assert!(result.is_ok());
+    // Dest should have new content (dest was deleted because src was newer)
+    assert_eq!(read_file(&dest_file), "new content");
+
+    cleanup_test_dir(&test_dir);
+}
+
+#[test]
+fn test_parse_file_over_file_mtime_ctime_options() {
+    // Test all new mtime/ctime options parse correctly
+    let test_cases = vec![
+        ("skip-modified-newer skip", true),
+        ("skip-modified-older skip", true),
+        ("skip-created-newer skip", true),
+        ("skip-created-older skip", true),
+        ("delete-dest-modified-newer delete-dest", true),
+        ("delete-dest-modified-older delete-dest", true),
+        ("delete-dest-created-newer delete-dest", true),
+        ("delete-dest-created-older delete-dest", true),
+        ("delete-src-modified-newer delete-src", true),
+        ("delete-src-modified-older delete-src", true),
+        ("delete-src-created-newer delete-src", true),
+        ("delete-src-created-older delete-src", true),
+        ("skip-modified-newer skip-created-older skip", true),
+        (
+            "delete-dest-created-older delete-dest-modified-newer delete-dest",
+            true,
+        ),
+    ];
+
+    for (input, should_succeed) in test_cases {
+        let result = parse_file_over_file(input);
+        if should_succeed {
+            assert!(
+                result.is_ok(),
+                "Expected '{input}' to parse successfully, but got: {result:?}"
+            );
+        } else {
+            assert!(
+                result.is_err(),
+                "Expected '{input}' to fail, but it succeeded"
+            );
+        }
+    }
+}
