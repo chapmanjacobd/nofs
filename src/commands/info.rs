@@ -12,15 +12,23 @@ use std::io::{self, Write};
 ///
 /// Returns an error if there is an IO error during output.
 #[allow(clippy::too_many_lines)]
-pub fn execute_single(pool: &Pool, _verbose: bool, json: bool) -> Result<()> {
+pub fn execute_single(pool: &Pool, verbose: bool, json: bool) -> Result<()> {
     let stdout = io::stdout();
     let mut handle = stdout.lock();
+
+    if verbose {
+        writeln!(handle, "Resolving share: {}", pool.name)?;
+        writeln!(handle, "Counting branches...")?;
+    }
 
     if json {
         let branches: Vec<BranchInfo> = pool
             .branches
             .iter()
             .map(|branch| {
+                if verbose {
+                    let _ = writeln!(handle, "  Processing branch: {}", branch.path.display());
+                }
                 let minfree = branch.minfreespace.clone();
                 BranchInfo {
                     path: branch.path.display().to_string(),
@@ -65,6 +73,9 @@ pub fn execute_single(pool: &Pool, _verbose: bool, json: bool) -> Result<()> {
         writeln!(handle, "Min Free Space: {} bytes", pool.minfreespace)?;
         writeln!(handle)?;
 
+        if verbose {
+            writeln!(handle, "Listing branches...")?;
+        }
         writeln!(handle, "Branch List:")?;
         for (i, branch) in pool.branches.iter().enumerate() {
             let mode = branch.mode;
@@ -93,13 +104,20 @@ pub fn execute_single(pool: &Pool, _verbose: bool, json: bool) -> Result<()> {
 /// # Errors
 ///
 /// Returns an error if there is an IO error during output.
-pub fn execute_all(pool_mgr: &PoolManager, _verbose: bool, json: bool) -> Result<()> {
+pub fn execute_all(pool_mgr: &PoolManager, verbose: bool, json: bool) -> Result<()> {
     let stdout = io::stdout();
     let mut handle = stdout.lock();
+
+    if verbose {
+        writeln!(handle, "Enumerating shares...")?;
+    }
 
     if json {
         let mut shares: Vec<ShareSummary> = Vec::new();
         for name in pool_mgr.pool_names() {
+            if verbose {
+                writeln!(handle, "  Processing share: {name}")?;
+            }
             if let Ok(pool) = pool_mgr.get_pool(name) {
                 shares.push(ShareSummary {
                     name: name.to_string(),
@@ -120,6 +138,9 @@ pub fn execute_all(pool_mgr: &PoolManager, _verbose: bool, json: bool) -> Result
 
         // Get all share names
         for name in pool_mgr.pool_names() {
+            if verbose {
+                writeln!(handle, "  Loading share: {name}")?;
+            }
             if let Ok(pool) = pool_mgr.get_pool(name) {
                 writeln!(handle, "{name}:")?;
                 writeln!(

@@ -1067,7 +1067,7 @@ fn main() -> Result<()> {
             maxdepth,
         } => {
             let (pool, pool_path) = pool_mgr.resolve_context_path(&path)?;
-            commands::du::execute(pool, pool_path, human, maxdepth, all, cli.json)?;
+            commands::du::execute(pool, pool_path, human, maxdepth, all, cli.json, cli.verbose)?;
         }
         // These commands are handled earlier and don't reach here
         Commands::Completions { .. } | Commands::Manpage { .. } => unreachable!(),

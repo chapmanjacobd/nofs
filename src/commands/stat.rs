@@ -13,16 +13,30 @@ use std::io::{self, Write};
 ///
 /// Returns an error if there is an IO error during output.
 #[allow(clippy::fn_params_excessive_bools, clippy::too_many_lines)]
-pub fn execute(pool: &Pool, human: bool, _verbose: bool, json: bool) -> Result<()> {
+pub fn execute(pool: &Pool, human: bool, verbose: bool, json: bool) -> Result<()> {
     let stdout = io::stdout();
     let mut handle = stdout.lock();
 
     // Create operation cache for this command execution
     let cache = OperationCache::new();
 
+    if verbose {
+        writeln!(handle, "Resolving share: {}", pool.name)?;
+        writeln!(handle, "Branch count: {}", pool.branch_count())?;
+        writeln!(handle, "Writable branches: {}", pool.writable_branch_count())?;
+    }
+
     let total = pool.total_space_cached(&cache);
     let used = pool.total_used_space_cached(&cache);
     let available = pool.total_available_space_cached(&cache);
+
+    if verbose {
+        writeln!(
+            handle,
+            "Aggregating space statistics from {} branches...",
+            pool.branch_count()
+        )?;
+    }
 
     let use_percent = if total > 0 {
         #[allow(clippy::cast_precision_loss, clippy::as_conversions, clippy::float_arithmetic)]
@@ -36,6 +50,9 @@ pub fn execute(pool: &Pool, human: bool, _verbose: bool, json: bool) -> Result<(
     if json {
         let mut branches: Vec<BranchStat> = Vec::new();
         for branch in &pool.branches {
+            if verbose {
+                writeln!(handle, "  Collecting stats for branch: {}", branch.path.display())?;
+            }
             // For stat display, we silently use 0 for branches that fail.
             // This allows the command to succeed even if some branches are inaccessible.
             let branch_total = branch.total_space_cached(&cache).unwrap_or(0);
@@ -106,6 +123,9 @@ pub fn execute(pool: &Pool, human: bool, _verbose: bool, json: bool) -> Result<(
         )?;
 
         for branch in &pool.branches {
+            if verbose {
+                writeln!(handle, "  Querying branch: {}", branch.path.display())?;
+            }
             // For stat display, we silently use 0 for branches that fail.
             // This allows the command to succeed even if some branches are inaccessible.
             let branch_total = branch.total_space_cached(&cache).unwrap_or(0);

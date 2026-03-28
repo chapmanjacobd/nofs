@@ -41,6 +41,7 @@ pub fn execute(
     max_depth: Option<usize>,
     all: bool,
     json: bool,
+    verbose: bool,
 ) -> Result<()> {
     let stdout = io::stdout();
     let mut handle = stdout.lock();
@@ -49,11 +50,19 @@ pub fn execute(
     let normalized_path = normalize_pool_path(pool_path);
     let pool_path_obj = Path::new(&normalized_path);
 
+    if verbose {
+        writeln!(handle, "Resolving path: {pool_path} (normalized: {normalized_path})")?;
+    }
+
     // Create operation cache for this command execution
     let cache = OperationCache::new();
 
     // Resolve the path across all branches (cached)
     let resolved_paths = pool.resolve_path_cached(pool_path_obj, &cache);
+
+    if verbose {
+        writeln!(handle, "Found {} branch(es) containing this path", resolved_paths.len())?;
+    }
 
     if resolved_paths.is_empty() {
         return Err(crate::error::NofsError::Io(std::io::Error::new(
@@ -70,6 +79,10 @@ pub fn execute(
         // Verify this path belongs to a branch
         if !pool.branches.iter().any(|b| branch_path.starts_with(&b.path)) {
             continue;
+        }
+
+        if verbose {
+            let _ = writeln!(handle, "  Analyzing branch: {}", branch_path.display());
         }
 
         let branch_path_clone = branch_path.clone();
