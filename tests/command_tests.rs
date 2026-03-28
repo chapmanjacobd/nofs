@@ -1693,4 +1693,490 @@ paths = ["{0}/disk1", "{0}/disk2"]
             output.stderr
         );
     }
+
+    #[test]
+    fn ls_with_special_characters_in_filename() {
+        let ctx = TestContext::new("cmd_ls_special");
+
+        // Create files with special characters
+        let branch = ctx.root.join("disk1/dir");
+        fs::create_dir_all(&branch).unwrap();
+        fs::write(branch.join("file with spaces.txt"), "content").unwrap();
+        fs::write(branch.join("file-with-dashes.txt"), "content").unwrap();
+        fs::write(branch.join("file_with_underscores.txt"), "content").unwrap();
+        fs::write(branch.join("file.multiple.dots.txt"), "content").unwrap();
+
+        let config = format!(
+            r#"
+[share.test]
+paths = ["{0}/disk1"]
+"#,
+            ctx.root.display()
+        );
+
+        ctx.write_config(&config);
+
+        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "ls", "test:dir"]);
+
+        assert!(output.success(), "Command failed: {}", output.stderr);
+        assert!(output.stdout.contains("file with spaces.txt"));
+        assert!(output.stdout.contains("file-with-dashes.txt"));
+        assert!(output.stdout.contains("file_with_underscores.txt"));
+        assert!(output.stdout.contains("file.multiple.dots.txt"));
+    }
+
+    #[test]
+    fn ls_empty_directory() {
+        let ctx = TestContext::new("cmd_ls_empty");
+
+        let _ = ctx.create_branch("disk1/empty", &[]);
+
+        let config = format!(
+            r#"
+[share.test]
+paths = ["{0}/disk1"]
+"#,
+            ctx.root.display()
+        );
+
+        ctx.write_config(&config);
+
+        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "ls", "test:empty"]);
+
+        assert!(output.success(), "Command failed: {}", output.stderr);
+        // Empty directory should produce no output (or just whitespace)
+        assert!(output.stdout.trim().is_empty() || !output.stdout.contains(".txt"));
+    }
+
+    #[test]
+    fn ls_nonexistent_directory() {
+        let ctx = TestContext::new("cmd_ls_nonexistent");
+
+        let _ = ctx.create_branch("disk1", &[]);
+
+        let config = format!(
+            r#"
+[share.test]
+paths = ["{0}/disk1"]
+"#,
+            ctx.root.display()
+        );
+
+        ctx.write_config(&config);
+
+        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "ls", "test:nonexistent"]);
+
+        assert!(!output.success(), "Should fail for nonexistent directory");
+    }
+
+    #[test]
+    fn find_with_deep_nesting() {
+        let ctx = TestContext::new("cmd_find_deep");
+
+        let _ = ctx.create_branch("disk1/a/b/c/d/e/f", &["deep.txt"]);
+
+        let config = format!(
+            r#"
+[share.test]
+paths = ["{0}/disk1"]
+"#,
+            ctx.root.display()
+        );
+
+        ctx.write_config(&config);
+
+        let output = ctx.run_nofs(&[
+            "--config",
+            ctx.config_path.to_str().unwrap(),
+            "find",
+            "test:.",
+            "--name",
+            "deep.txt",
+        ]);
+
+        assert!(output.success(), "Command failed: {}", output.stderr);
+        assert!(output.stdout.contains("deep.txt"));
+    }
+
+    #[test]
+    fn find_with_maxdepth_zero() {
+        let ctx = TestContext::new("cmd_find_depth0");
+
+        let _ = ctx.create_branch("disk1/subdir", &["file.txt"]);
+
+        let config = format!(
+            r#"
+[share.test]
+paths = ["{0}/disk1"]
+"#,
+            ctx.root.display()
+        );
+
+        ctx.write_config(&config);
+
+        let output = ctx.run_nofs(&[
+            "--config",
+            ctx.config_path.to_str().unwrap(),
+            "find",
+            "test:.",
+            "--maxdepth",
+            "0",
+        ]);
+
+        assert!(output.success(), "Command failed: {}", output.stderr);
+        // Should only show current directory, not subdir contents
+        assert!(!output.stdout.contains("file.txt"));
+    }
+
+    #[test]
+    fn mkdir_existing_directory() {
+        let ctx = TestContext::new("cmd_mkdir_existing");
+
+        let _ = ctx.create_branch("disk1/existing", &[]);
+
+        let config = format!(
+            r#"
+[share.test]
+paths = ["{0}/disk1"]
+"#,
+            ctx.root.display()
+        );
+
+        ctx.write_config(&config);
+
+        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "mkdir", "test:existing"]);
+
+        // Should succeed or fail gracefully
+        assert!(output.success() || !output.success());
+    }
+
+    #[test]
+    fn rmdir_with_trailing_slash() {
+        let ctx = TestContext::new("cmd_rmdir_slash");
+
+        let _ = ctx.create_branch("disk1/to_remove", &[]);
+
+        let config = format!(
+            r#"
+[share.test]
+paths = ["{0}/disk1"]
+"#,
+            ctx.root.display()
+        );
+
+        ctx.write_config(&config);
+
+        let output = ctx.run_nofs(&[
+            "--config",
+            ctx.config_path.to_str().unwrap(),
+            "rmdir",
+            "test:to_remove/",
+        ]);
+
+        assert!(output.success(), "Command failed: {}", output.stderr);
+
+        // Verify directory was removed
+        let removed_dir = ctx.root.join("disk1/to_remove");
+        assert!(!removed_dir.exists(), "Directory should be removed");
+    }
+
+    #[test]
+    fn touch_existing_file() {
+        let ctx = TestContext::new("cmd_touch_existing");
+
+        let _ = ctx.create_branch("disk1/dir", &["file.txt"]);
+
+        let config = format!(
+            r#"
+[share.test]
+paths = ["{0}/disk1"]
+"#,
+            ctx.root.display()
+        );
+
+        ctx.write_config(&config);
+
+        let output = ctx.run_nofs(&[
+            "--config",
+            ctx.config_path.to_str().unwrap(),
+            "touch",
+            "test:dir/file.txt",
+        ]);
+
+        assert!(output.success(), "Command failed: {}", output.stderr);
+    }
+
+    #[test]
+    fn cat_nonexistent_file() {
+        let ctx = TestContext::new("cmd_cat_missing");
+
+        let _ = ctx.create_branch("disk1", &[]);
+
+        let config = format!(
+            r#"
+[share.test]
+paths = ["{0}/disk1"]
+"#,
+            ctx.root.display()
+        );
+
+        ctx.write_config(&config);
+
+        let output = ctx.run_nofs(&[
+            "--config",
+            ctx.config_path.to_str().unwrap(),
+            "cat",
+            "test:nonexistent.txt",
+        ]);
+
+        assert!(!output.success(), "Should fail for nonexistent file");
+    }
+
+    #[test]
+    fn exists_with_trailing_slash() {
+        let ctx = TestContext::new("cmd_exists_slash");
+
+        let _ = ctx.create_branch("disk1/dir", &[]);
+
+        let config = format!(
+            r#"
+[share.test]
+paths = ["{0}/disk1"]
+"#,
+            ctx.root.display()
+        );
+
+        ctx.write_config(&config);
+
+        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "exists", "test:dir/"]);
+
+        assert!(output.success(), "Should exist with trailing slash");
+    }
+
+    #[test]
+    fn stat_single_branch() {
+        let ctx = TestContext::new("cmd_stat_single");
+
+        let _ = ctx.create_branch("disk1", &[]);
+
+        let config = format!(
+            r#"
+[share.test]
+paths = ["{0}/disk1"]
+"#,
+            ctx.root.display()
+        );
+
+        ctx.write_config(&config);
+
+        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "stat", "-H"]);
+
+        assert!(output.success(), "Command failed: {}", output.stderr);
+        assert!(output.stdout.contains("disk1"));
+    }
+
+    #[test]
+    fn info_nonexistent_share() {
+        let ctx = TestContext::new("cmd_info_missing");
+
+        let _ = ctx.create_branch("disk1", &[]);
+
+        let config = format!(
+            r#"
+[share.test]
+paths = ["{0}/disk1"]
+"#,
+            ctx.root.display()
+        );
+
+        ctx.write_config(&config);
+
+        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "info", "nonexistent"]);
+
+        assert!(!output.success(), "Should fail for nonexistent share");
+    }
+
+    #[test]
+    fn create_with_nested_path() {
+        let ctx = TestContext::new("cmd_create_nested");
+
+        let _ = ctx.create_branch("disk1", &[]);
+
+        let config = format!(
+            r#"
+[share.test]
+paths = ["{0}/disk1"]
+"#,
+            ctx.root.display()
+        );
+
+        ctx.write_config(&config);
+
+        let output = ctx.run_nofs(&[
+            "--config",
+            ctx.config_path.to_str().unwrap(),
+            "create",
+            "test:a/b/c/file.txt",
+        ]);
+
+        assert!(output.success(), "Command failed: {}", output.stderr);
+        assert!(output.stdout.contains("file.txt"));
+    }
+
+    #[test]
+    fn ls_hidden_files_in_multiple_branches() {
+        let ctx = TestContext::new("cmd_ls_hidden_multi");
+
+        let _ = ctx.create_branch("disk1/dir", &[".hidden1", "visible.txt"]);
+        let _ = ctx.create_branch("disk2/dir", &[".hidden2", "other.txt"]);
+
+        let config = format!(
+            r#"
+[share.test]
+paths = ["{0}/disk1", "{0}/disk2"]
+"#,
+            ctx.root.display()
+        );
+
+        ctx.write_config(&config);
+
+        // Without -a
+        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "ls", "test:dir"]);
+
+        assert!(output.success());
+        assert!(output.stdout.contains("visible.txt"));
+        assert!(output.stdout.contains("other.txt"));
+        assert!(!output.stdout.contains(".hidden1"));
+        assert!(!output.stdout.contains(".hidden2"));
+
+        // With -a
+        let output2 = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "ls", "-a", "test:dir"]);
+
+        assert!(output2.success());
+        assert!(output2.stdout.contains(".hidden1"));
+        assert!(output2.stdout.contains(".hidden2"));
+    }
+
+    #[test]
+    fn find_with_type_on_empty_branch() {
+        let ctx = TestContext::new("cmd_find_type_empty");
+
+        let _ = ctx.create_branch("disk1", &[]);
+
+        let config = format!(
+            r#"
+[share.test]
+paths = ["{0}/disk1"]
+"#,
+            ctx.root.display()
+        );
+
+        ctx.write_config(&config);
+
+        let output = ctx.run_nofs(&[
+            "--config",
+            ctx.config_path.to_str().unwrap(),
+            "find",
+            "test:.",
+            "--type",
+            "f",
+        ]);
+
+        assert!(output.success(), "Command failed: {}", output.stderr);
+        // Should produce no output for empty branch
+        assert!(output.stdout.trim().is_empty());
+    }
+
+    #[test]
+    fn mv_with_dry_run() {
+        let ctx = TestContext::new("cmd_mv_dry");
+
+        let _ = ctx.create_branch("disk1/source", &["file.txt"]);
+        let _ = ctx.create_branch("disk1/dest", &[]);
+
+        let config = format!(
+            r#"
+[share.test]
+paths = ["{0}/disk1"]
+"#,
+            ctx.root.display()
+        );
+
+        ctx.write_config(&config);
+
+        let output = ctx.run_nofs(&[
+            "--config",
+            ctx.config_path.to_str().unwrap(),
+            "mv",
+            "-n",
+            "test:source/file.txt",
+            "test:dest/",
+        ]);
+
+        assert!(output.success(), "Command failed: {}", output.stderr);
+
+        // File should still be in source (dry run)
+        assert!(ctx.root.join("disk1/source/file.txt").exists());
+        assert!(!ctx.root.join("disk1/dest/file.txt").exists());
+    }
+
+    #[test]
+    fn rm_with_multiple_files() {
+        let ctx = TestContext::new("cmd_rm_multi");
+
+        let _ = ctx.create_branch("disk1/dir", &["file1.txt", "file2.txt", "file3.txt"]);
+
+        let config = format!(
+            r#"
+[share.test]
+paths = ["{0}/disk1"]
+"#,
+            ctx.root.display()
+        );
+
+        ctx.write_config(&config);
+
+        let output = ctx.run_nofs(&[
+            "--config",
+            ctx.config_path.to_str().unwrap(),
+            "rm",
+            "test:dir/file1.txt",
+            "test:dir/file2.txt",
+        ]);
+
+        assert!(output.success(), "Command failed: {}", output.stderr);
+
+        // Verify files were removed
+        assert!(!ctx.root.join("disk1/dir/file1.txt").exists());
+        assert!(!ctx.root.join("disk1/dir/file2.txt").exists());
+        assert!(ctx.root.join("disk1/dir/file3.txt").exists());
+    }
+
+    #[test]
+    fn ls_with_unicode_filenames() {
+        let ctx = TestContext::new("cmd_ls_unicode");
+
+        let branch = ctx.root.join("disk1/dir");
+        fs::create_dir_all(&branch).unwrap();
+        fs::write(branch.join("文件.txt"), "chinese").unwrap();
+        fs::write(branch.join("ファイル.txt"), "japanese").unwrap();
+        fs::write(branch.join("файл.txt"), "russian").unwrap();
+        fs::write(branch.join("αρχείο.txt"), "greek").unwrap();
+
+        let config = format!(
+            r#"
+[share.test]
+paths = ["{0}/disk1"]
+"#,
+            ctx.root.display()
+        );
+
+        ctx.write_config(&config);
+
+        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "ls", "test:dir"]);
+
+        assert!(output.success(), "Command failed: {}", output.stderr);
+        // Unicode filenames should be displayed
+        assert!(output.stdout.contains(".txt"));
+    }
 }

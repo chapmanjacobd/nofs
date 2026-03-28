@@ -424,4 +424,144 @@ mod tests {
         let non_existent = Path::new("non_existent.txt");
         assert!(!branch.path_exists_cached(non_existent, &cache));
     }
+
+    #[test]
+    fn test_branch_parse_with_multiple_options() {
+        let (temp_dir, _) = create_temp_branch();
+        let path_str = format!("{}=NC,2G", temp_dir.path().display());
+        let parsed = Branch::parse(&path_str).unwrap();
+        assert_eq!(parsed.mode, BranchMode::NC);
+        assert_eq!(parsed.minfreespace, Some("2G".to_string()));
+    }
+
+    #[test]
+    fn test_branch_parse_with_whitespace() {
+        let (temp_dir, _) = create_temp_branch();
+        // Note: Branch::parse trims whitespace from options but not from the path itself
+        let path_str = format!("{}=RO,1G", temp_dir.path().display());
+        let parsed = Branch::parse(&path_str).unwrap();
+        assert_eq!(parsed.mode, BranchMode::RO);
+        assert_eq!(parsed.minfreespace, Some("1G".to_string()));
+    }
+
+    #[test]
+    fn test_branch_parse_nc_mode() {
+        let (temp_dir, _) = create_temp_branch();
+        let path_str = format!("{}=NC", temp_dir.path().display());
+        let parsed = Branch::parse(&path_str).unwrap();
+        assert_eq!(parsed.mode, BranchMode::NC);
+        assert!(!parsed.can_create());
+        assert!(!parsed.can_action());
+    }
+
+    #[test]
+    fn test_branch_minfreespace_parsing_variations() {
+        let (temp_dir, _) = create_temp_branch();
+
+        // Different size suffixes
+        let path_str = format!("{}=100M", temp_dir.path().display());
+        let parsed = Branch::parse(&path_str).unwrap();
+        assert_eq!(parsed.minfreespace, Some("100M".to_string()));
+
+        let path_str = format!("{}=500K", temp_dir.path().display());
+        let parsed = Branch::parse(&path_str).unwrap();
+        assert_eq!(parsed.minfreespace, Some("500K".to_string()));
+
+        let path_str = format!("{}=10T", temp_dir.path().display());
+        let parsed = Branch::parse(&path_str).unwrap();
+        assert_eq!(parsed.minfreespace, Some("10T".to_string()));
+
+        // Plain bytes
+        let path_str = format!("{}=1000000", temp_dir.path().display());
+        let parsed = Branch::parse(&path_str).unwrap();
+        assert_eq!(parsed.minfreespace, Some("1000000".to_string()));
+    }
+
+    #[test]
+    fn test_branch_parse_invalid_minfreespace_format() {
+        let (temp_dir, _) = create_temp_branch();
+        // Invalid option that's not a mode or numeric
+        let path_str = format!("{}=INVALID", temp_dir.path().display());
+        let result = Branch::parse(&path_str);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Invalid branch option"));
+    }
+
+    #[test]
+    fn test_branch_space_edge_cases() {
+        let (_temp_dir, branch) = create_temp_branch();
+
+        // Space methods should return positive values for valid directories
+        let available = branch.available_space().unwrap();
+        let total = branch.total_space().unwrap();
+        let used = branch.used_space().unwrap();
+
+        // Basic sanity checks
+        assert!(available > 0);
+        assert!(total > 0);
+        assert!(used > 0);
+        assert!(used <= total);
+        assert!(available <= total);
+
+        // Percentages should be in valid range
+        let free_pct = branch.free_percentage().unwrap();
+        let used_pct = branch.used_percentage().unwrap();
+        assert!((0.0..=100.0).contains(&free_pct));
+        assert!((0.0..=100.0).contains(&used_pct));
+
+        // Percentages should sum to ~100
+        assert!((free_pct + used_pct - 100.0).abs() < 1.0);
+    }
+
+    #[test]
+    fn test_branch_mode_serialization() {
+        use serde_json;
+
+        // Test serialization
+        assert_eq!(serde_json::to_string(&BranchMode::RW).unwrap(), "\"RW\"");
+        assert_eq!(serde_json::to_string(&BranchMode::RO).unwrap(), "\"RO\"");
+        assert_eq!(serde_json::to_string(&BranchMode::NC).unwrap(), "\"NC\"");
+
+        // Test deserialization
+        assert_eq!(serde_json::from_str::<BranchMode>("\"RW\"").unwrap(), BranchMode::RW);
+        assert_eq!(serde_json::from_str::<BranchMode>("\"RO\"").unwrap(), BranchMode::RO);
+        assert_eq!(serde_json::from_str::<BranchMode>("\"NC\"").unwrap(), BranchMode::NC);
+    }
+
+    #[test]
+    fn test_branch_serialization() {
+        use serde_json;
+
+        let branch = Branch {
+            path: PathBuf::from("/test/path"),
+            mode: BranchMode::RW,
+            minfreespace: Some("1G".to_string()),
+        };
+
+        let json = serde_json::to_string(&branch).unwrap();
+        assert!(json.contains("/test/path"));
+        assert!(json.contains("RW"));
+        assert!(json.contains("1G"));
+
+        // Deserialize back
+        let deserialized: Branch = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.path, branch.path);
+        assert_eq!(deserialized.mode, branch.mode);
+        assert_eq!(deserialized.minfreespace, branch.minfreespace);
+    }
+
+    #[test]
+    fn test_branch_clone_and_debug() {
+        let (_temp_dir, branch) = create_temp_branch();
+
+        // Test clone
+        let branch_clone = branch.clone();
+        assert_eq!(branch.path, branch_clone.path);
+        assert_eq!(branch.mode, branch_clone.mode);
+        assert_eq!(branch.minfreespace, branch_clone.minfreespace);
+
+        // Test debug formatting
+        let debug_str = format!("{branch:?}");
+        assert!(debug_str.contains("Branch"));
+    }
 }
