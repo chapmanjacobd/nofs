@@ -32,6 +32,7 @@ pub fn execute(
     include: Vec<String>,
     limit: Option<u64>,
     size_limit: Option<u64>,
+    size: Option<crate::commands::cp::SizeFilter>,
     share: Option<&Pool>,
 ) -> Result<Arc<CopyStats>> {
     // Parse conflict resolution strategies
@@ -52,6 +53,7 @@ pub fn execute(
         include,
         limit,
         size_limit,
+        size,
     };
 
     copy_execute(sources, destination, &config, share)

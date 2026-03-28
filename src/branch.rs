@@ -459,22 +459,22 @@ mod tests {
         let (temp_dir, _) = create_temp_branch();
 
         // Different size suffixes
-        let path_str = format!("{}=100M", temp_dir.path().display());
-        let parsed = Branch::parse(&path_str).unwrap();
-        assert_eq!(parsed.minfreespace, Some("100M".to_string()));
+        let path_str_100m = format!("{}=100M", temp_dir.path().display());
+        let parsed_100m = Branch::parse(&path_str_100m).unwrap();
+        assert_eq!(parsed_100m.minfreespace, Some("100M".to_string()));
 
-        let path_str = format!("{}=500K", temp_dir.path().display());
-        let parsed = Branch::parse(&path_str).unwrap();
-        assert_eq!(parsed.minfreespace, Some("500K".to_string()));
+        let path_str_500k = format!("{}=500K", temp_dir.path().display());
+        let parsed_500k = Branch::parse(&path_str_500k).unwrap();
+        assert_eq!(parsed_500k.minfreespace, Some("500K".to_string()));
 
-        let path_str = format!("{}=10T", temp_dir.path().display());
-        let parsed = Branch::parse(&path_str).unwrap();
-        assert_eq!(parsed.minfreespace, Some("10T".to_string()));
+        let path_str_10t = format!("{}=10T", temp_dir.path().display());
+        let parsed_10t = Branch::parse(&path_str_10t).unwrap();
+        assert_eq!(parsed_10t.minfreespace, Some("10T".to_string()));
 
         // Plain bytes
-        let path_str = format!("{}=1000000", temp_dir.path().display());
-        let parsed = Branch::parse(&path_str).unwrap();
-        assert_eq!(parsed.minfreespace, Some("1000000".to_string()));
+        let path_str_bytes = format!("{}=1000000", temp_dir.path().display());
+        let parsed_bytes = Branch::parse(&path_str_bytes).unwrap();
+        assert_eq!(parsed_bytes.minfreespace, Some("1000000".to_string()));
     }
 
     #[test]

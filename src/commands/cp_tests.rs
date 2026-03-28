@@ -96,6 +96,7 @@ fn test_simple_move() {
         None,
         None,
         None,
+        None,
     );
 
     assert!(result.is_ok());

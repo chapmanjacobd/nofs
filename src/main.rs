@@ -17,6 +17,44 @@ pub mod utils;
 use clap::Parser;
 use error::{NofsError, Result};
 
+/// Parse size filter string (e.g., "+5M", "-10M", "+5M-10M")
+///
+/// Format:
+/// - `+SIZE` - minimum size (files must be at least this big)
+/// - `-SIZE` - maximum size (files must be at most this big)
+/// - `+MIN-MAX` - range (files must be between min and max)
+fn parse_size_filter(s: &str) -> Result<commands::cp::SizeFilter> {
+    let s = s.trim();
+    let mut min = None;
+    let mut max = None;
+
+    // Check for range format: +MIN-MAX
+    if let Some(plus_idx) = s.find('+') {
+        if let Some(dash_idx) = s.rfind('-') {
+            if dash_idx > plus_idx {
+                // Range format
+                let min_str = &s[plus_idx + 1..dash_idx];
+                let max_str = &s[dash_idx + 1..];
+                min = policy::parse_size(min_str).ok();
+                max = policy::parse_size(max_str).ok();
+                return Ok(commands::cp::SizeFilter { min, max });
+            }
+        }
+    }
+
+    // Single value format: +SIZE or -SIZE
+    if s.starts_with('+') {
+        min = policy::parse_size(&s[1..]).ok();
+    } else if s.starts_with('-') {
+        max = policy::parse_size(&s[1..]).ok();
+    } else {
+        // No prefix, treat as maximum
+        max = policy::parse_size(s).ok();
+    }
+
+    Ok(commands::cp::SizeFilter { min, max })
+}
+
 /// Command-line interface for nofs
 #[derive(Parser, Debug)]
 #[command(name = "nofs")]
@@ -899,7 +937,7 @@ fn main() -> Result<()> {
             ext,
             exclude,
             include,
-            size: _,
+            size,
             limit,
             size_limit,
         } => {
@@ -912,6 +950,9 @@ fn main() -> Result<()> {
 
             // Parse size limit
             let parsed_size_limit = size_limit.as_ref().and_then(|s| parse_size(s).ok());
+
+            // Parse per-file size filter (use first value if provided)
+            let parsed_size = size.first().and_then(|s| parse_size_filter(s).ok());
 
             // Get share for context-aware paths
             let share = extract_share_from_paths(&pool_mgr, sources, destination)?;
@@ -929,6 +970,7 @@ fn main() -> Result<()> {
                 include,
                 limit,
                 size_limit: parsed_size_limit,
+                size: parsed_size,
             };
 
             let stats = commands::cp::execute(sources, destination, &config, share)?;
@@ -946,7 +988,7 @@ fn main() -> Result<()> {
             ext,
             exclude,
             include,
-            size: _,
+            size,
             limit,
             size_limit,
         } => {
@@ -959,6 +1001,9 @@ fn main() -> Result<()> {
 
             // Parse size limit
             let parsed_size_limit = size_limit.as_ref().and_then(|s| parse_size(s).ok());
+
+            // Parse per-file size filter (use first value if provided)
+            let parsed_size = size.first().and_then(|s| parse_size_filter(s).ok());
 
             // Get share for context-aware paths
             let share = extract_share_from_paths(&pool_mgr, sources, destination)?;
@@ -977,6 +1022,7 @@ fn main() -> Result<()> {
                 include,
                 limit,
                 parsed_size_limit,
+                parsed_size,
                 share,
             )?;
 

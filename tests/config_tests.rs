@@ -1,5 +1,7 @@
 //! Configuration parsing tests.
 
+#![allow(clippy::needless_raw_string_hashes)]
+
 #[path = "common.rs"]
 mod common;
 
@@ -209,7 +211,7 @@ create_policy = "mfs"
 paths = []
 "#;
 
-        ctx.write_config(&config);
+        ctx.write_config(config);
 
         let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "info", "test"]);
 
@@ -227,7 +229,7 @@ paths = []
 paths = ["/nonexistent/path/that/does/not/exist"]
 "#;
 
-        ctx.write_config(&config);
+        ctx.write_config(config);
 
         let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "info", "test"]);
 
@@ -245,7 +247,7 @@ paths = ["/nonexistent/path/that/does/not/exist"]
 paths = ["/path"]
 "#;
 
-        ctx.write_config(&config);
+        ctx.write_config(config);
 
         let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "info", "test"]);
 
@@ -263,7 +265,7 @@ paths = ["/path"]
 key = "value"
 "#;
 
-        ctx.write_config(&config);
+        ctx.write_config(config);
 
         let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "info"]);
 
@@ -483,7 +485,7 @@ create_policy = "mfs"
 create_policy = "mfs"
 "#;
 
-        ctx.write_config(&config);
+        ctx.write_config(config);
 
         let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "info", "test"]);
 

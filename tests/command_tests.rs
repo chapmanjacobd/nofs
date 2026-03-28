@@ -2086,7 +2086,6 @@ paths = ["{0}/disk1"]
         // Should produce no output for empty branch
         assert!(output.stdout.trim().is_empty());
     }
-
     #[test]
     fn mv_with_dry_run() {
         let ctx = TestContext::new("cmd_mv_dry");

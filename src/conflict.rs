@@ -730,6 +730,7 @@ mod tests {
         let file_path = temp_dir.path().join("threshold.txt");
 
         // Create a file exactly at the threshold
+        #[allow(clippy::cast_possible_truncation, clippy::as_conversions)]
         let content = "x".repeat(MB as usize);
         fs::write(&file_path, &content).unwrap();
 
@@ -1005,7 +1006,7 @@ mod tests {
         };
 
         // Should still sort correctly with None values
-        let mut conflicts = vec![bc.clone(), bc.clone()];
+        let mut conflicts = [bc.clone(), bc];
         conflicts.sort_by(|a, b| b.mtime.cmp(&a.mtime).then_with(|| a.path.cmp(&b.path)));
         assert_eq!(conflicts.len(), 2);
     }
@@ -1038,7 +1039,7 @@ mod tests {
         };
 
         // bc1 and bc3 have same size, bc2 differs
-        assert!(files_differ(&[bc1.clone(), bc2.clone(), bc3.clone()], false));
+        assert!(files_differ(&[bc1.clone(), bc2, bc3.clone()], false));
 
         // All same size
         let bc4 = BranchConflict {

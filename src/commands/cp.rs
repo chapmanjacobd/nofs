@@ -663,6 +663,15 @@ pub struct CopyConfig {
     pub include: Vec<String>,    // include patterns
     pub limit: Option<u64>,      // limit number of files
     pub size_limit: Option<u64>, // limit total size in bytes
+    pub size: Option<SizeFilter>, // filter by individual file size
+}
+
+/// Size filter for individual files
+#[non_exhaustive]
+#[derive(Debug, Clone)]
+pub struct SizeFilter {
+    pub min: Option<u64>, // minimum size in bytes
+    pub max: Option<u64>, // maximum size in bytes
 }
 
 impl Default for CopyConfig {
@@ -683,6 +692,7 @@ impl Default for CopyConfig {
             include: Vec::new(),
             limit: None,
             size_limit: None,
+            size: None,
         }
     }
 }
@@ -977,6 +987,10 @@ fn process_file_source(
         return Ok(());
     }
 
+    if !matches_size_filter(source, &config.size) {
+        return Ok(());
+    }
+
     if dest_exists {
         handle_file_conflicts(source, dest, config, stats)
     } else {
@@ -992,6 +1006,30 @@ fn matches_extension(source: &Path, extensions: &[String]) -> bool {
     }
     let ext = source.extension().and_then(|s| s.to_str()).unwrap_or("");
     extensions.iter().any(|e| e.trim_start_matches('.') == ext)
+}
+
+/// Check if file matches size filter
+fn matches_size_filter(source: &Path, size_filter: &Option<SizeFilter>) -> bool {
+    let Some(filter) = size_filter else {
+        return true;
+    };
+
+    let Ok(metadata) = std::fs::metadata(source) else {
+        return false;
+    };
+    let size = metadata.len();
+
+    if let Some(min) = filter.min {
+        if size < min {
+            return false;
+        }
+    }
+    if let Some(max) = filter.max {
+        if size > max {
+            return false;
+        }
+    }
+    true
 }
 
 /// Check if file matches include/exclude filters
