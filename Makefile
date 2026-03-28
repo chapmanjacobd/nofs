@@ -1,6 +1,6 @@
 .PHONY: all fmt lint test build clean check clippy install install-completions install-manpage manpage completions
 
-all: fmt lint test build
+all: fmt lint test build manpage completions
 
 fmt:
 	cargo fmt --all
@@ -38,7 +38,7 @@ completions: build
 
 manpage: build
 	mkdir -p man
-	./target/debug/nofs manpage > man/nofs.1
+	./target/debug/nofs manpage
 
 install-completions:
 	install -d $(DESTDIR)/usr/share/bash-completion/completions
@@ -51,6 +51,11 @@ install-completions:
 install-manpage:
 	install -d $(DESTDIR)/usr/share/man/man1
 	install -m 644 man/nofs.1 $(DESTDIR)/usr/share/man/man1/nofs.1
+	for f in man/nofs-*.1; do \
+		if [ -f "$$f" ]; then \
+			install -m 644 "$$f" $(DESTDIR)/usr/share/man/man1/; \
+		fi \
+	done
 
 release:
 	cargo release --execute --no-confirm

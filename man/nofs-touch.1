@@ -1,0 +1,28 @@
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.TH touch 1  "touch " 
+.SH NAME
+touch \- Create or update files
+.SH SYNOPSIS
+\fBtouch\fR [\fB\-v\fR|\fB\-\-verbose\fR] [\fB\-h\fR|\fB\-\-help\fR] <\fIPATH\fR> 
+.SH DESCRIPTION
+Create or update files
+.SH OPTIONS
+.TP
+\fB\-v\fR, \fB\-\-verbose\fR
+Print the file path after creation/update
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print help
+.TP
+<\fIPATH\fR>
+Path within the share (format: [context:]path)
+.SH EXTRA
+EXAMPLES:
+    nofs touch media:/newfile.txt            # Create empty file
+    nofs touch media:/existing.txt           # Update modification time
+    nofs touch \-v media:/data.log            # Verbose creation
+
+NOTES:
+    Creates an empty file if it doesn\*(Aqt exist.
+    Updates the modification time if the file already exists.

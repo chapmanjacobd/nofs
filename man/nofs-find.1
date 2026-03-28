@@ -1,0 +1,41 @@
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.TH find 1  "find " 
+.SH NAME
+find \- Find files matching a pattern
+.SH SYNOPSIS
+\fBfind\fR [\fB\-\-name\fR] [\fB\-\-type\fR] [\fB\-\-maxdepth\fR] [\fB\-h\fR|\fB\-\-help\fR] <\fIPATH\fR> 
+.SH DESCRIPTION
+Find files matching a pattern
+.SH OPTIONS
+.TP
+\fB\-\-name\fR \fI<PATTERN>\fR
+Filename pattern (glob syntax: *.txt, **/logs/*)
+.TP
+\fB\-\-type\fR \fI<TYPE>\fR
+File type: \*(Aqf\*(Aq for files, \*(Aqd\*(Aq for directories
+.TP
+\fB\-\-maxdepth\fR \fI<N>\fR
+Maximum directory traversal depth (0 = starting directory only)
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print help
+.TP
+<\fIPATH\fR>
+Starting path within the share (format: [context:]path)
+.SH EXTRA
+EXAMPLES:
+    nofs find media:/ \-\-name "*.jpg"           # Find all JPEG files
+    nofs find media:/photos \-t f \-\-name "*.png" # Find PNG files only
+    nofs find media:/ \-t d \-\-maxdepth 2          # Directories up to 2 levels deep
+    nofs find media:/ \-\-name "**/backup/*"      # Files in any backup folder
+
+OPTIONS:
+    \-\-name <PATTERN>
+        Glob pattern to match filenames. Supports * (any chars) and ** (any path).
+
+    \-\-type <TYPE>
+        Filter by type: \*(Aqf\*(Aq for files, \*(Aqd\*(Aq for directories.
+
+    \-\-maxdepth <N>
+        Limit directory traversal depth. 0 = only the starting directory.

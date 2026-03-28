@@ -1,0 +1,26 @@
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.TH info 1  "info " 
+.SH NAME
+info \- Show share configuration and status
+.SH SYNOPSIS
+\fBinfo\fR [\fB\-h\fR|\fB\-\-help\fR] [\fICONTEXT\fR] 
+.SH DESCRIPTION
+Show share configuration and status
+.SH OPTIONS
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print help
+.TP
+[\fICONTEXT\fR]
+Context name (optional, shows all shares if not specified)
+.SH EXTRA
+EXAMPLES:
+    nofs info media                    # Show media share config
+    nofs info                          # Show all shares
+
+OUTPUT:
+    Displays share configuration including:
+    \- Branch paths and their types (RW, RO, NC)
+    \- Policy settings (create policy, minfreespace)
+    \- Branch status and statistics

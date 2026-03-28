@@ -1,0 +1,24 @@
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.TH create 1  "create " 
+.SH NAME
+create \- Get the best branch path for creating a new file
+.SH SYNOPSIS
+\fBcreate\fR [\fB\-h\fR|\fB\-\-help\fR] <\fIPATH\fR> 
+.SH DESCRIPTION
+Get the best branch path for creating a new file
+.SH OPTIONS
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print help
+.TP
+<\fIPATH\fR>
+Path within the share (format: [context:]path)
+.SH EXTRA
+EXAMPLES:
+    nofs create media:/newfile.txt              # Get path for new file
+    nofs create media:/photos/vacation.jpg      # Get path in subdirectory
+
+OUTPUT:
+    Returns the full filesystem path where a new file should be created.
+    Uses the configured branch selection policy (e.g., pfrd, mfs, rand).

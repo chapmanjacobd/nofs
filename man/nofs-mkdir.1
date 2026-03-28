@@ -1,0 +1,31 @@
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.TH mkdir 1  "mkdir " 
+.SH NAME
+mkdir \- Create directories
+.SH SYNOPSIS
+\fBmkdir\fR [\fB\-p\fR|\fB\-\-parents\fR] [\fB\-v\fR|\fB\-\-verbose\fR] [\fB\-h\fR|\fB\-\-help\fR] <\fIPATH\fR> 
+.SH DESCRIPTION
+Create directories
+.SH OPTIONS
+.TP
+\fB\-p\fR, \fB\-\-parents\fR
+Create parent directories as needed
+.TP
+\fB\-v\fR, \fB\-\-verbose\fR
+Print each directory as it is created
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print help
+.TP
+<\fIPATH\fR>
+Path within the share (format: [context:]path)
+.SH EXTRA
+EXAMPLES:
+    nofs mkdir media:/new_folder             # Create single directory
+    nofs mkdir \-p media:/a/b/c               # Create nested directories
+    nofs mkdir \-pv media:/photos/2024        # Verbose creation
+
+NOTES:
+    Without \-p, fails if parent directories don\*(Aqt exist.
+    With \-p, creates all missing parent directories.

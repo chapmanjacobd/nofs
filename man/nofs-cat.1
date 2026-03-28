@@ -1,0 +1,24 @@
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.TH cat 1  "cat " 
+.SH NAME
+cat \- Read file content (from first found branch)
+.SH SYNOPSIS
+\fBcat\fR [\fB\-h\fR|\fB\-\-help\fR] <\fIPATH\fR> 
+.SH DESCRIPTION
+Read file content (from first found branch)
+.SH OPTIONS
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print help
+.TP
+<\fIPATH\fR>
+Path within the share (format: [context:]path)
+.SH EXTRA
+EXAMPLES:
+    nofs cat media:/config.toml            # Print file contents
+    nofs cat media:/docs/readme.txt        # View text file
+
+NOTES:
+    Reads from the first branch containing the file.
+    For binary files, output may not be readable in terminal.

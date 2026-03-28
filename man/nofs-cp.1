@@ -1,0 +1,134 @@
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.TH cp 1  "cp " 
+.SH NAME
+cp \- Copy files/directories (supports nofs context paths)
+.SH SYNOPSIS
+\fBcp\fR [\fB\-\-file\-over\-file\fR] [\fB\-\-file\-over\-folder\fR] [\fB\-\-folder\-over\-file\fR] [\fB\-n\fR|\fB\-\-dry\-run\fR] [\fB\-j\fR|\fB\-\-workers\fR] [\fB\-e\fR|\fB\-\-ext\fR] [\fB\-E\fR|\fB\-\-exclude\fR] [\fB\-I\fR|\fB\-\-include\fR] [\fB\-S\fR|\fB\-\-size\fR] [\fB\-l\fR|\fB\-\-limit\fR] [\fB\-\-size\-limit\fR] [\fB\-h\fR|\fB\-\-help\fR] <\fIPATHS\fR> 
+.SH DESCRIPTION
+Copy files/directories (supports nofs context paths)
+.SH OPTIONS
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print help (see a summary with \*(Aq\-h\*(Aq)
+.TP
+<\fIPATHS\fR>
+Source paths [...] and destination (last argument). Format: [context:]path or regular path
+.SH "CONFLICT RESOLUTION"
+.TP
+\fB\-\-file\-over\-file\fR \fI<STRATEGY>\fR [default: delete\-src\-hash rename\-dest]
+File\-over\-file conflict strategy.
+
+Format: "[CONDITIONS...] MODE" where MODE is one of: skip, rename\-src, rename\-dest, delete\-src, delete\-dest
+
+CONDITIONS: skip\-hash, skip\-size, skip\-larger, skip\-smaller, delete\-dest\-hash, delete\-dest\-size, delete\-dest\-larger, delete\-dest\-smaller, delete\-src\-hash, delete\-src\-size, delete\-src\-larger, delete\-src\-smaller
+
+Examples: "skip\-hash", "delete\-src\-hash skip", "skip\-size rename\-dest"
+.TP
+\fB\-\-file\-over\-folder\fR \fI<MODE>\fR [default: merge]
+File\-over\-folder conflict strategy: skip, rename\-src, rename\-dest, delete\-src, delete\-dest, merge
+.TP
+\fB\-\-folder\-over\-file\fR \fI<MODE>\fR [default: merge]
+Folder\-over\-file conflict strategy: skip, rename\-src, rename\-dest, delete\-src, delete\-dest, merge
+.SH PERFORMANCE
+.TP
+\fB\-n\fR, \fB\-\-dry\-run\fR
+Simulate without making changes (dry\-run)
+.TP
+\fB\-j\fR, \fB\-\-workers\fR \fI<N>\fR [default: 4]
+Number of parallel workers
+.SH FILTERING
+.TP
+\fB\-e\fR, \fB\-\-ext\fR \fI<EXT>\fR
+Filter by file extensions (e.g., .mkv, .jpg)
+.TP
+\fB\-E\fR, \fB\-\-exclude\fR \fI<PATTERN>\fR
+Exclude files matching glob pattern
+.TP
+\fB\-I\fR, \fB\-\-include\fR \fI<PATTERN>\fR
+Include only files matching glob pattern
+.TP
+\fB\-S\fR, \fB\-\-size\fR \fI<SIZE>\fR
+Filter by file size (e.g., +5M, \-10M)
+.TP
+\fB\-l\fR, \fB\-\-limit\fR \fI<N>\fR
+Limit number of files transferred
+.TP
+\fB\-\-size\-limit\fR \fI<SIZE>\fR
+Limit total size transferred (e.g., 100M, 1G)
+.SH EXTRA
+CONFLICT RESOLUTION OPTIONS:
+    \-\-file\-over\-file <STRATEGY>
+            Handle file\-over\-file conflicts. Format: "[CONDITIONS...] MODE"
+
+            MODE (required, default: delete\-dest):
+              skip          Skip copying the source file
+              rename\-src    Rename source file with _N suffix
+              rename\-dest   Rename destination file with _N suffix, then copy
+              delete\-src    Delete source file, skip copy
+              delete\-dest   Delete destination file, then copy source
+
+            CONDITIONS (optional, checked before MODE):
+              skip\-hash                    Skip if file hashes match
+              skip\-size                    Skip if file sizes match
+              skip\-larger                  Skip if source is larger than dest
+              skip\-smaller                 Skip if source is smaller than dest
+              skip\-modified\-newer          Skip if source modified time is newer
+              skip\-modified\-older          Skip if source modified time is older
+              skip\-created\-newer           Skip if source created time is newer
+              skip\-created\-older           Skip if source created time is older
+              delete\-dest\-hash             Delete dest if hashes match, then copy
+              delete\-dest\-size             Delete dest if sizes match, then copy
+              delete\-dest\-larger           Delete dest if source is larger, then copy
+              delete\-dest\-smaller          Delete dest if source is smaller, then copy
+              delete\-dest\-modified\-newer   Delete dest if src modified newer
+              delete\-dest\-modified\-older   Delete dest if src modified older
+              delete\-dest\-created\-newer    Delete dest if src created newer
+              delete\-dest\-created\-older    Delete dest if src created older
+              delete\-src\-hash              Delete src if hashes match, skip copy
+              delete\-src\-size              Delete src if sizes match, skip copy
+              delete\-src\-larger            Delete src if source is larger, skip copy
+              delete\-src\-smaller           Delete src if source is smaller, skip copy
+              delete\-src\-modified\-newer    Delete src if src modified newer
+              delete\-src\-modified\-older    Delete src if src modified older
+              delete\-src\-created\-newer     Delete src if src created newer
+              delete\-src\-created\-older     Delete src if src created older
+
+            Examples:
+              "skip\-hash" \- Skip if hashes match, otherwise delete\-dest and copy
+              "delete\-src\-hash skip" \- Delete src if hashes match, else skip
+              "skip\-size rename\-dest" \- Skip if sizes match, else rename dest
+              "skip\-modified\-newer" \- Skip if source is modified newer
+              "delete\-dest\-created\-older delete\-dest" \- Delete dest if src created older
+
+    \-\-file\-over\-folder <MODE>
+            Handle file\-over\-folder conflicts (default: merge)
+
+            skip          Skip the file
+            rename\-src    Rename file and place beside folder
+            rename\-dest   Rename folder, place file at original path
+            delete\-src    Delete the source file
+            delete\-dest   Delete the folder, place file at original path
+            merge         Place file inside the folder (folder/filename)
+
+    \-\-folder\-over\-file <MODE>
+            Handle folder\-over\-file conflicts (default: merge)
+
+            skip          Skip the folder
+            rename\-src    Rename folder to unique name
+            rename\-dest   Rename file to unique name, create folder
+            delete\-src    Delete the source folder
+            delete\-dest   Delete the file, create folder
+            merge         Rename file, create folder (same as rename\-dest)
+
+FILTERING OPTIONS:
+    \-e, \-\-ext <EXT>           Filter by file extensions (e.g., .mkv, .jpg)
+    \-E, \-\-exclude <PATTERN>   Exclude files matching glob pattern
+    \-I, \-\-include <PATTERN>   Include only files matching glob pattern
+    \-S, \-\-size <SIZE>         Filter by file size (e.g., +5M, \-10M)
+    \-l, \-\-limit <N>           Limit number of files transferred
+        \-\-size\-limit <SIZE>   Limit total size transferred (e.g., 100M, 1G)
+
+PERFORMANCE OPTIONS:
+    \-j, \-\-workers <N>     Number of parallel workers (default: 4)
+    \-n, \-\-dry\-run         Simulate without making changes

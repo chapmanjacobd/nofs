@@ -1,0 +1,36 @@
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.TH du 1  "du " 
+.SH NAME
+du \- Show disk usage (recursive directory size calculation)
+.SH SYNOPSIS
+\fBdu\fR [\fB\-H\fR|\fB\-\-human\fR] [\fB\-a\fR|\fB\-\-all\fR] [\fB\-\-maxdepth\fR] [\fB\-h\fR|\fB\-\-help\fR] <\fIPATH\fR> 
+.SH DESCRIPTION
+Show disk usage (recursive directory size calculation)
+.SH OPTIONS
+.TP
+\fB\-H\fR, \fB\-\-human\fR
+Show human\-readable sizes (KB, MB, GB instead of bytes)
+.TP
+\fB\-a\fR, \fB\-\-all\fR
+Show all subdirectory sizes
+.TP
+\fB\-\-maxdepth\fR \fI<N>\fR
+Maximum directory traversal depth (0 = starting directory only)
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print help
+.TP
+<\fIPATH\fR>
+Path within the share (format: [context:]path)
+.SH EXTRA
+EXAMPLES:
+    nofs du media:/                  # Show disk usage for entire share
+    nofs du \-H media:/photos         # Human\-readable sizes
+    nofs du \-a media:/docs           # Show all subdirectory sizes
+    nofs du \-\-maxdepth 1 media:/     # Only show top\-level directories
+
+OUTPUT:
+    Shows disk usage for the specified path across all branches.
+    With \-a, shows sizes for all subdirectories.
+    With \-H, sizes are shown in KB, MB, GB instead of bytes.

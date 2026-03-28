@@ -706,10 +706,21 @@ OUTPUT:
         shell: clap_complete::Shell,
     },
 
-    /// Generate man page.
+    /// Generate man pages.
     ///
-    /// Usage: nofs manpage > nofs.1
-    Manpage,
+    /// Usage:
+    ///   nofs manpage                  # Generate all man pages to ./man/
+    ///   nofs manpage --subcommand ls  # Generate only nofs-ls.1
+    ///   nofs manpage > nofs.1         # Generate main page to stdout
+    Manpage {
+        /// Generate man page for a specific subcommand
+        #[arg(long, value_name = "SUBCOMMAND")]
+        subcommand: Option<String>,
+
+        /// Output directory for man pages (default: ./man/)
+        #[arg(short, long, default_value = "man", value_name = "DIR")]
+        outdir: String,
+    },
 }
 
 #[allow(clippy::too_many_lines)]
@@ -723,11 +734,65 @@ fn main() -> Result<()> {
             clap_complete::generate(shell, &mut Cli::command(), "nofs", &mut std::io::stdout());
             return Ok(());
         }
-        Commands::Manpage => {
+        Commands::Manpage { subcommand, outdir } => {
             use clap::CommandFactory;
-            let man = clap_mangen::Man::new(Cli::command());
-            man.render(&mut std::io::stdout())
-                .map_err(|e| NofsError::Command(format!("Failed to render man page: {e}")))?;
+            use std::fs;
+            use std::path::Path;
+
+            // Create output directory if it doesn't exist
+            let outdir_path = Path::new(&outdir);
+            fs::create_dir_all(outdir_path)
+                .map_err(|e| NofsError::Command(format!("Failed to create output directory {outdir}: {e}")))?;
+
+            if let Some(subcmd_name) = subcommand {
+                // Generate man page for a specific subcommand
+                let cmd = Cli::command();
+                let subcmd = cmd
+                    .get_subcommands()
+                    .find(|c| c.get_name() == subcmd_name)
+                    .ok_or_else(|| NofsError::Command(format!("Unknown subcommand: {subcmd_name}")))?;
+                let man = clap_mangen::Man::new(subcmd.clone());
+                let filename = format!("nofs-{subcmd_name}.1");
+                let filepath = outdir_path.join(&filename);
+                let mut file = fs::File::create(&filepath)
+                    .map_err(|e| NofsError::Command(format!("Failed to create {filename}: {e}")))?;
+                man.render(&mut file)
+                    .map_err(|e| NofsError::Command(format!("Failed to render man page for {subcmd_name}: {e}")))?;
+                eprintln!("Generated: {filename}");
+            } else {
+                // Generate all man pages
+                let cmd = Cli::command();
+
+                // Generate main page
+                let main_man = clap_mangen::Man::new(cmd.clone());
+                let main_filename = "nofs.1";
+                let main_filepath = outdir_path.join(main_filename);
+                let mut main_file = fs::File::create(&main_filepath)
+                    .map_err(|e| NofsError::Command(format!("Failed to create {main_filename}: {e}")))?;
+                main_man
+                    .render(&mut main_file)
+                    .map_err(|e| NofsError::Command(format!("Failed to render main man page: {e}")))?;
+                eprintln!("Generated: {main_filename}");
+
+                // Generate subcommand pages
+                for subcmd in cmd.get_subcommands() {
+                    let subcmd_name = subcmd.get_name();
+
+                    // Skip certain internal subcommands
+                    if subcmd_name == "help" || subcmd_name == "completions" || subcmd_name == "manpage" {
+                        continue;
+                    }
+
+                    let man = clap_mangen::Man::new(subcmd.clone());
+                    let filename = format!("nofs-{subcmd_name}.1");
+                    let filepath = outdir_path.join(&filename);
+                    let mut file = fs::File::create(&filepath)
+                        .map_err(|e| NofsError::Command(format!("Failed to create {filename}: {e}")))?;
+                    man.render(&mut file)
+                        .map_err(|e| NofsError::Command(format!("Failed to render man page for {subcmd_name}: {e}")))?;
+                    eprintln!("Generated: {filename}");
+                }
+            }
             return Ok(());
         }
         Commands::Ls { .. }
@@ -958,7 +1023,7 @@ fn main() -> Result<()> {
             commands::du::execute(pool, pool_path, human, maxdepth, all, cli.json)?;
         }
         // These commands are handled earlier and don't reach here
-        Commands::Completions { .. } | Commands::Manpage => unreachable!(),
+        Commands::Completions { .. } | Commands::Manpage { .. } => unreachable!(),
     }
 
     Ok(())

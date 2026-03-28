@@ -1,0 +1,26 @@
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.TH rmdir 1  "rmdir " 
+.SH NAME
+rmdir \- Remove empty directories
+.SH SYNOPSIS
+\fBrmdir\fR [\fB\-v\fR|\fB\-\-verbose\fR] [\fB\-h\fR|\fB\-\-help\fR] <\fIPATH\fR> 
+.SH DESCRIPTION
+Remove empty directories
+.SH OPTIONS
+.TP
+\fB\-v\fR, \fB\-\-verbose\fR
+Print the directory as it is removed
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print help
+.TP
+<\fIPATH\fR>
+Path within the share (format: [context:]path)
+.SH EXTRA
+EXAMPLES:
+    nofs rmdir media:/empty_folder           # Remove empty directory
+    nofs rmdir \-v media:/old_logs            # Verbose removal
+
+NOTES:
+    Only works on empty directories. Use \*(Aqrm \-r\*(Aq for non\-empty directories.

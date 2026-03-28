@@ -15,7 +15,7 @@ use std::path::Path;
 pub fn execute(pool: &Pool, path: &str, verbose: bool, json: bool) -> Result<()> {
     // Check if path ends with '/' - this means the path itself is a directory
     let is_directory = path.ends_with('/');
-    
+
     // Strip trailing slashes from the path
     let clean_path = path.trim_end_matches('/');
     let pool_path = Path::new(clean_path);
@@ -34,7 +34,7 @@ pub fn execute(pool: &Pool, path: &str, verbose: bool, json: bool) -> Result<()>
     if let Some(parent_path) = full_path.parent() {
         std::fs::create_dir_all(parent_path)?;
     }
-    
+
     // If path ends with '/', also create the final directory
     if is_directory {
         std::fs::create_dir_all(&full_path)?;

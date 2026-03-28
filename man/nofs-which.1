@@ -1,0 +1,43 @@
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.TH which 1  "which " 
+.SH NAME
+which \- Find which branch contains a file
+.SH SYNOPSIS
+\fBwhich\fR [\fB\-a\fR|\fB\-\-all\fR] [\fB\-\-conflicts\fR] [\fB\-\-hash\fR] [\fB\-h\fR|\fB\-\-help\fR] <\fIPATH\fR> 
+.SH DESCRIPTION
+Find which branch contains a file
+.SH OPTIONS
+.TP
+\fB\-a\fR, \fB\-\-all\fR
+Show all branches containing the file (not just the first)
+.TP
+\fB\-\-conflicts\fR
+Detect and report conflicts (files with same name but different content)
+.TP
+\fB\-\-hash\fR
+Use hash comparison for conflict detection (slower but more accurate)
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print help
+.TP
+<\fIPATH\fR>
+Path within the share (format: [context:]path)
+.SH EXTRA
+EXAMPLES:
+    nofs which media:/photos/vacation.jpg        # Find branch containing file
+    nofs which \-a media:/docs/readme.txt         # Show all branches with file
+    nofs which \-\-conflicts media:/config.toml    # Check for conflicts
+
+OUTPUT:
+    Shows the branch path(s) containing the specified file.
+    With \-\-all, shows all branches that contain the file.
+
+CONFLICT DETECTION:
+    \-\-conflicts
+        Check if file exists in multiple branches with different content.
+        Reports conflicts when file content differs between branches.
+
+    \-\-hash
+        Use full file hash comparison for conflict detection.
+        More accurate but slower. Requires \-\-conflicts flag.

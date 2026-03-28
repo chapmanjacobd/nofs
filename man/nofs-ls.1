@@ -1,0 +1,43 @@
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.TH ls 1  "ls " 
+.SH NAME
+ls \- List directory contents (like ls)
+.SH SYNOPSIS
+\fBls\fR [\fB\-l\fR|\fB\-\-long\fR] [\fB\-a\fR|\fB\-\-all\fR] [\fB\-\-conflicts\fR] [\fB\-\-hash\fR] [\fB\-h\fR|\fB\-\-help\fR] <\fIPATH\fR> 
+.SH DESCRIPTION
+List directory contents (like ls)
+.SH OPTIONS
+.TP
+\fB\-l\fR, \fB\-\-long\fR
+Show detailed information (permissions, size, modification time)
+.TP
+\fB\-a\fR, \fB\-\-all\fR
+Show hidden files (files starting with .)
+.TP
+\fB\-\-conflicts\fR
+Detect and report conflicts (files with same name but different content)
+.TP
+\fB\-\-hash\fR
+Use hash comparison for conflict detection (slower but more accurate)
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print help
+.TP
+<\fIPATH\fR>
+Path within the share (format: [context:]path)
+.SH EXTRA
+EXAMPLES:
+    nofs ls media:/                    # List root of media share
+    nofs ls \-l media:/photos           # Detailed listing
+    nofs ls \-\-conflicts media:/docs    # Detect conflicting files
+    nofs ls \-\-conflicts \-\-hash media:/ # Use hash for conflict detection
+
+CONFLICT DETECTION:
+    \-\-conflicts
+        Detect files with the same name but different content across branches.
+        Files are marked in output when conflicts are found.
+
+    \-\-hash
+        Use full file hash comparison instead of size/mtime for conflict detection.
+        More accurate but slower on large files. Requires \-\-conflicts flag.

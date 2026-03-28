@@ -1,0 +1,28 @@
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.TH stat 1  "stat " 
+.SH NAME
+stat \- Show filesystem statistics
+.SH SYNOPSIS
+\fBstat\fR [\fB\-H\fR|\fB\-\-human\fR] [\fB\-h\fR|\fB\-\-help\fR] [\fIPATH\fR] 
+.SH DESCRIPTION
+Show filesystem statistics
+.SH OPTIONS
+.TP
+\fB\-H\fR, \fB\-\-human\fR
+Show human\-readable sizes (KB, MB, GB instead of bytes)
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print help
+.TP
+[\fIPATH\fR]
+Path within the share (defaults to root)
+.SH EXTRA
+EXAMPLES:
+    nofs stat media:/                  # Stats for entire share
+    nofs stat \-H media:/photos         # Human\-readable sizes
+    nofs stat media:/docs/report.pdf   # Stats for specific path
+
+OUTPUT:
+    Shows total size, free space, and file counts across all branches.
+    With \-H, sizes are shown in KB, MB, GB instead of bytes.

@@ -1,0 +1,31 @@
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.TH rm 1  "rm " 
+.SH NAME
+rm \- Remove files or directories
+.SH SYNOPSIS
+\fBrm\fR [\fB\-r\fR|\fB\-\-recursive\fR] [\fB\-v\fR|\fB\-\-verbose\fR] [\fB\-h\fR|\fB\-\-help\fR] <\fIPATHS\fR> 
+.SH DESCRIPTION
+Remove files or directories
+.SH OPTIONS
+.TP
+\fB\-r\fR, \fB\-\-recursive\fR
+Remove directories and their contents recursively
+.TP
+\fB\-v\fR, \fB\-\-verbose\fR
+Print each file/directory as it is removed
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print help
+.TP
+<\fIPATHS\fR>
+Path(s) within the share (format: [context:]path). Supports glob patterns
+.SH EXTRA
+EXAMPLES:
+    nofs rm media:/temp.txt                  # Remove a file
+    nofs rm \-r media:/old_folder             # Remove folder and contents
+    nofs rm \-rv media:/logs/*.log            # Verbose removal of multiple files
+
+WARNING:
+    Recursive removal (\-r) deletes directories and ALL their contents.
+    This operation cannot be undone. Use \-\-verbose to see what will be deleted.
