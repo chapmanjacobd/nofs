@@ -46,7 +46,7 @@ set edit:completion:arg-completer[nofs] = {|@words|
             cand touch 'Create or update files'
             cand du 'Show disk usage (recursive directory size calculation)'
             cand completions 'Generate shell completion scripts'
-            cand manpage 'Generate man page'
+            cand manpage 'Generate man pages'
             cand help 'Print this message or the help of the given subcommand(s)'
         }
         &'nofs;ls'= {
@@ -331,6 +331,9 @@ set edit:completion:arg-completer[nofs] = {|@words|
             cand --version 'Print version'
         }
         &'nofs;manpage'= {
+            cand --subcommand 'Generate man page for a specific subcommand'
+            cand -o 'Output directory for man pages (default: ./man/)'
+            cand --outdir 'Output directory for man pages (default: ./man/)'
             cand -c 'Path to configuration file'
             cand --config 'Path to configuration file'
             cand --paths 'Comma-separated list of branch paths (ad-hoc mode) Format: /path1,/path2 or /path1=RW,/path2=RO'
@@ -361,7 +364,7 @@ set edit:completion:arg-completer[nofs] = {|@words|
             cand touch 'Create or update files'
             cand du 'Show disk usage (recursive directory size calculation)'
             cand completions 'Generate shell completion scripts'
-            cand manpage 'Generate man page'
+            cand manpage 'Generate man pages'
             cand help 'Print this message or the help of the given subcommand(s)'
         }
         &'nofs;help;ls'= {

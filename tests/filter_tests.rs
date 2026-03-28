@@ -29,7 +29,7 @@ mod tests {
 
         assert!(output.success(), "Command failed: {}", output.stderr);
         let dest_path = dest_dir.join("source/file.mkv");
-        assert!(dest_path.exists(), ".mkv file should be copied to {0:?}", dest_path);
+        assert!(dest_path.exists(), ".mkv file should be copied to {dest_path:?}");
     }
 
     #[test]
@@ -37,8 +37,8 @@ mod tests {
         let ctx = TestContext::new("filter_size_max");
 
         let branch = ctx.create_branch("disk1/source", &["small.txt", "large.txt"]);
-        fs::write(branch.join("small.txt"), "x".repeat(100)).unwrap();   // 100 bytes
-        fs::write(branch.join("large.txt"), "x".repeat(1000)).unwrap();  // 1000 bytes
+        fs::write(branch.join("small.txt"), "x".repeat(100)).unwrap(); // 100 bytes
+        fs::write(branch.join("large.txt"), "x".repeat(1000)).unwrap(); // 1000 bytes
 
         let dest_dir = ctx.root.join("dest");
         fs::create_dir_all(&dest_dir).unwrap();
@@ -65,8 +65,8 @@ mod tests {
         let ctx = TestContext::new("filter_size_min");
 
         let branch = ctx.create_branch("disk1/source", &["small.txt", "large.txt"]);
-        fs::write(branch.join("small.txt"), "x".repeat(100)).unwrap();   // 100 bytes
-        fs::write(branch.join("large.txt"), "x".repeat(1000)).unwrap();  // 1000 bytes
+        fs::write(branch.join("small.txt"), "x".repeat(100)).unwrap(); // 100 bytes
+        fs::write(branch.join("large.txt"), "x".repeat(1000)).unwrap(); // 1000 bytes
 
         let dest_dir = ctx.root.join("dest");
         fs::create_dir_all(&dest_dir).unwrap();
@@ -93,9 +93,9 @@ mod tests {
         let ctx = TestContext::new("filter_size_range");
 
         let branch = ctx.create_branch("disk1/source", &["small.txt", "medium.txt", "large.txt"]);
-        fs::write(branch.join("small.txt"), "x".repeat(100)).unwrap();   // 100 bytes
-        fs::write(branch.join("medium.txt"), "x".repeat(500)).unwrap();  // 500 bytes
-        fs::write(branch.join("large.txt"), "x".repeat(1000)).unwrap();  // 1000 bytes
+        fs::write(branch.join("small.txt"), "x".repeat(100)).unwrap(); // 100 bytes
+        fs::write(branch.join("medium.txt"), "x".repeat(500)).unwrap(); // 500 bytes
+        fs::write(branch.join("large.txt"), "x".repeat(1000)).unwrap(); // 1000 bytes
 
         let dest_dir = ctx.root.join("dest");
         fs::create_dir_all(&dest_dir).unwrap();
@@ -141,7 +141,7 @@ mod tests {
         assert!(output.success(), "Command failed: {}", output.stderr);
         let dest_path = dest_dir.join("source");
         assert!(dest_path.exists(), "Destination should exist");
-        
+
         let mut copied_count = 0;
         for entry in fs::read_dir(&dest_path).unwrap().flatten() {
             if entry.path().is_file() {
@@ -156,9 +156,9 @@ mod tests {
         let ctx = TestContext::new("filter_size_limit");
 
         let branch = ctx.create_branch("disk1/source", &["small.txt", "medium.txt", "large.txt"]);
-        fs::write(branch.join("small.txt"), "x".repeat(100)).unwrap();   // 100 bytes
-        fs::write(branch.join("medium.txt"), "x".repeat(300)).unwrap();  // 300 bytes
-        fs::write(branch.join("large.txt"), "x".repeat(1000)).unwrap();  // 1000 bytes
+        fs::write(branch.join("small.txt"), "x".repeat(100)).unwrap(); // 100 bytes
+        fs::write(branch.join("medium.txt"), "x".repeat(300)).unwrap(); // 300 bytes
+        fs::write(branch.join("large.txt"), "x".repeat(1000)).unwrap(); // 1000 bytes
 
         let dest_dir = ctx.root.join("dest");
         fs::create_dir_all(&dest_dir).unwrap();

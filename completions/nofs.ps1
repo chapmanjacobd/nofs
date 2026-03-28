@@ -49,7 +49,7 @@ Register-ArgumentCompleter -Native -CommandName 'nofs' -ScriptBlock {
             [CompletionResult]::new('touch', 'touch', [CompletionResultType]::ParameterValue, 'Create or update files')
             [CompletionResult]::new('du', 'du', [CompletionResultType]::ParameterValue, 'Show disk usage (recursive directory size calculation)')
             [CompletionResult]::new('completions', 'completions', [CompletionResultType]::ParameterValue, 'Generate shell completion scripts')
-            [CompletionResult]::new('manpage', 'manpage', [CompletionResultType]::ParameterValue, 'Generate man page')
+            [CompletionResult]::new('manpage', 'manpage', [CompletionResultType]::ParameterValue, 'Generate man pages')
             [CompletionResult]::new('help', 'help', [CompletionResultType]::ParameterValue, 'Print this message or the help of the given subcommand(s)')
             break
         }
@@ -351,6 +351,9 @@ Register-ArgumentCompleter -Native -CommandName 'nofs' -ScriptBlock {
             break
         }
         'nofs;manpage' {
+            [CompletionResult]::new('--subcommand', '--subcommand', [CompletionResultType]::ParameterName, 'Generate man page for a specific subcommand')
+            [CompletionResult]::new('-o', '-o', [CompletionResultType]::ParameterName, 'Output directory for man pages (default: ./man/)')
+            [CompletionResult]::new('--outdir', '--outdir', [CompletionResultType]::ParameterName, 'Output directory for man pages (default: ./man/)')
             [CompletionResult]::new('-c', '-c', [CompletionResultType]::ParameterName, 'Path to configuration file')
             [CompletionResult]::new('--config', '--config', [CompletionResultType]::ParameterName, 'Path to configuration file')
             [CompletionResult]::new('--paths', '--paths', [CompletionResultType]::ParameterName, 'Comma-separated list of branch paths (ad-hoc mode) Format: /path1,/path2 or /path1=RW,/path2=RO')
@@ -382,7 +385,7 @@ Register-ArgumentCompleter -Native -CommandName 'nofs' -ScriptBlock {
             [CompletionResult]::new('touch', 'touch', [CompletionResultType]::ParameterValue, 'Create or update files')
             [CompletionResult]::new('du', 'du', [CompletionResultType]::ParameterValue, 'Show disk usage (recursive directory size calculation)')
             [CompletionResult]::new('completions', 'completions', [CompletionResultType]::ParameterValue, 'Generate shell completion scripts')
-            [CompletionResult]::new('manpage', 'manpage', [CompletionResultType]::ParameterValue, 'Generate man page')
+            [CompletionResult]::new('manpage', 'manpage', [CompletionResultType]::ParameterValue, 'Generate man pages')
             [CompletionResult]::new('help', 'help', [CompletionResultType]::ParameterValue, 'Print this message or the help of the given subcommand(s)')
             break
         }

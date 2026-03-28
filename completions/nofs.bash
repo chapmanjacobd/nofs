@@ -813,12 +813,24 @@ _nofs() {
             return 0
             ;;
         nofs__manpage)
-            opts="-c -v -h -V --config --paths --policy --minfreespace --verbose --json --help --version"
+            opts="-o -c -v -h -V --subcommand --outdir --config --paths --policy --minfreespace --verbose --json --help --version"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
             fi
             case "${prev}" in
+                --subcommand)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --outdir)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                -o)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
                 --config)
                     COMPREPLY=($(compgen -f "${cur}"))
                     return 0

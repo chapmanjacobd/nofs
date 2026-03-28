@@ -48,7 +48,7 @@ complete -c nofs -n "__fish_nofs_needs_command" -f -a "rmdir" -d 'Remove empty d
 complete -c nofs -n "__fish_nofs_needs_command" -f -a "touch" -d 'Create or update files'
 complete -c nofs -n "__fish_nofs_needs_command" -f -a "du" -d 'Show disk usage (recursive directory size calculation)'
 complete -c nofs -n "__fish_nofs_needs_command" -f -a "completions" -d 'Generate shell completion scripts'
-complete -c nofs -n "__fish_nofs_needs_command" -f -a "manpage" -d 'Generate man page'
+complete -c nofs -n "__fish_nofs_needs_command" -f -a "manpage" -d 'Generate man pages'
 complete -c nofs -n "__fish_nofs_needs_command" -f -a "help" -d 'Print this message or the help of the given subcommand(s)'
 complete -c nofs -n "__fish_nofs_using_subcommand ls" -s c -l config -d 'Path to configuration file' -r
 complete -c nofs -n "__fish_nofs_using_subcommand ls" -l paths -d 'Comma-separated list of branch paths (ad-hoc mode) Format: /path1,/path2 or /path1=RW,/path2=RO' -r
@@ -213,6 +213,8 @@ complete -c nofs -n "__fish_nofs_using_subcommand completions" -s v -l verbose -
 complete -c nofs -n "__fish_nofs_using_subcommand completions" -l json -d 'Output in JSON format (for scripting/automation)'
 complete -c nofs -n "__fish_nofs_using_subcommand completions" -s h -l help -d 'Print help (see more with \'--help\')'
 complete -c nofs -n "__fish_nofs_using_subcommand completions" -s V -l version -d 'Print version'
+complete -c nofs -n "__fish_nofs_using_subcommand manpage" -l subcommand -d 'Generate man page for a specific subcommand' -r
+complete -c nofs -n "__fish_nofs_using_subcommand manpage" -s o -l outdir -d 'Output directory for man pages (default: ./man/)' -r
 complete -c nofs -n "__fish_nofs_using_subcommand manpage" -s c -l config -d 'Path to configuration file' -r
 complete -c nofs -n "__fish_nofs_using_subcommand manpage" -l paths -d 'Comma-separated list of branch paths (ad-hoc mode) Format: /path1,/path2 or /path1=RW,/path2=RO' -r
 complete -c nofs -n "__fish_nofs_using_subcommand manpage" -l policy -d 'Policy to use for branch selection' -r
@@ -237,5 +239,5 @@ complete -c nofs -n "__fish_nofs_using_subcommand help; and not __fish_seen_subc
 complete -c nofs -n "__fish_nofs_using_subcommand help; and not __fish_seen_subcommand_from ls find which create stat info exists cat cp mv rm mkdir rmdir touch du completions manpage help" -f -a "touch" -d 'Create or update files'
 complete -c nofs -n "__fish_nofs_using_subcommand help; and not __fish_seen_subcommand_from ls find which create stat info exists cat cp mv rm mkdir rmdir touch du completions manpage help" -f -a "du" -d 'Show disk usage (recursive directory size calculation)'
 complete -c nofs -n "__fish_nofs_using_subcommand help; and not __fish_seen_subcommand_from ls find which create stat info exists cat cp mv rm mkdir rmdir touch du completions manpage help" -f -a "completions" -d 'Generate shell completion scripts'
-complete -c nofs -n "__fish_nofs_using_subcommand help; and not __fish_seen_subcommand_from ls find which create stat info exists cat cp mv rm mkdir rmdir touch du completions manpage help" -f -a "manpage" -d 'Generate man page'
+complete -c nofs -n "__fish_nofs_using_subcommand help; and not __fish_seen_subcommand_from ls find which create stat info exists cat cp mv rm mkdir rmdir touch du completions manpage help" -f -a "manpage" -d 'Generate man pages'
 complete -c nofs -n "__fish_nofs_using_subcommand help; and not __fish_seen_subcommand_from ls find which create stat info exists cat cp mv rm mkdir rmdir touch du completions manpage help" -f -a "help" -d 'Print this message or the help of the given subcommand(s)'

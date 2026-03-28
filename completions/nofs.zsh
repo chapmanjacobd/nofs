@@ -367,6 +367,9 @@ _arguments "${_arguments_options[@]}" : \
 ;;
 (manpage)
 _arguments "${_arguments_options[@]}" : \
+'--subcommand=[Generate man page for a specific subcommand]:SUBCOMMAND:_default' \
+'-o+[Output directory for man pages (default\: ./man/)]:DIR:_default' \
+'--outdir=[Output directory for man pages (default\: ./man/)]:DIR:_default' \
 '-c+[Path to configuration file]:CONFIG:_default' \
 '--config=[Path to configuration file]:CONFIG:_default' \
 '--paths=[Comma-separated list of branch paths (ad-hoc mode) Format\: /path1,/path2 or /path1=RW,/path2=RO]:PATHS:_default' \
@@ -493,7 +496,7 @@ _nofs_commands() {
 'touch:Create or update files' \
 'du:Show disk usage (recursive directory size calculation)' \
 'completions:Generate shell completion scripts' \
-'manpage:Generate man page' \
+'manpage:Generate man pages' \
 'help:Print this message or the help of the given subcommand(s)' \
     )
     _describe -t commands 'nofs commands' commands "$@"
@@ -552,7 +555,7 @@ _nofs__help_commands() {
 'touch:Create or update files' \
 'du:Show disk usage (recursive directory size calculation)' \
 'completions:Generate shell completion scripts' \
-'manpage:Generate man page' \
+'manpage:Generate man pages' \
 'help:Print this message or the help of the given subcommand(s)' \
     )
     _describe -t commands 'nofs help commands' commands "$@"

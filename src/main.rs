@@ -23,36 +23,37 @@ use error::{NofsError, Result};
 /// - `+SIZE` - minimum size (files must be at least this big)
 /// - `-SIZE` - maximum size (files must be at most this big)
 /// - `+MIN-MAX` - range (files must be between min and max)
-fn parse_size_filter(s: &str) -> Result<commands::cp::SizeFilter> {
-    let s = s.trim();
+#[allow(clippy::arithmetic_side_effects)]
+fn parse_size_filter(s: &str) -> commands::cp::SizeFilter {
+    let input = s.trim();
     let mut min = None;
     let mut max = None;
 
     // Check for range format: +MIN-MAX
-    if let Some(plus_idx) = s.find('+') {
-        if let Some(dash_idx) = s.rfind('-') {
+    if let Some(plus_idx) = input.find('+') {
+        if let Some(dash_idx) = input.rfind('-') {
             if dash_idx > plus_idx {
                 // Range format
-                let min_str = &s[plus_idx + 1..dash_idx];
-                let max_str = &s[dash_idx + 1..];
+                let min_str = &input[plus_idx + 1..dash_idx];
+                let max_str = &input[dash_idx + 1..];
                 min = policy::parse_size(min_str).ok();
                 max = policy::parse_size(max_str).ok();
-                return Ok(commands::cp::SizeFilter { min, max });
+                return commands::cp::SizeFilter { min, max };
             }
         }
     }
 
     // Single value format: +SIZE or -SIZE
-    if s.starts_with('+') {
-        min = policy::parse_size(&s[1..]).ok();
-    } else if s.starts_with('-') {
-        max = policy::parse_size(&s[1..]).ok();
+    if let Some(stripped) = input.strip_prefix('+') {
+        min = policy::parse_size(stripped).ok();
+    } else if let Some(stripped) = input.strip_prefix('-') {
+        max = policy::parse_size(stripped).ok();
     } else {
         // No prefix, treat as maximum
-        max = policy::parse_size(s).ok();
+        max = policy::parse_size(input).ok();
     }
 
-    Ok(commands::cp::SizeFilter { min, max })
+    commands::cp::SizeFilter { min, max }
 }
 
 /// Command-line interface for nofs
@@ -952,7 +953,7 @@ fn main() -> Result<()> {
             let parsed_size_limit = size_limit.as_ref().and_then(|s| parse_size(s).ok());
 
             // Parse per-file size filter (use first value if provided)
-            let parsed_size = size.first().and_then(|s| parse_size_filter(s).ok());
+            let parsed_size = size.first().map(|s| parse_size_filter(s));
 
             // Get share for context-aware paths
             let share = extract_share_from_paths(&pool_mgr, sources, destination)?;
@@ -1003,7 +1004,7 @@ fn main() -> Result<()> {
             let parsed_size_limit = size_limit.as_ref().and_then(|s| parse_size(s).ok());
 
             // Parse per-file size filter (use first value if provided)
-            let parsed_size = size.first().and_then(|s| parse_size_filter(s).ok());
+            let parsed_size = size.first().map(|s| parse_size_filter(s));
 
             // Get share for context-aware paths
             let share = extract_share_from_paths(&pool_mgr, sources, destination)?;

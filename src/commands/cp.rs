@@ -658,11 +658,11 @@ pub struct CopyConfig {
     pub file_over_file: FileOverFileStrategy,
     pub file_over_folder: FolderConflictMode,
     pub folder_over_file: FolderConflictMode,
-    pub extensions: Vec<String>, // filter by extension
-    pub exclude: Vec<String>,    // exclude patterns
-    pub include: Vec<String>,    // include patterns
-    pub limit: Option<u64>,      // limit number of files
-    pub size_limit: Option<u64>, // limit total size in bytes
+    pub extensions: Vec<String>,  // filter by extension
+    pub exclude: Vec<String>,     // exclude patterns
+    pub include: Vec<String>,     // include patterns
+    pub limit: Option<u64>,       // limit number of files
+    pub size_limit: Option<u64>,  // limit total size in bytes
     pub size: Option<SizeFilter>, // filter by individual file size
 }
 
@@ -987,7 +987,7 @@ fn process_file_source(
         return Ok(());
     }
 
-    if !matches_size_filter(source, &config.size) {
+    if !matches_size_filter(source, config.size.as_ref()) {
         return Ok(());
     }
 
@@ -1009,7 +1009,7 @@ fn matches_extension(source: &Path, extensions: &[String]) -> bool {
 }
 
 /// Check if file matches size filter
-fn matches_size_filter(source: &Path, size_filter: &Option<SizeFilter>) -> bool {
+fn matches_size_filter(source: &Path, size_filter: Option<&SizeFilter>) -> bool {
     let Some(filter) = size_filter else {
         return true;
     };
