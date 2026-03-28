@@ -29,6 +29,11 @@ use std::str::FromStr;
 /// - `Ff` - First found (returns first branch containing the file)
 /// - `All` - All branches (for operations that query all locations)
 ///
+/// **Note:** For search operations, space-based policies (`Pfrd`, `Lus`, `Lup`) and
+/// random policies (`Rand`) fall back to "first found" behavior since the file
+/// already exists and we only need to locate it. Path-preserving policies (`Ep*`)
+/// also return the first matching branch for searches.
+///
 /// ## Action/Path-Preserving Policies (Ep*)
 /// Used for operations on existing paths where the target branch is determined
 /// by where the file already exists:
@@ -507,9 +512,12 @@ impl<'ctx> SearchPolicy<'ctx> {
             }
             // For search operations, space-based and random policies fall back to "first found"
             // since the file already exists and we just need to locate it.
-            // - Pfrd/Lus/Lup: Space metrics don't matter for existing files
+            //
+            // Policy behavior for search operations:
+            // - Pfrd/Lus/Lup: Space metrics don't matter for existing files (fallback to first-found)
             // - Rand: Could randomly select, but first-found is more deterministic for reads
-            // - Ep*: Path-preserving policies don't apply to search (path already known)
+            // - Ep* (EpMfs/EpFf/EpRand): Path-preserving policies don't apply to search
+            //   (the path is already known, so we just return the first matching branch)
             Policy::Pfrd | Policy::Rand | Policy::Lus | Policy::Lup | Policy::EpMfs | Policy::EpFf | Policy::EpRand => {
                 let matching: Vec<&Branch> = self.branches.iter().filter(|b| exists(b)).collect();
 
@@ -569,6 +577,13 @@ pub fn parse_size(s: &str) -> Result<u64> {
     // Check if the number has a decimal point
     if num_str.contains('.') {
         // For decimal numbers, use f64 arithmetic with overflow checking
+        // Note: f64 has 53 bits of mantissa, so precision is lost for values above 2^53.
+        // We use a conservative check: if the result exceeds 2^54, it's definitely too large.
+        // For values between 2^53 and 2^64, some precision loss may occur, but this is
+        // acceptable for size parsing where exact byte precision at that scale is not critical.
+        #[allow(clippy::cast_precision_loss)]
+        const MAX_SAFE: f64 = (u64::MAX >> 10) as f64; // Conservative threshold (2^54)
+
         let num: f64 = num_str
             .parse()
             .map_err(|e| NofsError::Parse(format!("Invalid size number {num_str} in {s}: {e}")))?;
@@ -592,8 +607,8 @@ pub fn parse_size(s: &str) -> Result<u64> {
         // Check for potential overflow before casting
         #[allow(clippy::float_arithmetic, clippy::cast_precision_loss)]
         let result = num * multiplier;
-        #[allow(clippy::cast_precision_loss)]
-        if result > u64::MAX as f64 || result < 0.0 {
+        #[allow(clippy::cast_precision_loss, clippy::manual_range_contains)]
+        if !(0.0..=MAX_SAFE).contains(&result) {
             return Err(NofsError::Parse(format!(
                 "Size {s} exceeds maximum value ({})",
                 u64::MAX
@@ -640,6 +655,7 @@ pub fn parse_size(s: &str) -> Result<u64> {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used, clippy::indexing_slicing)]
 mod tests {
     use super::*;
     use crate::branch::BranchMode;

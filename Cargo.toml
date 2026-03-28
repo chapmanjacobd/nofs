@@ -213,3 +213,6 @@ panic_in_result_fn = "deny"
 todo = "deny"
 unimplemented = "deny"
 items_after_statements = "deny"
+
+# Note: Test code may use unwrap/expect for clarity.
+# Individual test modules use #[allow(...)] attributes as needed.

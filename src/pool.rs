@@ -221,8 +221,10 @@ impl Pool {
             }
             let mut total: u64 = 0;
             for handle in handles {
-                if let Some(space) = handle.join().ok().flatten() {
-                    total = total.saturating_add(space);
+                match handle.join() {
+                    Ok(Some(space)) => total = total.saturating_add(space),
+                    Ok(None) => {} // Space query failed, skip this branch
+                    Err(_) => eprintln!("Warning: thread panicked while querying available space"),
                 }
             }
             total
@@ -239,8 +241,10 @@ impl Pool {
             }
             let mut total: u64 = 0;
             for handle in handles {
-                if let Some(space) = handle.join().ok().flatten() {
-                    total = total.saturating_add(space);
+                match handle.join() {
+                    Ok(Some(space)) => total = total.saturating_add(space),
+                    Ok(None) => {} // Space query failed, skip this branch
+                    Err(_) => eprintln!("Warning: thread panicked while querying total space"),
                 }
             }
             total
@@ -302,8 +306,10 @@ impl Pool {
 
             let mut results = Vec::new();
             for handle in handles {
-                if let Some(path) = handle.join().ok().flatten() {
-                    results.push(path);
+                match handle.join() {
+                    Ok(Some(path)) => results.push(path),
+                    Ok(None) => {} // Path doesn't exist in this branch
+                    Err(_) => eprintln!("Warning: thread panicked while resolving path"),
                 }
             }
             results
@@ -323,8 +329,10 @@ impl Pool {
             }
 
             for handle in handles {
-                if let Some(path) = handle.join().ok().flatten() {
-                    return Some(path);
+                match handle.join() {
+                    Ok(Some(path)) => return Some(path),
+                    Ok(None) => {} // Path doesn't exist in this branch
+                    Err(_) => eprintln!("Warning: thread panicked while resolving path"),
                 }
             }
             None
@@ -376,8 +384,10 @@ impl Pool {
             }
             let mut total: u64 = 0;
             for handle in handles {
-                if let Some(space) = handle.join().ok().flatten() {
-                    total = total.saturating_add(space);
+                match handle.join() {
+                    Ok(Some(space)) => total = total.saturating_add(space),
+                    Ok(None) => {} // Space query failed, skip this branch
+                    Err(_) => eprintln!("Warning: thread panicked while querying available space (cached)"),
                 }
             }
             total
@@ -394,8 +404,10 @@ impl Pool {
             }
             let mut total: u64 = 0;
             for handle in handles {
-                if let Some(space) = handle.join().ok().flatten() {
-                    total = total.saturating_add(space);
+                match handle.join() {
+                    Ok(Some(space)) => total = total.saturating_add(space),
+                    Ok(None) => {} // Space query failed, skip this branch
+                    Err(_) => eprintln!("Warning: thread panicked while querying total space (cached)"),
                 }
             }
             total
@@ -425,8 +437,10 @@ impl Pool {
 
             let mut results = Vec::new();
             for handle in handles {
-                if let Some(path) = handle.join().ok().flatten() {
-                    results.push(path);
+                match handle.join() {
+                    Ok(Some(path)) => results.push(path),
+                    Ok(None) => {} // Path doesn't exist in this branch
+                    Err(_) => eprintln!("Warning: thread panicked while resolving path (cached)"),
                 }
             }
             results
@@ -447,8 +461,10 @@ impl Pool {
             }
 
             for handle in handles {
-                if let Some(path) = handle.join().ok().flatten() {
-                    return Some(path);
+                match handle.join() {
+                    Ok(Some(path)) => return Some(path),
+                    Ok(None) => {} // Path doesn't exist in this branch
+                    Err(_) => eprintln!("Warning: thread panicked while resolving path (cached)"),
                 }
             }
             None
@@ -488,6 +504,7 @@ impl Pool {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used, clippy::indexing_slicing)]
 mod tests {
     use super::*;
     use crate::branch::BranchMode;

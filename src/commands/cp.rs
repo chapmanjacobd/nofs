@@ -7,12 +7,18 @@ use crate::branch::Branch;
 use crate::cache::OperationCache;
 use crate::error::{NofsError, Result};
 use crate::pool::Pool;
+use crate::utils;
 use std::fs;
-use std::io::{self, Read, Seek};
+use std::io;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicI64, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::Instant;
+
+#[cfg(unix)]
+use std::ffi::OsStr;
+#[cfg(unix)]
+use std::os::unix::ffi::OsStrExt;
 
 /// Resolved path with branch information
 struct ResolvedPath {
@@ -641,8 +647,6 @@ pub struct CopyStats {
     pub files_skipped: AtomicU64,
     pub conflicts_resolved: AtomicU64,
     pub errors: AtomicU64,
-    pub sample_hashes: AtomicI64,
-    pub full_hashes: AtomicI64,
     pub files_reserved: AtomicU64,
     pub bytes_reserved: AtomicU64,
 }
@@ -816,6 +820,9 @@ fn spawn_workers<'scope, 'a>(
         scope.spawn(move || loop {
             let work = {
                 let Ok(guard) = work_rx_clone.lock() else {
+                    // Mutex was poisoned (a worker thread panicked)
+                    eprintln!("Worker thread: mutex poisoned, shutting down");
+                    stats_clone.errors.fetch_add(1, Ordering::Relaxed);
                     break;
                 };
                 guard.recv()
@@ -1245,7 +1252,7 @@ fn handle_file_over_file(source: &Path, dest: &Path, config: &CopyConfig, stats:
 
     // Check hash-based conditions if needed
     let hashes_match = if strategy.rules.iter().any(|r| r.attribute == Attribute::Hash) {
-        files_match_by_hash(source, dest, stats)?
+        files_match_by_hash(source, dest)?
     } else {
         false
     };
@@ -1562,7 +1569,13 @@ fn process_source_contents(source: &Path, dest: &Path, config: &CopyConfig, stat
 ///
 /// Uses atomic file creation to avoid TOCTOU race conditions when multiple
 /// threads are generating unique filenames concurrently.
-#[allow(clippy::arithmetic_side_effects)]
+#[allow(
+    clippy::option_if_let_else,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    clippy::redundant_closure_for_method_calls,
+    clippy::doc_markdown
+)]
 fn get_unique_filename(base: &Path) -> PathBuf {
     // Quick check: if base doesn't exist, use it directly
     if !base.exists() {
@@ -1570,75 +1583,161 @@ fn get_unique_filename(base: &Path) -> PathBuf {
     }
 
     let dir = base.parent().unwrap_or_else(|| Path::new("."));
-    let Some(file_stem) = base.file_stem().and_then(|s| s.to_str()) else {
-        // Handle files with invalid UTF-8 or no stem by appending timestamp
-        return dir.join(format!(
-            "{}_{}",
-            base.file_name().unwrap_or_default().to_string_lossy(),
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap_or_default()
-                .as_millis()
-        ));
+    let Some(file_name) = base.file_name() else {
+        // No filename (e.g., root directory), append timestamp to full path
+        let timestamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis();
+        return dir.join(format!("{}_{}", base.display(), timestamp));
     };
-    let extension = base.extension().and_then(|s| s.to_str()).unwrap_or("");
 
-    // Parse existing _N suffix more robustly:
-    // - Handle cases like "file_1_2.txt" by finding the last _N pattern
-    // - Start from 1 if no valid suffix found
-    let (base_name, start_idx) = find_suffix_and_index(file_stem);
+    #[cfg(unix)]
+    {
+        // Unix: work with raw bytes to handle any valid filename
+        let file_name_bytes = file_name.as_bytes();
 
-    // Try sequential numbers starting from start_idx
-    for i in start_idx.. {
-        let new_name = if extension.is_empty() {
-            format!("{base_name}_{i}")
+        // Find extension (last '.' in filename)
+        let (stem_bytes, ext_bytes) = if let Some(last_dot) = file_name_bytes.iter().rposition(|&b| b == b'.') {
+            if last_dot > 0 {
+                (&file_name_bytes[..last_dot], &file_name_bytes[last_dot..])
+            } else {
+                (file_name_bytes, &file_name_bytes[0..0])
+            }
         } else {
-            format!("{base_name}_{i}.{extension}")
+            (file_name_bytes, &file_name_bytes[0..0])
         };
-        let new_path = dir.join(&new_name);
-        // Use atomic file creation to avoid TOCTOU race conditions
-        // Create a temporary file that will be deleted immediately - this just
-        // reserves the name atomically
-        if std::fs::OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .open(&new_path)
-            .is_ok()
-        {
-            // Successfully created the file, now delete it so caller can use the name
-            let _ = std::fs::remove_file(&new_path);
-            return new_path;
+
+        // Try to parse existing _N suffix from stem
+        let (base_stem, start_idx) = find_suffix_and_index_bytes(stem_bytes);
+
+        // Try sequential numbers starting from start_idx
+        for i in start_idx.. {
+            let mut new_name = Vec::with_capacity(base_stem.len() + ext_bytes.len() + 10);
+            new_name.extend_from_slice(base_stem);
+            new_name.extend_from_slice(b"_");
+            new_name.extend_from_slice(i.to_string().as_bytes());
+            new_name.extend_from_slice(ext_bytes);
+
+            // Convert back to OsString
+            let new_name_os = OsStr::from_bytes(&new_name).to_os_string();
+            let new_path = dir.join(new_name_os);
+
+            // Use atomic file creation to avoid TOCTOU race conditions
+            if std::fs::OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(&new_path)
+                .is_ok()
+            {
+                let _ = std::fs::remove_file(&new_path);
+                return new_path;
+            }
         }
+
+        // Fallback: use timestamp to guarantee uniqueness
+        let timestamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis();
+        let mut fallback_name = file_name_bytes.to_vec();
+        fallback_name.extend_from_slice(b"_");
+        fallback_name.extend_from_slice(timestamp.to_string().as_bytes());
+        let fallback_name_os = OsStr::from_bytes(&fallback_name).to_os_string();
+        dir.join(fallback_name_os)
     }
 
-    // Fallback: use timestamp to guarantee uniqueness
-    let timestamp = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_millis();
-    let fallback_name = if extension.is_empty() {
-        format!("{base_name}_{timestamp}")
-    } else {
-        format!("{base_name}_{timestamp}.{extension}")
-    };
-    dir.join(&fallback_name)
+    #[cfg(not(unix))]
+    {
+        // Non-Unix (Windows): use UTF-8 strings
+        let Some(file_stem) = file_name.to_str() else {
+            // Invalid UTF-8 on Windows is rare; use lossy conversion as fallback
+            let timestamp = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_millis();
+            return dir.join(format!("{}_{}", file_name.to_string_lossy(), timestamp));
+        };
+        let extension = file_name.extension().and_then(|s| s.to_str()).unwrap_or("");
+
+        let (base_name, start_idx) = find_suffix_and_index(file_stem);
+
+        for i in start_idx.. {
+            let new_name = if extension.is_empty() {
+                format!("{base_name}_{i}")
+            } else {
+                format!("{base_name}_{i}.{extension}")
+            };
+            let new_path = dir.join(&new_name);
+
+            if std::fs::OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(&new_path)
+                .is_ok()
+            {
+                let _ = std::fs::remove_file(&new_path);
+                return new_path;
+            }
+        }
+
+        let timestamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis();
+        let fallback_name = if extension.is_empty() {
+            format!("{base_name}_{timestamp}")
+        } else {
+            format!("{base_name}_{timestamp}.{extension}")
+        };
+        return dir.join(fallback_name);
+    }
 }
 
-/// Find the base name and next index from a file stem that may have a _N suffix
+/// Find the base name and next index from a file stem (as bytes) that may have a _N suffix
 ///
 /// Handles cases like:
 /// - "file" -> ("file", 1)
-/// - "`file_1`" -> ("file", 2)
-/// - "`file_1_2`" -> ("`file_1`", 3)
-/// - "`file_name_999`" -> ("`file_name`", 1000)
+/// - "file_1" -> ("file", 2)
+/// - "file_1_2" -> ("file_1", 3)
+/// - "file_name_999" -> ("file_name", 1000)
 #[must_use]
-#[allow(clippy::arithmetic_side_effects)]
+#[cfg(unix)]
+#[allow(
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    clippy::redundant_closure_for_method_calls,
+    clippy::doc_markdown
+)]
+fn find_suffix_and_index_bytes(stem: &[u8]) -> (&[u8], u32) {
+    // Find the last underscore and check if what follows is a number
+    if let Some(last_underscore) = stem.iter().rposition(|&b| b == b'_') {
+        let suffix = &stem[last_underscore + 1..];
+        // Check if suffix is all ASCII digits
+        if !suffix.is_empty() && suffix.iter().all(u8::is_ascii_digit) {
+            if let Some(num) = std::str::from_utf8(suffix).ok().and_then(|s| s.parse::<u32>().ok()) {
+                return (&stem[..last_underscore], num + 1);
+            }
+        }
+    }
+    // No valid numeric suffix found, start from 1
+    (stem, 1)
+}
+
+/// Find the base name and next index from a file stem (as string) that may have a _N suffix
+///
+/// Handles cases like:
+/// - "file" -> ("file", 1)
+/// - "file_1" -> ("file", 2)
+/// - "file_1_2" -> ("file_1", 3)
+/// - "file_name_999" -> ("file_name", 1000)
+#[must_use]
+#[cfg(not(unix))]
 fn find_suffix_and_index(file_stem: &str) -> (&str, u32) {
     // Find the last underscore and check if what follows is a number
     if let Some(last_underscore) = file_stem.rfind('_') {
         let suffix = &file_stem[last_underscore + 1..];
         if let Ok(num) = suffix.parse::<u32>() {
-            // Found a numeric suffix, return base and next number
             return (&file_stem[..last_underscore], num + 1);
         }
     }
@@ -1655,49 +1754,100 @@ fn find_suffix_and_index(file_stem: &str) -> (&str, u32) {
 /// Returns a path with a unique folder name that doesn't exist on disk.
 ///
 /// Uses atomic directory creation to avoid TOCTOU race conditions.
-#[allow(clippy::arithmetic_side_effects)]
+#[allow(
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    clippy::redundant_closure_for_method_calls
+)]
 fn get_unique_folder_name(base: &Path) -> PathBuf {
     if !base.exists() {
         return base.to_path_buf();
     }
 
     let dir = base.parent().unwrap_or_else(|| Path::new("."));
-    let Some(folder_name) = base.file_name().and_then(|s| s.to_str()) else {
-        // Handle folders with invalid UTF-8 by appending timestamp
-        return dir.join(format!(
-            "{}_{}",
-            base.file_name().unwrap_or_default().to_string_lossy(),
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap_or_default()
-                .as_millis()
-        ));
+    let Some(folder_name) = base.file_name() else {
+        // No filename (e.g., root directory), append timestamp to full path
+        let timestamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis();
+        return dir.join(format!("{}_{}", base.display(), timestamp));
     };
 
-    // Use the same suffix parsing logic as get_unique_filename
-    let (base_name, start_idx) = find_suffix_and_index(folder_name);
+    #[cfg(unix)]
+    {
+        // Unix: work with raw bytes to handle any valid folder name
+        let folder_name_bytes = folder_name.as_bytes();
 
-    for i in start_idx.. {
-        let new_name = format!("{base_name}_{i}");
-        let new_path = dir.join(&new_name);
-        // Use atomic directory creation to avoid TOCTOU race conditions
-        match std::fs::create_dir(&new_path) {
-            Ok(()) => {
-                // Successfully created, remove it so caller can use the name
-                let _ = std::fs::remove_dir(&new_path);
-                return new_path;
+        // Try to parse existing _N suffix from folder name
+        let (base_name, start_idx) = find_suffix_and_index_bytes(folder_name_bytes);
+
+        for i in start_idx.. {
+            let mut new_name = Vec::with_capacity(base_name.len() + 10);
+            new_name.extend_from_slice(base_name);
+            new_name.extend_from_slice(b"_");
+            new_name.extend_from_slice(i.to_string().as_bytes());
+
+            let new_name_os = OsStr::from_bytes(&new_name).to_os_string();
+            let new_path = dir.join(&new_name_os);
+
+            // Use atomic directory creation to avoid TOCTOU race conditions
+            match std::fs::create_dir(&new_path) {
+                Ok(()) => {
+                    // Successfully created, remove it so caller can use the name
+                    let _ = std::fs::remove_dir(&new_path);
+                    return new_path;
+                }
+                Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {}
+                Err(_) => {}
             }
-            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {}
-            Err(_) => {}
         }
+
+        // Fallback: use timestamp to guarantee uniqueness
+        let timestamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis();
+        let mut fallback_name = folder_name_bytes.to_vec();
+        fallback_name.extend_from_slice(b"_");
+        fallback_name.extend_from_slice(timestamp.to_string().as_bytes());
+        let fallback_name_os = OsStr::from_bytes(&fallback_name).to_os_string();
+        dir.join(fallback_name_os)
     }
 
-    // Fallback: use timestamp to guarantee uniqueness
-    let timestamp = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_millis();
-    dir.join(format!("{base_name}_{timestamp}"))
+    #[cfg(not(unix))]
+    {
+        // Non-Unix (Windows): use UTF-8 strings
+        let Some(folder_name_str) = folder_name.to_str() else {
+            let timestamp = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_millis();
+            return dir.join(format!("{}_{}", folder_name.to_string_lossy(), timestamp));
+        };
+
+        let (base_name, start_idx) = find_suffix_and_index(folder_name_str);
+
+        for i in start_idx.. {
+            let new_name = format!("{base_name}_{i}");
+            let new_path = dir.join(&new_name);
+
+            match std::fs::create_dir(&new_path) {
+                Ok(()) => {
+                    let _ = std::fs::remove_dir(&new_path);
+                    return new_path;
+                }
+                Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {}
+                Err(_) => {}
+            }
+        }
+
+        let timestamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis();
+        return dir.join(format!("{base_name}_{timestamp}"));
+    }
 }
 
 /// Check if two files match by comparing their hashes
@@ -1705,89 +1855,29 @@ fn get_unique_folder_name(base: &Path) -> PathBuf {
 /// # Errors
 ///
 /// Returns an error if either file cannot be read.
-fn files_match_by_hash(source: &Path, dest: &Path, stats: &CopyStats) -> Result<bool> {
+fn files_match_by_hash(source: &Path, dest: &Path) -> Result<bool> {
     // Use sample hashing for efficiency
-    let src_hash = sample_hash(source, stats)?;
-    let dest_hash = sample_hash(dest, stats)?;
+    let src_hash = utils::sample_hash(source)?;
+    let dest_hash = utils::sample_hash(dest)?;
     Ok(src_hash == dest_hash)
 }
 
-/// Compute a hash of a file, using sampling for large files
-///
-/// For files larger than 640KB, samples 10 chunks of 64KB each at evenly
-/// distributed positions. This provides a fast approximation for conflict
-/// detection - files with different sampled hashes definitely differ, while
-/// matching hashes indicate likely-identical files (with a small false-positive
-/// rate acceptable for conflict detection purposes).
-///
-/// # Errors
-///
-/// Returns an error if the file cannot be read.
-fn sample_hash(path: &Path, stats: &CopyStats) -> Result<String> {
-    use std::collections::hash_map::DefaultHasher;
-    use std::hash::{Hash, Hasher};
-
-    use crate::utils::KB;
-
-    /// Files <= this size are hashed entirely.
-    /// Chosen to balance performance (small files hash quickly) with accuracy
-    /// (640KB is large enough to catch most differences).
-    const SMALL_FILE_THRESHOLD: u64 = 640 * KB;
-    /// Size of each chunk to sample in large files.
-    /// 64KB provides good coverage while keeping I/O minimal.
-    const SAMPLE_CHUNK_SIZE: u64 = 64 * KB;
-    /// Number of samples to take from large files.
-    /// 10 samples distributed across the file provides reasonable confidence
-    /// for detecting differences while maintaining performance.
-    const NUM_SAMPLES: u64 = 10;
-
-    let metadata = fs::metadata(path)?;
-    let size = metadata.len();
-
-    // For small files, hash the entire content
-    if size <= SMALL_FILE_THRESHOLD {
-        let mut hasher = DefaultHasher::new();
-        fs::read(path)?.hash(&mut hasher);
-        stats.full_hashes.fetch_add(1, Ordering::Relaxed);
-        return Ok(format!("{:x}", hasher.finish()));
-    }
-
-    // For larger files, sample at multiple positions
-    let mut file = fs::File::open(path)?;
-    let mut hasher = DefaultHasher::new();
-    let chunk_size: u64 = SAMPLE_CHUNK_SIZE;
-    let num_samples: u64 = NUM_SAMPLES;
-
-    stats.sample_hashes.fetch_add(1, Ordering::Relaxed);
-
-    #[allow(clippy::integer_division, clippy::cast_possible_truncation, clippy::as_conversions)]
-    for i in 0..num_samples {
-        let pos = size.saturating_mul(i) / num_samples;
-        file.seek(io::SeekFrom::Start(pos))?;
-        let mut buf = vec![0_u8; chunk_size as usize];
-        let bytes_read = file.read(&mut buf)?;
-        // Safe: bytes_read is guaranteed to be <= buf.len()
-        #[allow(clippy::indexing_slicing)]
-        buf[..bytes_read].hash(&mut hasher);
-    }
-
-    Ok(format!("{:x}", hasher.finish()))
-}
-
-/// Quote a string for shell usage
+/// Quote a path for shell usage
 ///
 /// # Returns
 ///
-/// Returns the string wrapped in single quotes with proper escaping.
-fn shell_quote<S: AsRef<str>>(s: S) -> String {
-    let s_ref = s.as_ref();
-    if s_ref.is_empty() {
+/// Returns the path wrapped in single quotes with proper escaping.
+/// Handles non-UTF8 paths by using lossy conversion for display.
+fn shell_quote<P: AsRef<std::path::Path>>(path: P) -> String {
+    let path_ref = path.as_ref();
+    let s = path_ref.to_string_lossy();
+    if s.is_empty() {
         return "''".to_string();
     }
-    if s_ref.chars().all(|c| c.is_alphanumeric() || "!@%_+=:,./-".contains(c)) {
-        return format!("'{s_ref}'");
+    if s.chars().all(|c| c.is_alphanumeric() || "!@%_+=:,./-".contains(c)) {
+        return format!("'{s}'");
     }
-    format!("'{}'", s_ref.replace('\'', "'\\''"))
+    format!("'{}'", s.replace('\'', "'\\''"))
 }
 
 /// Print copy/move statistics

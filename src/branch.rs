@@ -47,9 +47,11 @@ impl std::fmt::Display for BranchMode {
 }
 
 /// Represents a single branch in the pool
+///
+/// Note: Deriving Deserialize for `PathBuf` is safe - serde handles path conversion
+/// correctly using lossy UTF-8 conversion when needed.
 #[non_exhaustive]
 #[derive(Debug, Clone, Deserialize, Serialize)]
-#[allow(clippy::unsafe_derive_deserialize)]
 pub struct Branch {
     /// Path to the branch
     pub path: PathBuf,
@@ -243,6 +245,7 @@ impl Branch {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used, clippy::indexing_slicing)]
 mod tests {
     use super::*;
     use std::fs;

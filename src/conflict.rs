@@ -4,11 +4,9 @@
 //! branches with different content.
 
 use crate::branch::Branch;
-use crate::error::{NofsError, Result};
-use std::collections::hash_map::DefaultHasher;
-use std::fs::{self, File};
-use std::hash::{Hash, Hasher};
-use std::io::{Read, Seek};
+use crate::error::Result;
+use crate::utils;
+use std::fs;
 use std::path::{Path, PathBuf};
 
 /// Represents a conflict between files in different branches
@@ -184,12 +182,10 @@ fn files_differ(branch_files: &[BranchConflict], use_hash: bool) -> bool {
         let mut hashes: Vec<Option<String>> = branch_files.iter().map(|bf| bf.hash.clone()).collect();
 
         // Compute missing hashes
-        for (i, bf) in branch_files.iter().enumerate() {
-            if hashes.get(i).is_some_and(Option::is_none) {
+        for (hash_opt, bf) in hashes.iter_mut().zip(branch_files.iter()) {
+            if hash_opt.is_none() {
                 if let Ok(h) = compute_file_hash(&PathBuf::from(&bf.path)) {
-                    if let Some(hash_entry) = hashes.get_mut(i) {
-                        *hash_entry = Some(h);
-                    }
+                    *hash_opt = Some(h);
                 }
             }
         }
@@ -210,7 +206,7 @@ fn files_differ(branch_files: &[BranchConflict], use_hash: bool) -> bool {
     false
 }
 
-/// Compute a hash of a file's content
+/// Compute a hash of a file's content for conflict detection
 ///
 /// For performance optimization, small files (≤1MB) are hashed entirely,
 /// while larger files are sampled at key positions (beginning, middle, end).
@@ -221,64 +217,9 @@ fn files_differ(branch_files: &[BranchConflict], use_hash: bool) -> bool {
 /// # Errors
 ///
 /// Returns an error if the file cannot be read.
-#[allow(clippy::missing_panics_doc, clippy::integer_division)]
+#[allow(clippy::missing_panics_doc)]
 pub fn compute_file_hash(path: &Path) -> Result<String> {
-    /// Files ≤1MB are hashed entirely for accurate conflict detection.
-    const SMALL_FILE_THRESHOLD: u64 = crate::utils::MB;
-
-    let mut file =
-        File::open(path).map_err(|e| NofsError::Conflict(format!("Failed to open file {}: {}", path.display(), e)))?;
-
-    // For small files, hash the entire content
-    let metadata = file
-        .metadata()
-        .map_err(|e| NofsError::Conflict(format!("Failed to get metadata for {}: {}", path.display(), e)))?;
-
-    if metadata.len() <= SMALL_FILE_THRESHOLD {
-        let content = std::fs::read(path)
-            .map_err(|e| NofsError::Conflict(format!("Failed to read file {}: {}", path.display(), e)))?;
-        let mut hasher = DefaultHasher::new();
-        hasher.write(&content);
-        return Ok(format!("{:x}", hasher.finish()));
-    }
-
-    // For larger files, sample beginning, middle, and end
-    let mut hasher = DefaultHasher::new();
-    let buf_size = usize::try_from(8 * crate::utils::KB).unwrap_or(8000);
-    let mut buf = vec![0_u8; buf_size];
-
-    // Sample beginning (first 8KB)
-    let bytes_read = file
-        .read(&mut buf)
-        .map_err(|e| NofsError::Conflict(format!("Failed to read file {}: {}", path.display(), e)))?;
-    if let Some(buf_slice) = buf.get(..bytes_read) {
-        buf_slice.hash(&mut hasher);
-    }
-
-    // Sample middle
-    let file_size = metadata.len();
-    let middle_pos = file_size / 2;
-    file.seek(std::io::SeekFrom::Start(middle_pos))
-        .map_err(|e| NofsError::Conflict(format!("Failed to seek in file {}: {}", path.display(), e)))?;
-    let bytes_read_middle = file
-        .read(&mut buf)
-        .map_err(|e| NofsError::Conflict(format!("Failed to read file {}: {}", path.display(), e)))?;
-    if let Some(buf_slice) = buf.get(..bytes_read_middle) {
-        buf_slice.hash(&mut hasher);
-    }
-
-    // Sample end (last 8KB)
-    let end_pos = file_size.saturating_sub(8 * crate::utils::KB);
-    file.seek(std::io::SeekFrom::Start(end_pos))
-        .map_err(|e| NofsError::Conflict(format!("Failed to seek in file {}: {}", path.display(), e)))?;
-    let bytes_read_end = file
-        .read(&mut buf)
-        .map_err(|e| NofsError::Conflict(format!("Failed to read file {}: {}", path.display(), e)))?;
-    if let Some(buf_slice) = buf.get(..bytes_read_end) {
-        buf_slice.hash(&mut hasher);
-    }
-
-    Ok(format!("{:x}", hasher.finish()))
+    utils::compute_file_hash(path)
 }
 
 /// Detect conflict for a single file across branches
@@ -370,6 +311,7 @@ pub fn detect_single_file_conflict(
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used, clippy::indexing_slicing)]
 mod tests {
     use super::*;
     use crate::branch::BranchMode;
