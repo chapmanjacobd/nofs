@@ -16,10 +16,10 @@ mod tests {
         let _ = ctx.create_branch("disk2/dir", &["file3.txt", "file4.txt"]);
 
         let config = format!(
-            r#"
+            r"
 [share.test]
-paths = ["{0}/disk1", "{0}/disk2"]
-"#,
+paths = ['{0}/disk1', '{0}/disk2']
+",
             ctx.root.display()
         );
 
@@ -41,10 +41,10 @@ paths = ["{0}/disk1", "{0}/disk2"]
         let _ = ctx.create_branch("disk1/dir", &["file1.txt"]);
 
         let config = format!(
-            r#"
+            r"
 [share.test]
-paths = ["{0}/disk1"]
-"#,
+paths = ['{0}/disk1']
+",
             ctx.root.display()
         );
 
@@ -64,10 +64,10 @@ paths = ["{0}/disk1"]
         let _ = ctx.create_branch("disk1/dir", &[".hidden", "visible.txt"]);
 
         let config = format!(
-            r#"
+            r"
 [share.test]
-paths = ["{0}/disk1"]
-"#,
+paths = ['{0}/disk1']
+",
             ctx.root.display()
         );
 
@@ -95,10 +95,10 @@ paths = ["{0}/disk1"]
         let _ = ctx.create_branch("disk2/dir", &["other.txt"]);
 
         let config = format!(
-            r#"
+            r"
 [share.test]
-paths = ["{0}/disk1", "{0}/disk2"]
-"#,
+paths = ['{0}/disk1', '{0}/disk2']
+",
             ctx.root.display()
         );
 
@@ -124,10 +124,10 @@ paths = ["{0}/disk1", "{0}/disk2"]
         let _ = ctx.create_branch("disk2/dir", &["shared.txt"]);
 
         let config = format!(
-            r#"
+            r"
 [share.test]
-paths = ["{0}/disk1", "{0}/disk2"]
-"#,
+paths = ['{0}/disk1', '{0}/disk2']
+",
             ctx.root.display()
         );
 
@@ -155,10 +155,10 @@ paths = ["{0}/disk1", "{0}/disk2"]
         let _ = ctx.create_branch("disk2", &["file4.txt", "file5.log"]);
 
         let config = format!(
-            r#"
+            r"
 [share.test]
-paths = ["{0}/disk1", "{0}/disk2"]
-"#,
+paths = ['{0}/disk1', '{0}/disk2']
+",
             ctx.root.display()
         );
 
@@ -186,10 +186,10 @@ paths = ["{0}/disk1", "{0}/disk2"]
         let _ = ctx.create_branch("disk1", &["file.txt", "subdir/nested.txt"]);
 
         let config = format!(
-            r#"
+            r"
 [share.test]
-paths = ["{0}/disk1"]
-"#,
+paths = ['{0}/disk1']
+",
             ctx.root.display()
         );
 
@@ -232,7 +232,7 @@ paths = ["{0}/disk1"]
         let config = format!(
             r#"
 [share.test]
-paths = ["{0}/disk1", "{0}/disk2"]
+paths = ['{0}/disk1', '{0}/disk2']
 create_policy = "mfs"
 "#,
             ctx.root.display()
@@ -260,10 +260,10 @@ create_policy = "mfs"
         let _ = ctx.create_branch("disk1/dir", &["present.txt"]);
 
         let config = format!(
-            r#"
+            r"
 [share.test]
-paths = ["{0}/disk1"]
-"#,
+paths = ['{0}/disk1']
+",
             ctx.root.display()
         );
 
@@ -299,10 +299,10 @@ paths = ["{0}/disk1"]
         let _ = ctx.create_branch("disk2", &[]);
 
         let config = format!(
-            r#"
+            r"
 [share.test]
-paths = ["{0}/disk1", "{0}/disk2"]
-"#,
+paths = ['{0}/disk1', '{0}/disk2']
+",
             ctx.root.display()
         );
 
@@ -326,10 +326,10 @@ paths = ["{0}/disk1", "{0}/disk2"]
         let _ = ctx.create_branch("disk2/dir", &["file3.txt"]);
 
         let config = format!(
-            r#"
+            r"
 [share.test]
-paths = ["{0}/disk1", "{0}/disk2"]
-"#,
+paths = ['{0}/disk1', '{0}/disk2']
+",
             ctx.root.display()
         );
 
@@ -352,10 +352,10 @@ paths = ["{0}/disk1", "{0}/disk2"]
         let _ = ctx.create_branch("disk1/dir", &["file1.txt", "file2.txt"]);
 
         let config = format!(
-            r#"
+            r"
 [share.test]
-paths = ["{0}/disk1"]
-"#,
+paths = ['{0}/disk1']
+",
             ctx.root.display()
         );
 
@@ -381,10 +381,10 @@ paths = ["{0}/disk1"]
         let _ = ctx.create_branch("disk1/dir", &["file2.txt"]);
 
         let config = format!(
-            r#"
+            r"
 [share.test]
-paths = ["{0}/disk1"]
-"#,
+paths = ['{0}/disk1']
+",
             ctx.root.display()
         );
 
@@ -404,10 +404,10 @@ paths = ["{0}/disk1"]
         let _ = ctx.create_branch("disk1/dir/subdir1/subdir2", &["file1.txt"]);
 
         let config = format!(
-            r#"
+            r"
 [share.test]
-paths = ["{0}/disk1"]
-"#,
+paths = ['{0}/disk1']
+",
             ctx.root.display()
         );
 
@@ -435,10 +435,10 @@ paths = ["{0}/disk1"]
         let _ = ctx.create_branch("disk1/dir", &["file1.txt"]);
 
         let config = format!(
-            r#"
+            r"
 [share.test]
-paths = ["{0}/disk1"]
-"#,
+paths = ['{0}/disk1']
+",
             ctx.root.display()
         );
 
@@ -467,10 +467,10 @@ paths = ["{0}/disk1"]
         let branch2 = ctx.create_branch("disk2/dir", &["file3.txt", "file4.txt", "file5.txt"]);
 
         let config = format!(
-            r#"
+            r"
 [share.test]
-paths = ["{0}/disk1", "{0}/disk2"]
-"#,
+paths = ['{0}/disk1', '{0}/disk2']
+",
             ctx.root.display()
         );
 
@@ -495,10 +495,10 @@ paths = ["{0}/disk1", "{0}/disk2"]
         let branch_path = ctx.create_branch("disk1", &["file1.txt"]);
 
         let config = format!(
-            r#"
+            r"
 [share.test]
-paths = ["{0}/disk1"]
-"#,
+paths = ['{0}/disk1']
+",
             ctx.root.display()
         );
 
@@ -524,10 +524,10 @@ paths = ["{0}/disk1"]
         let _ = ctx.create_branch("disk1", &["file1.txt", "file2.txt"]);
 
         let config = format!(
-            r#"
+            r"
 [share.test]
-paths = ["{0}/disk1"]
-"#,
+paths = ['{0}/disk1']
+",
             ctx.root.display()
         );
 
@@ -587,10 +587,10 @@ paths = ["{0}/disk1"]
         let _ = ctx.create_branch("disk1/dir/subdir", &["file1.txt", "file2.txt"]);
 
         let config = format!(
-            r#"
+            r"
 [share.test]
-paths = ["{0}/disk1"]
-"#,
+paths = ['{0}/disk1']
+",
             ctx.root.display()
         );
 
@@ -613,10 +613,10 @@ paths = ["{0}/disk1"]
         let branch_path = ctx.create_branch("disk1/dir/subdir", &["file1.txt"]);
 
         let config = format!(
-            r#"
+            r"
 [share.test]
-paths = ["{0}/disk1"]
-"#,
+paths = ['{0}/disk1']
+",
             ctx.root.display()
         );
 
@@ -669,7 +669,7 @@ paths = ["{0}/disk1"]
         let config = format!(
             r#"
 [share.test]
-paths = ["{0}/disk1", "{0}/disk2"]
+paths = ['{0}/disk1', '{0}/disk2']
 create_policy = "pfrd"
 "#,
             ctx.root.display()
@@ -692,10 +692,10 @@ create_policy = "pfrd"
         let _ = ctx.create_branch("disk1/dir", &["file.txt"]);
 
         let config = format!(
-            r#"
+            r"
 [share.test]
-paths = ["{0}/disk1"]
-"#,
+paths = ['{0}/disk1']
+",
             ctx.root.display()
         );
 
@@ -722,10 +722,10 @@ paths = ["{0}/disk1"]
         let _ = ctx.create_branch("disk3/dir", &["shared.txt"]);
 
         let config = format!(
-            r#"
+            r"
 [share.test]
-paths = ["{0}/disk1", "{0}/disk2", "{0}/disk3"]
-"#,
+paths = ['{0}/disk1', '{0}/disk2', '{0}/disk3']
+",
             ctx.root.display()
         );
 
@@ -747,10 +747,10 @@ paths = ["{0}/disk1", "{0}/disk2", "{0}/disk3"]
         let _ = ctx.create_branch("disk1/source", &["file.txt"]);
 
         let config = format!(
-            r#"
+            r"
 [share.test]
-paths = ["{0}/disk1"]
-"#,
+paths = ['{0}/disk1']
+",
             ctx.root.display()
         );
 
@@ -788,10 +788,10 @@ paths = ["{0}/disk1"]
         let _ = ctx.create_branch("disk1/dest", &[]);
 
         let config = format!(
-            r#"
+            r"
 [share.test]
-paths = ["{0}/disk1"]
-"#,
+paths = ['{0}/disk1']
+",
             ctx.root.display()
         );
 
@@ -831,10 +831,10 @@ paths = ["{0}/disk1"]
         let _ = ctx.create_branch("disk1/dest", &[]);
 
         let config = format!(
-            r#"
+            r"
 [share.test]
-paths = ["{0}/disk1"]
-"#,
+paths = ['{0}/disk1']
+",
             ctx.root.display()
         );
 
@@ -869,10 +869,10 @@ paths = ["{0}/disk1"]
         let _ = ctx.create_branch("disk1/source/subdir", &["file1.txt", "file2.txt"]);
 
         let config = format!(
-            r#"
+            r"
 [share.test]
-paths = ["{0}/disk1"]
-"#,
+paths = ['{0}/disk1']
+",
             ctx.root.display()
         );
 
@@ -912,10 +912,10 @@ paths = ["{0}/disk1"]
         let _ = ctx.create_branch("disk1/source", &["file.txt"]);
 
         let config = format!(
-            r#"
+            r"
 [share.test]
-paths = ["{0}/disk1"]
-"#,
+paths = ['{0}/disk1']
+",
             ctx.root.display()
         );
 
@@ -956,10 +956,10 @@ paths = ["{0}/disk1"]
         let _ = ctx.create_branch("branch2", &[]);
 
         let config = format!(
-            r#"
+            r"
 [share.mvtest]
-paths = ["{0}/branch1", "{0}/branch2"]
-"#,
+paths = ['{0}/branch1', '{0}/branch2']
+",
             ctx.root.display()
         );
 
@@ -1008,10 +1008,10 @@ paths = ["{0}/branch1", "{0}/branch2"]
         let _ = ctx.create_branch("disk2/other", &[]);
 
         let config = format!(
-            r#"
+            r"
 [share.mvtest2]
-paths = ["{0}/disk1", "{0}/disk2"]
-"#,
+paths = ['{0}/disk1', '{0}/disk2']
+",
             ctx.root.display()
         );
 
@@ -1061,10 +1061,10 @@ paths = ["{0}/disk1", "{0}/disk2"]
         let _ = ctx.create_branch("branch2", &[]);
 
         let config = format!(
-            r#"
+            r"
 [share.cptest]
-paths = ["{0}/branch1", "{0}/branch2"]
-"#,
+paths = ['{0}/branch1', '{0}/branch2']
+",
             ctx.root.display()
         );
 
@@ -1109,10 +1109,10 @@ paths = ["{0}/branch1", "{0}/branch2"]
         let _ = ctx.create_branch("disk2/other", &[]);
 
         let config = format!(
-            r#"
+            r"
 [share.cptest2]
-paths = ["{0}/disk1", "{0}/disk2"]
-"#,
+paths = ['{0}/disk1', '{0}/disk2']
+",
             ctx.root.display()
         );
 
@@ -1160,10 +1160,10 @@ paths = ["{0}/disk1", "{0}/disk2"]
         let _ = ctx.create_branch("disk1", &[]);
 
         let config = format!(
-            r#"
+            r"
 [share.test]
-paths = ["{0}/disk1"]
-"#,
+paths = ['{0}/disk1']
+",
             ctx.root.display()
         );
 
@@ -1185,10 +1185,10 @@ paths = ["{0}/disk1"]
         let _ = ctx.create_branch("disk1", &[]);
 
         let config = format!(
-            r#"
+            r"
 [share.test]
-paths = ["{0}/disk1"]
-"#,
+paths = ['{0}/disk1']
+",
             ctx.root.display()
         );
 
@@ -1216,10 +1216,10 @@ paths = ["{0}/disk1"]
         let _ = ctx.create_branch("disk1/emptydir", &[]);
 
         let config = format!(
-            r#"
+            r"
 [share.test]
-paths = ["{0}/disk1"]
-"#,
+paths = ['{0}/disk1']
+",
             ctx.root.display()
         );
 
@@ -1240,10 +1240,10 @@ paths = ["{0}/disk1"]
         let _ = ctx.create_branch("disk1/nonemptydir", &["file.txt"]);
 
         let config = format!(
-            r#"
+            r"
 [share.test]
-paths = ["{0}/disk1"]
-"#,
+paths = ['{0}/disk1']
+",
             ctx.root.display()
         );
 
@@ -1270,10 +1270,10 @@ paths = ["{0}/disk1"]
         let _ = ctx.create_branch("disk1", &[]);
 
         let config = format!(
-            r#"
+            r"
 [share.test]
-paths = ["{0}/disk1"]
-"#,
+paths = ['{0}/disk1']
+",
             ctx.root.display()
         );
 
@@ -1300,10 +1300,10 @@ paths = ["{0}/disk1"]
         let _ = ctx.create_branch("disk1", &["existing.txt"]);
 
         let config = format!(
-            r#"
+            r"
 [share.test]
-paths = ["{0}/disk1"]
-"#,
+paths = ['{0}/disk1']
+",
             ctx.root.display()
         );
 
@@ -1329,10 +1329,10 @@ paths = ["{0}/disk1"]
         let _ = ctx.create_branch("disk1", &["file.txt"]);
 
         let config = format!(
-            r#"
+            r"
 [share.test]
-paths = ["{0}/disk1"]
-"#,
+paths = ['{0}/disk1']
+",
             ctx.root.display()
         );
 
@@ -1353,10 +1353,10 @@ paths = ["{0}/disk1"]
         let _ = ctx.create_branch("disk1/dir", &[]);
 
         let config = format!(
-            r#"
+            r"
 [share.test]
-paths = ["{0}/disk1"]
-"#,
+paths = ['{0}/disk1']
+",
             ctx.root.display()
         );
 
@@ -1377,10 +1377,10 @@ paths = ["{0}/disk1"]
         let _ = ctx.create_branch("disk1/dir/subdir", &["file.txt"]);
 
         let config = format!(
-            r#"
+            r"
 [share.test]
-paths = ["{0}/disk1"]
-"#,
+paths = ['{0}/disk1']
+",
             ctx.root.display()
         );
 
@@ -1401,10 +1401,10 @@ paths = ["{0}/disk1"]
         let _ = ctx.create_branch("disk1", &[]);
 
         let config = format!(
-            r#"
+            r"
 [share.test]
-paths = ["{0}/disk1"]
-"#,
+paths = ['{0}/disk1']
+",
             ctx.root.display()
         );
 
@@ -1437,10 +1437,10 @@ paths = ["{0}/disk1"]
         fs::write(branch2.join("file1.txt"), "different content").unwrap();
 
         let config = format!(
-            r#"
+            r"
 [share.test]
-paths = ["{0}/disk1", "{0}/disk2"]
-"#,
+paths = ['{0}/disk1', '{0}/disk2']
+",
             ctx.root.display()
         );
 
@@ -1479,10 +1479,10 @@ paths = ["{0}/disk1", "{0}/disk2"]
         fs::write(branch2.join("conflict.txt"), "different").unwrap();
 
         let config = format!(
-            r#"
+            r"
 [share.test]
-paths = ["{0}/disk1", "{0}/disk2"]
-"#,
+paths = ['{0}/disk1', '{0}/disk2']
+",
             ctx.root.display()
         );
 
@@ -1524,10 +1524,10 @@ paths = ["{0}/disk1", "{0}/disk2"]
         let _ = ctx.create_branch("disk2/dir", &["file2.txt"]);
 
         let config = format!(
-            r#"
+            r"
 [share.test]
-paths = ["{0}/disk1", "{0}/disk2"]
-"#,
+paths = ['{0}/disk1', '{0}/disk2']
+",
             ctx.root.display()
         );
 
@@ -1561,10 +1561,10 @@ paths = ["{0}/disk1", "{0}/disk2"]
         fs::write(branch2.join("same_size.txt"), "BBBB").unwrap();
 
         let config = format!(
-            r#"
+            r"
 [share.test]
-paths = ["{0}/disk1", "{0}/disk2"]
-"#,
+paths = ['{0}/disk1', '{0}/disk2']
+",
             ctx.root.display()
         );
 
@@ -1599,10 +1599,10 @@ paths = ["{0}/disk1", "{0}/disk2"]
         fs::write(branch2.join("file.txt"), "different").unwrap();
 
         let config = format!(
-            r#"
+            r"
 [share.test]
-paths = ["{0}/disk1", "{0}/disk2"]
-"#,
+paths = ['{0}/disk1', '{0}/disk2']
+",
             ctx.root.display()
         );
 
@@ -1637,10 +1637,10 @@ paths = ["{0}/disk1", "{0}/disk2"]
         fs::write(branch2.join("file.txt"), "different content").unwrap();
 
         let config = format!(
-            r#"
+            r"
 [share.test]
-paths = ["{0}/disk1", "{0}/disk2"]
-"#,
+paths = ['{0}/disk1', '{0}/disk2']
+",
             ctx.root.display()
         );
 
@@ -1683,10 +1683,10 @@ paths = ["{0}/disk1", "{0}/disk2"]
         let _ = ctx.create_branch("disk2/dir", &["file.txt"]);
 
         let config = format!(
-            r#"
+            r"
 [share.test]
-paths = ["{0}/disk1", "{0}/disk2"]
-"#,
+paths = ['{0}/disk1', '{0}/disk2']
+",
             ctx.root.display()
         );
 
@@ -1723,10 +1723,10 @@ paths = ["{0}/disk1", "{0}/disk2"]
         fs::write(branch.join("file.multiple.dots.txt"), "content").unwrap();
 
         let config = format!(
-            r#"
+            r"
 [share.test]
-paths = ["{0}/disk1"]
-"#,
+paths = ['{0}/disk1']
+",
             ctx.root.display()
         );
 
@@ -1748,10 +1748,10 @@ paths = ["{0}/disk1"]
         let _ = ctx.create_branch("disk1/empty", &[]);
 
         let config = format!(
-            r#"
+            r"
 [share.test]
-paths = ["{0}/disk1"]
-"#,
+paths = ['{0}/disk1']
+",
             ctx.root.display()
         );
 
@@ -1771,10 +1771,10 @@ paths = ["{0}/disk1"]
         let _ = ctx.create_branch("disk1", &[]);
 
         let config = format!(
-            r#"
+            r"
 [share.test]
-paths = ["{0}/disk1"]
-"#,
+paths = ['{0}/disk1']
+",
             ctx.root.display()
         );
 
@@ -1792,10 +1792,10 @@ paths = ["{0}/disk1"]
         let _ = ctx.create_branch("disk1/a/b/c/d/e/f", &["deep.txt"]);
 
         let config = format!(
-            r#"
+            r"
 [share.test]
-paths = ["{0}/disk1"]
-"#,
+paths = ['{0}/disk1']
+",
             ctx.root.display()
         );
 
@@ -1821,10 +1821,10 @@ paths = ["{0}/disk1"]
         let _ = ctx.create_branch("disk1/subdir", &["file.txt"]);
 
         let config = format!(
-            r#"
+            r"
 [share.test]
-paths = ["{0}/disk1"]
-"#,
+paths = ['{0}/disk1']
+",
             ctx.root.display()
         );
 
@@ -1851,10 +1851,10 @@ paths = ["{0}/disk1"]
         let _ = ctx.create_branch("disk1/existing", &[]);
 
         let config = format!(
-            r#"
+            r"
 [share.test]
-paths = ["{0}/disk1"]
-"#,
+paths = ['{0}/disk1']
+",
             ctx.root.display()
         );
 
@@ -1873,10 +1873,10 @@ paths = ["{0}/disk1"]
         let _ = ctx.create_branch("disk1/to_remove", &[]);
 
         let config = format!(
-            r#"
+            r"
 [share.test]
-paths = ["{0}/disk1"]
-"#,
+paths = ['{0}/disk1']
+",
             ctx.root.display()
         );
 
@@ -1903,10 +1903,10 @@ paths = ["{0}/disk1"]
         let _ = ctx.create_branch("disk1/dir", &["file.txt"]);
 
         let config = format!(
-            r#"
+            r"
 [share.test]
-paths = ["{0}/disk1"]
-"#,
+paths = ['{0}/disk1']
+",
             ctx.root.display()
         );
 
@@ -1929,10 +1929,10 @@ paths = ["{0}/disk1"]
         let _ = ctx.create_branch("disk1", &[]);
 
         let config = format!(
-            r#"
+            r"
 [share.test]
-paths = ["{0}/disk1"]
-"#,
+paths = ['{0}/disk1']
+",
             ctx.root.display()
         );
 
@@ -1955,10 +1955,10 @@ paths = ["{0}/disk1"]
         let _ = ctx.create_branch("disk1/dir", &[]);
 
         let config = format!(
-            r#"
+            r"
 [share.test]
-paths = ["{0}/disk1"]
-"#,
+paths = ['{0}/disk1']
+",
             ctx.root.display()
         );
 
@@ -1976,10 +1976,10 @@ paths = ["{0}/disk1"]
         let _ = ctx.create_branch("disk1", &[]);
 
         let config = format!(
-            r#"
+            r"
 [share.test]
-paths = ["{0}/disk1"]
-"#,
+paths = ['{0}/disk1']
+",
             ctx.root.display()
         );
 
@@ -1998,10 +1998,10 @@ paths = ["{0}/disk1"]
         let _ = ctx.create_branch("disk1", &[]);
 
         let config = format!(
-            r#"
+            r"
 [share.test]
-paths = ["{0}/disk1"]
-"#,
+paths = ['{0}/disk1']
+",
             ctx.root.display()
         );
 
@@ -2019,10 +2019,10 @@ paths = ["{0}/disk1"]
         let _ = ctx.create_branch("disk1", &[]);
 
         let config = format!(
-            r#"
+            r"
 [share.test]
-paths = ["{0}/disk1"]
-"#,
+paths = ['{0}/disk1']
+",
             ctx.root.display()
         );
 
@@ -2047,10 +2047,10 @@ paths = ["{0}/disk1"]
         let _ = ctx.create_branch("disk2/dir", &[".hidden2", "other.txt"]);
 
         let config = format!(
-            r#"
+            r"
 [share.test]
-paths = ["{0}/disk1", "{0}/disk2"]
-"#,
+paths = ['{0}/disk1', '{0}/disk2']
+",
             ctx.root.display()
         );
 
@@ -2080,10 +2080,10 @@ paths = ["{0}/disk1", "{0}/disk2"]
         let _ = ctx.create_branch("disk1", &[]);
 
         let config = format!(
-            r#"
+            r"
 [share.test]
-paths = ["{0}/disk1"]
-"#,
+paths = ['{0}/disk1']
+",
             ctx.root.display()
         );
 
@@ -2110,10 +2110,10 @@ paths = ["{0}/disk1"]
         let _ = ctx.create_branch("disk1/dest", &[]);
 
         let config = format!(
-            r#"
+            r"
 [share.test]
-paths = ["{0}/disk1"]
-"#,
+paths = ['{0}/disk1']
+",
             ctx.root.display()
         );
 
@@ -2142,10 +2142,10 @@ paths = ["{0}/disk1"]
         let _ = ctx.create_branch("disk1/dir", &["file1.txt", "file2.txt", "file3.txt"]);
 
         let config = format!(
-            r#"
+            r"
 [share.test]
-paths = ["{0}/disk1"]
-"#,
+paths = ['{0}/disk1']
+",
             ctx.root.display()
         );
 
@@ -2179,10 +2179,10 @@ paths = ["{0}/disk1"]
         fs::write(branch.join("αρχείο.txt"), "greek").unwrap();
 
         let config = format!(
-            r#"
+            r"
 [share.test]
-paths = ["{0}/disk1"]
-"#,
+paths = ['{0}/disk1']
+",
             ctx.root.display()
         );
 

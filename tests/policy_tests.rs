@@ -17,7 +17,7 @@ mod tests {
         let config = format!(
             r#"
 [share.test]
-paths = ["{0}/disk1", "{0}/disk2"]
+paths = ['{0}/disk1', '{0}/disk2']
 create_policy = "pfrd"
 "#,
             ctx.root.display()
@@ -46,7 +46,7 @@ create_policy = "pfrd"
         let config = format!(
             r#"
 [share.test]
-paths = ["{0}/disk1", "{0}/disk2"]
+paths = ['{0}/disk1', '{0}/disk2']
 create_policy = "mfs"
 "#,
             ctx.root.display()
@@ -76,7 +76,7 @@ create_policy = "mfs"
         let config = format!(
             r#"
 [share.test]
-paths = ["{0}/disk1", "{0}/disk2"]
+paths = ['{0}/disk1', '{0}/disk2']
 create_policy = "rand"
 "#,
             ctx.root.display()
@@ -108,7 +108,7 @@ create_policy = "rand"
         let config = format!(
             r#"
 [share.test]
-paths = ["{0}/disk1", "{0}/disk2"]
+paths = ['{0}/disk1', '{0}/disk2']
 search_policy = "ff"
 "#,
             ctx.root.display()
@@ -138,8 +138,8 @@ search_policy = "ff"
         let config = format!(
             r#"
 [share.test]
-paths = ["{0}/rw_disk"]
-ro_paths = ["{0}/ro_disk"]
+paths = ['{0}/rw_disk']
+ro_paths = ['{0}/ro_disk']
 create_policy = "mfs"
 "#,
             ctx.root.display()
@@ -170,8 +170,8 @@ create_policy = "mfs"
         let config = format!(
             r#"
 [share.test]
-paths = ["{0}/rw_disk"]
-nc_paths = ["{0}/nc_disk"]
+paths = ['{0}/rw_disk']
+nc_paths = ['{0}/nc_disk']
 create_policy = "mfs"
 "#,
             ctx.root.display()
@@ -202,7 +202,7 @@ create_policy = "mfs"
         let config = format!(
             r#"
 [share.test]
-paths = ["{0}/disk1", "{0}/disk2"]
+paths = ['{0}/disk1', '{0}/disk2']
 create_policy = "pfrd"
 "#,
             ctx.root.display()

@@ -20,7 +20,7 @@ mod tests {
         let config = format!(
             r#"
 [share.media]
-paths = ["{0}/disk1/media", "{0}/disk2/media"]
+paths = ['{0}/disk1/media', '{0}/disk2/media']
 create_policy = "pfrd"
 search_policy = "ff"
 "#,
@@ -46,8 +46,8 @@ search_policy = "ff"
         let config = format!(
             r#"
 [share.test]
-paths = ["{0}/rw_branch"]
-ro_paths = ["{0}/ro_branch"]
+paths = ['{0}/rw_branch']
+ro_paths = ['{0}/ro_branch']
 create_policy = "mfs"
 "#,
             ctx.root.display()
@@ -72,8 +72,8 @@ create_policy = "mfs"
         let config = format!(
             r#"
 [share.test]
-paths = ["{0}/rw_branch"]
-nc_paths = ["{0}/nc_branch"]
+paths = ['{0}/rw_branch']
+nc_paths = ['{0}/nc_branch']
 create_policy = "mfs"
 "#,
             ctx.root.display()
@@ -100,11 +100,11 @@ create_policy = "mfs"
         let config = format!(
             r#"
 [share.media]
-paths = ["{0}/media1", "{0}/media2"]
+paths = ['{0}/media1', '{0}/media2']
 create_policy = "pfrd"
 
 [share.backup]
-paths = ["{0}/backup1", "{0}/backup2"]
+paths = ['{0}/backup1', '{0}/backup2']
 create_policy = "mfs"
 "#,
             ctx.root.display()
@@ -131,9 +131,9 @@ create_policy = "mfs"
         let config = format!(
             r#"
 [share.test]
-paths = ["{0}/rw1", "{0}/rw2"]
-ro_paths = ["{0}/ro1"]
-nc_paths = ["{0}/nc1"]
+paths = ['{0}/rw1', '{0}/rw2']
+ro_paths = ['{0}/ro1']
+nc_paths = ['{0}/nc1']
 create_policy = "pfrd"
 "#,
             ctx.root.display()
@@ -158,7 +158,7 @@ create_policy = "pfrd"
         let config = format!(
             r#"
 [share.media]
-paths = ["{0}/disk1/media", "{0}/disk2/media"]
+paths = ['{0}/disk1/media', '{0}/disk2/media']
 create_policy = "pfrd"
 "#,
             ctx.root.display()
@@ -184,7 +184,7 @@ create_policy = "pfrd"
         let config = format!(
             r#"
 [share.test]
-paths = ["{0}/disk1", "{0}/disk2"]
+paths = ['{0}/disk1', '{0}/disk2']
 minfreespace = "1G"
 create_policy = "mfs"
 "#,
@@ -226,7 +226,7 @@ paths = []
         // Config with path that doesn't exist
         let config = r#"
 [share.test]
-paths = ["/nonexistent/path/that/does/not/exist"]
+paths = ['/nonexistent/path/that/does/not/exist']
 "#;
 
         ctx.write_config(config);
@@ -244,7 +244,7 @@ paths = ["/nonexistent/path/that/does/not/exist"]
         // Invalid TOML syntax
         let config = r#"
 [share.test
-paths = ["/path"]
+paths = ['/path']
 "#;
 
         ctx.write_config(config);
@@ -283,7 +283,7 @@ key = "value"
         let config = format!(
             r#"
 [share.test]
-paths = ["{0}/disk1"]
+paths = ['{0}/disk1']
 create_policy = "invalid_policy"
 "#,
             ctx.root.display()
@@ -305,10 +305,10 @@ create_policy = "invalid_policy"
 
         // Same path listed twice
         let config = format!(
-            r#"
+            r"
 [share.test]
-paths = ["{0}/disk1", "{0}/disk1"]
-"#,
+paths = ['{0}/disk1', '{0}/disk1']
+",
             ctx.root.display()
         );
 
@@ -332,10 +332,10 @@ paths = ["{0}/disk1", "{0}/disk1"]
         let paths: Vec<String> = (0..10).map(|i| format!("{}/disk{}", ctx.root.display(), i)).collect();
 
         let config = format!(
-            r#"
+            r"
 [share.test]
 paths = {}
-"#,
+",
             serde_json::to_string(&paths).unwrap()
         );
 
@@ -359,9 +359,9 @@ paths = {}
         let config = format!(
             r#"
 [share.test]
-paths = ["{0}/rw1", "{0}/rw2"]
-ro_paths = ["{0}/ro1"]
-nc_paths = ["{0}/nc1"]
+paths = ['{0}/rw1', '{0}/rw2']
+ro_paths = ['{0}/ro1']
+nc_paths = ['{0}/nc1']
 create_policy = "rand"
 search_policy = "all"
 action_policy = "epall"
@@ -388,10 +388,10 @@ minfreespace = "100M"
 
         // Config with whitespace in path
         let config = format!(
-            r#"
+            r"
 [share.test]
-paths = ["{0}"]
-"#,
+paths = ['{0}']
+",
             branch_path.display()
         );
 
@@ -411,10 +411,10 @@ paths = ["{0}"]
         fs::create_dir_all(&deep_path).unwrap();
 
         let config = format!(
-            r#"
+            r"
 [share.test]
-paths = ["{0}"]
-"#,
+paths = ['{0}']
+",
             deep_path.display()
         );
 
@@ -434,7 +434,7 @@ paths = ["{0}"]
         let config = format!(
             r#"
 [share.test]
-paths = ["{0}/disk1"]
+paths = ['{0}/disk1']
 minfreespace = "0"
 create_policy = "mfs"
 "#,
@@ -458,7 +458,7 @@ create_policy = "mfs"
         let config = format!(
             r#"
 [share.test]
-paths = ["{0}/disk1"]
+paths = ['{0}/disk1']
 minfreespace = "100PB"
 create_policy = "mfs"
 "#,
@@ -500,10 +500,10 @@ create_policy = "mfs"
         let _ = ctx.create_branch("disk1", &[]);
 
         let config = format!(
-            r#"
+            r"
 [share.test]
-paths = ["{0}/disk1"]
-"#,
+paths = ['{0}/disk1']
+",
             ctx.root.display()
         );
 
@@ -527,7 +527,7 @@ paths = ["{0}/disk1"]
 # This is a comment
 [share.test]
 # Another comment
-paths = ["{0}/disk1"]  # inline comment
+paths = ['{0}/disk1']  # inline comment
 create_policy = "mfs"  # policy comment
 "#,
             ctx.root.display()
