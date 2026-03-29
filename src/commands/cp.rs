@@ -81,50 +81,23 @@ pub(crate) struct ResolvedPath {
 /// # Errors
 ///
 /// Returns an error if the share is not found or if path resolution fails.
-#[allow(clippy::arithmetic_side_effects)]
 pub(crate) fn resolve_path(
     path_str: &str,
     share: Option<&Pool>,
     for_create: bool,
     cache: &OperationCache,
 ) -> Result<ResolvedPath> {
-    // Find the first colon
-    let Some(first_colon) = path_str.find(':') else {
-        // No colon, return as-is
-        return Ok(ResolvedPath {
-            path: PathBuf::from(path_str),
-            branch_index: None,
-        });
-    };
+    let parsed = utils::parse_path_with_context(path_str);
 
-    let potential_share = &path_str[..first_colon];
-    let after_first_colon = &path_str[first_colon + 1..];
-
-    // Check if prefix contains path separators (already a full path like UNC)
-    if potential_share.contains('/') || potential_share.contains('\\') {
+    // No colon or UNC path - treat as native path
+    if parsed.has_no_colon || parsed.is_unc {
         return Ok(ResolvedPath {
             path: PathBuf::from(path_str),
             branch_index: None,
         });
     }
 
-    // Check if this looks like a native Windows path (e.g., "C:\path" or "D:/path")
-    // Pattern: single letter followed by colon and path separator
-    let is_windows_drive = {
-        let mut chars = after_first_colon.chars();
-        matches!(chars.next(), Some(c) if c.is_ascii_alphabetic())
-            && chars.next() == Some(':')
-            && matches!(chars.next(), Some('\\' | '/'))
-    };
-
-    if is_windows_drive {
-        return Ok(ResolvedPath {
-            path: PathBuf::from(path_str),
-            branch_index: None,
-        });
-    }
-
-    // Now check if potential_share matches the share name
+    // Check if share context is provided
     let Some(pool) = share else {
         // No share context provided, treat as native path
         return Ok(ResolvedPath {
@@ -133,7 +106,10 @@ pub(crate) fn resolve_path(
         });
     };
 
-    if pool.name != potential_share {
+    // Check if prefix matches the share name
+    // This handles the ambiguous case of "d:/path" - if share is named "d", use it;
+    // otherwise treat as Windows drive
+    if !parsed.matches_share(&pool.name) {
         // Doesn't match share name, treat as native path (e.g., "C:\path")
         return Ok(ResolvedPath {
             path: PathBuf::from(path_str),
@@ -142,7 +118,7 @@ pub(crate) fn resolve_path(
     }
 
     // Strip leading path separators from relative path
-    let relative_path = strip_leading_separators(after_first_colon);
+    let relative_path = strip_leading_separators(parsed.path_after_colon);
 
     let branch = if for_create {
         // For create operations, use policy-based selection
@@ -229,53 +205,33 @@ fn select_branch_for_read<'a>(pool: &'a Pool, relative_path: &Path, cache: &'a O
 /// # Errors
 ///
 /// Returns an error if the share is not found or if path resolution fails.
-#[allow(clippy::arithmetic_side_effects)]
 pub(crate) fn resolve_dest_path(
     dest_str: &str,
     share: Option<&Pool>,
     source_branch_index: Option<usize>,
     cache: &OperationCache,
 ) -> Result<PathBuf> {
-    // Find the first colon
-    let Some(first_colon) = dest_str.find(':') else {
-        // No colon, return as-is
-        return Ok(PathBuf::from(dest_str));
-    };
+    let parsed = utils::parse_path_with_context(dest_str);
 
-    let potential_share = &dest_str[..first_colon];
-    let after_first_colon = &dest_str[first_colon + 1..];
-
-    // Check if prefix contains path separators (already a full path like UNC)
-    if potential_share.contains('/') || potential_share.contains('\\') {
+    // No colon or UNC path - treat as native path
+    if parsed.has_no_colon || parsed.is_unc {
         return Ok(PathBuf::from(dest_str));
     }
 
-    // Check if this looks like a native Windows path (e.g., "C:\path" or "D:/path")
-    // Pattern: single letter followed by colon and path separator
-    let is_windows_drive = {
-        let mut chars = after_first_colon.chars();
-        matches!(chars.next(), Some(c) if c.is_ascii_alphabetic())
-            && chars.next() == Some(':')
-            && matches!(chars.next(), Some('\\' | '/'))
-    };
-
-    if is_windows_drive {
-        return Ok(PathBuf::from(dest_str));
-    }
-
-    // Now check if potential_share matches the share name
+    // Check if share context is provided
     let Some(pool) = share else {
         // No share context provided, treat as native path
         return Ok(PathBuf::from(dest_str));
     };
 
-    if pool.name != potential_share {
+    // Check if prefix matches the share name
+    if !parsed.matches_share(&pool.name) {
         // Doesn't match share name, treat as native path (e.g., "C:\path")
         return Ok(PathBuf::from(dest_str));
     }
 
     // Strip leading path separators from relative path
-    let relative_path = strip_leading_separators(after_first_colon);
+    let relative_path = strip_leading_separators(parsed.path_after_colon);
 
     // Try to use the same branch as the source (for efficient same-branch operations)
     if let Some(src_idx) = source_branch_index {
@@ -1833,10 +1789,7 @@ fn get_unique_filename(base: &Path) -> PathBuf {
                 .as_millis();
             return dir.join(format!("{}_{}", file_name.to_string_lossy(), timestamp));
         };
-        let extension = file_name_path
-            .extension()
-            .and_then(|s| s.to_str())
-            .unwrap_or("");
+        let extension = file_name_path.extension().and_then(|s| s.to_str()).unwrap_or("");
 
         let (base_name, start_idx) = find_suffix_and_index(file_stem);
 

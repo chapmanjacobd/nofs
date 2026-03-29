@@ -956,7 +956,7 @@ fn main() -> Result<()> {
             let parsed_size = size.first().map(|s| parse_size_filter(s));
 
             // Get share for context-aware paths
-            let share = extract_share_from_paths(&pool_mgr, sources, destination)?;
+            let share = extract_share_from_paths(&pool_mgr, sources, destination);
 
             let config = commands::cp::CopyConfig {
                 is_copy: true,
@@ -1007,7 +1007,7 @@ fn main() -> Result<()> {
             let parsed_size = size.first().map(|s| parse_size_filter(s));
 
             // Get share for context-aware paths
-            let share = extract_share_from_paths(&pool_mgr, sources, destination)?;
+            let share = extract_share_from_paths(&pool_mgr, sources, destination);
 
             let stats = commands::mv::execute(
                 sources,
@@ -1091,27 +1091,23 @@ fn extract_share_from_paths<'a>(
     pool_mgr: &'a pool::PoolManager,
     sources: &[String],
     destination: &str,
-) -> Result<Option<&'a pool::Pool>> {
+) -> Option<&'a pool::Pool> {
     // Check if any path has a context prefix
     for path in sources.iter().chain(std::iter::once(&destination.to_string())) {
-        if let Some((ctx, after_colon)) = path.split_once(':') {
-            // Check for path separators (both Unix / and Windows \) to distinguish
-            // share paths (e.g., "media:/movies") from Windows drive letters (e.g., "C:\")
-            if !ctx.contains('/') && !ctx.contains('\\') {
-                // Check if this looks like a Windows drive letter (single letter followed by colon)
-                // e.g., "C:", "D:", etc.
-                let is_windows_drive = ctx.len() == 1 && ctx.chars().next().is_some_and(|c| c.is_ascii_alphabetic());
+        let parsed = utils::parse_path_with_context(path);
 
-                // Also check if the part after colon starts with a path separator (e.g., "C:\path" or "C:/path")
-                let has_drive_separator = after_colon.starts_with('\\') || after_colon.starts_with('/');
+        // Skip if no colon or UNC path
+        if parsed.has_no_colon || parsed.is_unc {
+            continue;
+        }
 
-                if !is_windows_drive || !has_drive_separator {
-                    // This looks like a context prefix
-                    let share = pool_mgr.get_pool(ctx)?;
-                    return Ok(Some(share));
-                }
+        // Try to find a pool that matches the prefix
+        for pool in pool_mgr.pools().values() {
+            if parsed.matches_share(&pool.name) {
+                return Some(pool);
             }
         }
     }
-    Ok(None)
+
+    None
 }

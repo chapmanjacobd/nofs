@@ -7,6 +7,7 @@ use crate::cache::OperationCache;
 use crate::config::Config;
 use crate::error::{NofsError, Result};
 use crate::policy::Policy;
+use crate::utils;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
@@ -185,25 +186,44 @@ impl PoolManager {
         names
     }
 
+    /// Get all pools
+    #[must_use]
+    pub const fn pools(&self) -> &HashMap<String, Pool> {
+        &self.pools
+    }
+
     /// Parse a context:path reference and return the appropriate pool
     ///
     /// # Errors
     ///
-    /// Returns an error if the context is not found.
-    #[allow(clippy::arithmetic_side_effects)]
+    /// Returns an error if the context is specified but not found.
     pub fn resolve_context_path<'ctx>(&'ctx self, input: &'ctx str) -> Result<(&'ctx Pool, &'ctx str)> {
-        if let Some(colon_idx) = input.find(':') {
-            let context = &input[..colon_idx];
-            // Strip leading `/` to make path relative to share root
-            let path = input[colon_idx + 1..].trim_start_matches('/');
-            let pool = self.get_pool(context)?;
-            Ok((pool, path))
-        } else {
-            // No context specified, use default pool
-            // Strip leading `/` to make path relative to share root
+        let parsed = utils::parse_path_with_context(input);
+
+        // No colon or UNC path - use default pool
+        if parsed.has_no_colon || parsed.is_unc {
+            let pool = self.default_pool()?;
+            let path = input.trim_start_matches('/');
+            return Ok((pool, path));
+        }
+
+        // Check if prefix matches any share name
+        for pool in self.pools.values() {
+            if parsed.matches_share(&pool.name) {
+                let path = parsed.path_after_colon.trim_start_matches('/');
+                return Ok((pool, path));
+            }
+        }
+
+        // Prefix doesn't match any share
+        // If it looks like a Windows drive (e.g., "C:\"), fall back to default pool
+        // Otherwise, it's an invalid share name - return error
+        if parsed.looks_like_windows_drive() {
             let pool = self.default_pool()?;
             let path = input.trim_start_matches('/');
             Ok((pool, path))
+        } else {
+            Err(NofsError::Config(format!("Share '{}' not found", parsed.prefix)))
         }
     }
 }

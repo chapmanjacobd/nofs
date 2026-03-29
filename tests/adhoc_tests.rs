@@ -123,10 +123,7 @@ mod tests {
         let stdout_normalized = output.stdout.replace('\\', "/");
         let branch1_path = branch1.display().to_string().replace('\\', "/");
         let branch2_path = branch2.display().to_string().replace('\\', "/");
-        assert!(
-            stdout_normalized.contains(&branch1_path)
-                || stdout_normalized.contains(&branch2_path)
-        );
+        assert!(stdout_normalized.contains(&branch1_path) || stdout_normalized.contains(&branch2_path));
     }
 
     #[test]
@@ -287,7 +284,12 @@ mod tests {
         // Normalize path separators for cross-platform compatibility
         let branch_path = branch.display().to_string().replace('\\', "/");
         let stdout_normalized = output.stdout.replace('\\', "/");
-        assert!(stdout_normalized.contains(&branch_path), "Expected stdout to contain '{}', got: {}", branch_path, output.stdout);
+        assert!(
+            stdout_normalized.contains(&branch_path),
+            "Expected stdout to contain '{}', got: {}",
+            branch_path,
+            output.stdout
+        );
     }
 
     #[test]

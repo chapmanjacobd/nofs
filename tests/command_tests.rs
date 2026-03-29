@@ -118,6 +118,33 @@ paths = ['{0}/disk1', '{0}/disk2']
     }
 
     #[test]
+    fn single_letter_share_name() {
+        // Test that a single-letter share name (e.g., "d") is resolved correctly
+        // and not confused with Windows drive letters. This test runs on all platforms.
+        let ctx = TestContext::new("single_letter_share");
+
+        let _ = ctx.create_branch("disk1", &["file.txt"]);
+
+        let config = format!(
+            r"
+[share.d]
+paths = ['{0}/disk1']
+",
+            ctx.root.display()
+        );
+
+        ctx.write_config(&config);
+
+        // Access file using single-letter share name "d"
+        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "where", "d:file.txt"]);
+
+        assert!(output.success(), "Command failed: {}", output.stderr);
+        // Should find the file in the "d" share
+        let normalized_output = output.stdout.replace('\\', "/");
+        assert!(normalized_output.contains("disk1/file.txt"));
+    }
+
+    #[test]
     fn where_all_flag() {
         let ctx = TestContext::new("cmd_where_all");
 
