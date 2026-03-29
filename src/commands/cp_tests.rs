@@ -8,6 +8,17 @@ use crate::commands::mv::execute as mv_execute;
 use std::fs;
 use std::path::{Path, PathBuf};
 
+/// Helper to assert result is OK with better error reporting
+fn assert_ok<T: std::fmt::Debug>(result: Result<T, crate::error::NofsError>, test_name: &str) -> T {
+    match result {
+        Ok(v) => v,
+        Err(e) => {
+            eprintln!("{} failed: {:?}", test_name, e);
+            panic!("{} failed: {:?}", test_name, e);
+        }
+    }
+}
+
 fn setup_test_dir(name: &str) -> PathBuf {
     let test_dir = std::env::temp_dir().join(format!("nofs_test_{name}"));
     let _ = fs::remove_dir_all(&test_dir);
@@ -60,7 +71,7 @@ fn test_simple_copy() {
         None,
     );
 
-    assert!(result.is_ok());
+    assert_ok(result, "test_simple_copy");
 
     let dest_file = dest.join("src").join("file.txt");
     assert!(file_exists(&dest_file));
@@ -99,7 +110,7 @@ fn test_simple_move() {
         None,
     );
 
-    assert!(result.is_ok());
+    assert_ok(result, "test_simple_move");
 
     let dest_file = dest.join("src").join("file.txt");
     assert!(file_exists(&dest_file));
@@ -141,7 +152,7 @@ fn test_copy_with_conflict_skip() {
         None,
     );
 
-    assert!(result.is_ok());
+    assert_ok(result, "test_copy_with_conflict_skip");
     assert_eq!(read_file(&dest_file), "old content"); // Should keep old content
     assert_eq!(read_file(&src_file), "new content"); // Source unchanged
 
@@ -184,7 +195,7 @@ fn test_copy_with_conflict_delete_dest() {
         None,
     );
 
-    assert!(result.is_ok());
+    assert_ok(result, "test_copy_with_conflict_skip");
     assert_eq!(read_file(&dest_file), "new content"); // Should have new content
 
     cleanup_test_dir(&test_dir);
@@ -225,7 +236,7 @@ fn test_copy_with_conflict_rename_dest() {
         None,
     );
 
-    assert!(result.is_ok());
+    assert_ok(result, "test_copy_with_conflict_skip");
     assert_eq!(read_file(&dest_file), "new content"); // New content at original path
     let renamed_file = dest_src.join("file_1.txt");
     assert!(file_exists(&renamed_file));
@@ -269,7 +280,7 @@ fn test_copy_with_conflict_rename_src() {
         None,
     );
 
-    assert!(result.is_ok());
+    assert_ok(result, "test_copy_with_conflict_skip");
     assert_eq!(read_file(&dest_file), "old content"); // Old content stays
     let renamed_file = dest_src.join("file_1.txt");
     assert!(file_exists(&renamed_file));
@@ -309,7 +320,7 @@ fn test_copy_with_hash_skip() {
         None,
     );
 
-    assert!(result.is_ok());
+    assert_ok(result, "test_copy_with_conflict_skip");
     assert_eq!(read_file(&dest_file), "identical content"); // Unchanged
 
     cleanup_test_dir(&test_dir);
@@ -346,7 +357,7 @@ fn test_copy_with_size_skip() {
         None,
     );
 
-    assert!(result.is_ok());
+    assert_ok(result, "test_copy_with_conflict_skip");
     assert_eq!(read_file(&dest_file), "same"); // Unchanged
 
     cleanup_test_dir(&test_dir);
@@ -383,7 +394,7 @@ fn test_copy_with_skip_larger() {
         None,
     );
 
-    assert!(result.is_ok());
+    assert_ok(result, "test_copy_with_conflict_skip");
     assert_eq!(read_file(&dest_file), "small"); // Source is larger, so skipped
 
     cleanup_test_dir(&test_dir);
@@ -424,7 +435,7 @@ fn test_copy_with_delete_dest_larger() {
         None,
     );
 
-    assert!(result.is_ok());
+    assert_ok(result, "test_copy_with_conflict_skip");
     assert_eq!(read_file(&dest_file), "small"); // Dest was larger, deleted and replaced
 
     cleanup_test_dir(&test_dir);
@@ -458,7 +469,10 @@ fn test_copy_directory_recursive() {
         None,
     );
 
-    assert!(result.is_ok());
+    if let Err(e) = &result {
+        eprintln!("test_copy_directory_recursive failed: {:?}", e);
+    }
+    assert!(result.is_ok(), "copy directory recursive failed: {:?}", result.unwrap_err());
 
     let dest_file1 = dest.join("src").join("file1.txt");
     let dest_file2 = dest.join("src").join("subdir").join("file2.txt");
@@ -500,7 +514,7 @@ fn test_copy_simulation() {
         None,
     );
 
-    assert!(result.is_ok());
+    assert_ok(result, "test_copy_with_conflict_skip");
 
     // Destination should NOT have the file (simulation mode)
     let dest_file = dest.join("src").join("file.txt");
@@ -538,7 +552,7 @@ fn test_copy_with_extension_filter() {
         None,
     );
 
-    assert!(result.is_ok());
+    assert_ok(result, "test_copy_with_conflict_skip");
 
     assert!(file_exists(&dest.join("src").join("file.txt")));
     assert!(file_exists(&dest.join("src").join("file.go")));
@@ -575,7 +589,7 @@ fn test_copy_with_file_limit() {
         None,
     );
 
-    assert!(result.is_ok());
+    assert_ok(result, "test_copy_with_conflict_skip");
 
     // Should have copied only 2 files
     let dest_dir = dest.join("src");
@@ -619,8 +633,7 @@ fn test_global_file_limit() {
         None,
     );
 
-    assert!(result.is_ok());
-    let stats = result.unwrap();
+    let stats = assert_ok(result, "test_global_file_limit");
 
     // If it's global, files_copied should be 2.
     // If it's per-source, it will be 4.
@@ -667,7 +680,7 @@ fn test_folder_over_file_conflict() {
         None,
     );
 
-    assert!(result.is_ok());
+    assert_ok(result, "test_copy_with_conflict_skip");
 
     // Folder should exist at original path
     assert!(file_exists(&dest_src.join("conflict").join("inner.txt")));
@@ -711,7 +724,7 @@ fn test_file_over_folder_conflict() {
         None,
     );
 
-    assert!(result.is_ok());
+    assert_ok(result, "test_copy_with_conflict_skip");
 
     // File should be moved into folder as conflict/conflict
     assert!(file_exists(&dest_src.join("conflict").join("conflict")));
@@ -745,7 +758,7 @@ fn test_multiple_sources() {
 
     let result = cp_execute(&sources, &dest.to_string_lossy(), &config, None);
 
-    assert!(result.is_ok());
+    assert_ok(result, "test_multiple_sources");
 
     assert!(file_exists(&dest.join("src1").join("file1.txt")));
     assert!(file_exists(&dest.join("src2").join("file2.txt")));
@@ -1011,7 +1024,7 @@ fn test_copy_with_conflict_delete_src() {
         None,
     );
 
-    assert!(result.is_ok());
+    assert_ok(result, "test_copy_with_conflict_skip");
     assert_eq!(read_file(&dest_file), "old content"); // Dest unchanged
     assert!(!file_exists(&src_file)); // Source deleted
 
@@ -1052,7 +1065,7 @@ fn test_copy_with_skip_smaller() {
         None,
     );
 
-    assert!(result.is_ok());
+    assert_ok(result, "test_copy_with_conflict_skip");
     assert_eq!(read_file(&dest_file), "larger content here"); // Dest unchanged (src is smaller)
 
     cleanup_test_dir(&test_dir);
@@ -1092,7 +1105,7 @@ fn test_copy_with_delete_dest_smaller() {
         None,
     );
 
-    assert!(result.is_ok());
+    assert_ok(result, "test_copy_with_conflict_skip");
     assert_eq!(read_file(&dest_file), "larger content here"); // Dest was smaller, replaced
 
     cleanup_test_dir(&test_dir);
@@ -1132,7 +1145,7 @@ fn test_copy_with_delete_src_smaller() {
         None,
     );
 
-    assert!(result.is_ok());
+    assert_ok(result, "test_copy_with_conflict_skip");
     assert_eq!(read_file(&dest_file), "larger content here"); // Dest unchanged
     assert!(!file_exists(&src_file)); // Source was smaller, deleted
 
@@ -1173,7 +1186,7 @@ fn test_copy_with_delete_src_larger() {
         None,
     );
 
-    assert!(result.is_ok());
+    assert_ok(result, "test_copy_with_conflict_skip");
     assert_eq!(read_file(&dest_file), "small"); // Dest unchanged
     assert!(!file_exists(&src_file)); // Source was larger, deleted
 
@@ -1211,7 +1224,7 @@ fn test_file_over_folder_skip() {
         None,
     );
 
-    assert!(result.is_ok());
+    assert_ok(result, "test_copy_with_conflict_skip");
     // Folder unchanged, file not copied
     assert!(file_exists(&dest_src.join("conflict").join("inner.txt")));
     assert!(!file_exists(&dest_src.join("conflict").join("conflict")));
@@ -1250,7 +1263,7 @@ fn test_file_over_folder_delete_dest() {
         None,
     );
 
-    assert!(result.is_ok());
+    assert_ok(result, "test_copy_with_conflict_skip");
     // Folder deleted, file at original path
     assert!(file_exists(&dest_src.join("conflict")));
     assert_eq!(read_file(&dest_src.join("conflict")), "is a file");
@@ -1289,7 +1302,7 @@ fn test_folder_over_file_skip() {
         None,
     );
 
-    assert!(result.is_ok());
+    assert_ok(result, "test_copy_with_conflict_skip");
     // File unchanged, folder not copied
     assert!(file_exists(&dest_src.join("conflict")));
     assert_eq!(read_file(&dest_src.join("conflict")), "is a file");
@@ -1329,7 +1342,7 @@ fn test_folder_over_file_delete_src() {
         None,
     );
 
-    assert!(result.is_ok());
+    assert_ok(result, "test_copy_with_conflict_skip");
     // File unchanged, folder deleted from source
     assert!(file_exists(&dest_src.join("conflict")));
     assert_eq!(read_file(&dest_src.join("conflict")), "is a file");
@@ -1369,7 +1382,7 @@ fn test_folder_over_file_delete_dest() {
         None,
     );
 
-    assert!(result.is_ok());
+    assert_ok(result, "test_copy_with_conflict_skip");
     // File deleted, folder created
     assert!(file_exists(&dest_src.join("conflict").join("inner.txt")));
     assert!(!file_exists(&dest_src.join("conflict_1")));
@@ -1408,7 +1421,7 @@ fn test_folder_over_file_rename_src() {
         None,
     );
 
-    assert!(result.is_ok());
+    assert_ok(result, "test_copy_with_conflict_skip");
     // File unchanged, folder at renamed path
     assert!(file_exists(&dest_src.join("conflict")));
     assert!(file_exists(&dest_src.join("conflict_1").join("inner.txt")));
@@ -1447,7 +1460,7 @@ fn test_folder_over_folder_merge() {
         None,
     );
 
-    assert!(result.is_ok());
+    assert_ok(result, "test_copy_with_conflict_skip");
     // Both files should exist (merged)
     assert!(file_exists(&dest.join("src").join("subdir").join("file1.txt")));
     assert!(file_exists(&dest.join("src").join("subdir").join("file2.txt")));
@@ -1489,7 +1502,7 @@ fn test_copy_with_delete_dest_hash() {
         None,
     );
 
-    assert!(result.is_ok());
+    assert_ok(result, "test_copy_with_conflict_skip");
     assert_eq!(read_file(&dest_file), "identical content"); // Replaced with same content
 
     cleanup_test_dir(&test_dir);
@@ -1529,7 +1542,7 @@ fn test_copy_with_delete_dest_size() {
         None,
     );
 
-    assert!(result.is_ok());
+    assert_ok(result, "test_copy_with_conflict_skip");
     assert_eq!(read_file(&dest_file), "same size!"); // Replaced
 
     cleanup_test_dir(&test_dir);
@@ -1569,7 +1582,7 @@ fn test_copy_with_delete_src_hash() {
         None,
     );
 
-    assert!(result.is_ok());
+    assert_ok(result, "test_copy_with_conflict_skip");
     assert_eq!(read_file(&dest_file), "identical content"); // Dest unchanged
     assert!(!file_exists(&src_file)); // Source deleted (hash matched)
 
@@ -1610,7 +1623,7 @@ fn test_copy_with_delete_src_size() {
         None,
     );
 
-    assert!(result.is_ok());
+    assert_ok(result, "test_copy_with_conflict_skip");
     assert_eq!(read_file(&dest_file), "same size?"); // Dest unchanged
     assert!(!file_exists(&src_file)); // Source deleted (size matched)
 
@@ -1648,7 +1661,7 @@ fn test_file_over_folder_rename_src() {
         None,
     );
 
-    assert!(result.is_ok());
+    assert_ok(result, "test_copy_with_conflict_skip");
     // File should be renamed (conflict_1) at dest/src level
     assert!(file_exists(&dest_src.join("conflict_1")));
     assert_eq!(read_file(&dest_src.join("conflict_1")), "is a file");
@@ -1689,7 +1702,7 @@ fn test_file_over_folder_rename_dest() {
         None,
     );
 
-    assert!(result.is_ok());
+    assert_ok(result, "test_copy_with_conflict_skip");
     // Folder should be renamed
     assert!(file_exists(&dest_src.join("conflict_1").join("inner.txt")));
     // File at original path
@@ -1730,7 +1743,7 @@ fn test_folder_over_file_rename_dest() {
         None,
     );
 
-    assert!(result.is_ok());
+    assert_ok(result, "test_copy_with_conflict_skip");
     // File should be renamed
     assert!(file_exists(&dest_src.join("conflict_1")));
     assert_eq!(read_file(&dest_src.join("conflict_1")), "is a file");
@@ -1778,7 +1791,7 @@ fn test_copy_skip_modified_newer() {
         None,
     );
 
-    assert!(result.is_ok());
+    assert_ok(result, "test_copy_with_conflict_skip");
     // Dest should keep old content (src was newer, so skipped)
     assert_eq!(read_file(&dest_file), "old content");
     assert_eq!(read_file(&src_file), "new content");
@@ -1824,7 +1837,7 @@ fn test_copy_skip_modified_older() {
         None,
     );
 
-    assert!(result.is_ok());
+    assert_ok(result, "test_copy_with_conflict_skip");
     // Dest should keep new content (src was older, so skipped)
     assert_eq!(read_file(&dest_file), "new content");
     assert_eq!(read_file(&src_file), "old content");
@@ -1870,7 +1883,7 @@ fn test_copy_delete_dest_modified_newer() {
         None,
     );
 
-    assert!(result.is_ok());
+    assert_ok(result, "test_copy_with_conflict_skip");
     // Dest should have new content (dest was deleted because src was newer)
     assert_eq!(read_file(&dest_file), "new content");
 
