@@ -1803,14 +1803,8 @@ fn get_unique_filename(base: &Path) -> PathBuf {
             let new_name_os = OsStr::from_bytes(&new_name).to_os_string();
             let new_path = dir.join(new_name_os);
 
-            // Use atomic file creation to avoid TOCTOU race conditions
-            // On Windows, we must drop the handle before deleting
-            if let Ok(handle) = std::fs::OpenOptions::new().write(true).create_new(true).open(&new_path) {
-                drop(handle); // Drop the file handle before deleting (required on Windows)
-                              // Small delay to ensure Windows releases the file handle
-                #[cfg(windows)]
-                std::thread::sleep(std::time::Duration::from_millis(1));
-                let _ = std::fs::remove_file(&new_path);
+            // Check if path exists
+            if !new_path.exists() {
                 return new_path;
             }
         }
@@ -1830,7 +1824,8 @@ fn get_unique_filename(base: &Path) -> PathBuf {
     #[cfg(not(unix))]
     {
         // Non-Unix (Windows): use UTF-8 strings
-        let Some(file_stem) = file_name.to_str() else {
+        let file_name_path = std::path::Path::new(file_name);
+        let Some(file_stem) = file_name_path.file_stem().and_then(|s| s.to_str()) else {
             // Invalid UTF-8 on Windows is rare; use lossy conversion as fallback
             let timestamp = std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
@@ -1838,7 +1833,7 @@ fn get_unique_filename(base: &Path) -> PathBuf {
                 .as_millis();
             return dir.join(format!("{}_{}", file_name.to_string_lossy(), timestamp));
         };
-        let extension = std::path::Path::new(file_name)
+        let extension = file_name_path
             .extension()
             .and_then(|s| s.to_str())
             .unwrap_or("");
@@ -1853,13 +1848,8 @@ fn get_unique_filename(base: &Path) -> PathBuf {
             };
             let new_path = dir.join(&new_name);
 
-            // Try to create file exclusively to check if name is available
-            // On Windows, we must drop the handle before deleting
-            if let Ok(handle) = std::fs::OpenOptions::new().write(true).create_new(true).open(&new_path) {
-                drop(handle); // Drop the file handle before deleting (required on Windows)
-                              // Small delay to ensure Windows releases the file handle
-                std::thread::sleep(std::time::Duration::from_millis(1));
-                let _ = std::fs::remove_file(&new_path);
+            // Check if path exists - use metadata for reliability on Windows
+            if std::fs::metadata(&new_path).is_err() {
                 return new_path;
             }
         }
