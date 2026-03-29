@@ -20,6 +20,32 @@ use std::ffi::OsStr;
 #[cfg(unix)]
 use std::os::unix::ffi::OsStrExt;
 
+/// Rename a file, handling Windows-specific edge cases.
+///
+/// On Windows, `fs::rename` fails if the destination exists. This helper
+/// retries the rename after removing the destination if it still exists
+/// due to filesystem caching.
+///
+/// # Errors
+///
+/// Returns an error if the rename operation fails.
+fn rename_file(src: &Path, dest: &Path) -> io::Result<()> {
+    #[cfg(windows)]
+    {
+        // On Windows, retry rename after removing destination if it still exists
+        if fs::rename(src, dest).is_err() {
+            // Destination might exist due to caching, remove it and try again
+            let _ = fs::remove_file(dest);
+            fs::rename(src, dest)?;
+        }
+    }
+    #[cfg(not(windows))]
+    {
+        fs::rename(src, dest)?;
+    }
+    Ok(())
+}
+
 /// Resolved path with branch information
 struct ResolvedPath {
     /// The resolved file system path
@@ -1166,20 +1192,9 @@ fn process_file(source: &Path, dest: &Path, config: &CopyConfig, stats: &Arc<Cop
         copy_file_contents(source, dest)?;
     } else {
         // Move the file (try rename first, fall back to copy+delete)
-        // On Windows, use replace to handle existing destination
-        #[cfg(windows)]
-        {
-            if fs::rename(source, dest).or_else(|_| fs::replace(source, dest)).is_err() {
-                copy_file_contents(source, dest)?;
-                fs::remove_file(source)?;
-            }
-        }
-        #[cfg(not(windows))]
-        {
-            if fs::rename(source, dest).is_err() {
-                copy_file_contents(source, dest)?;
-                fs::remove_file(source)?;
-            }
+        if rename_file(source, dest).is_err() {
+            copy_file_contents(source, dest)?;
+            fs::remove_file(source)?;
         }
     }
 
@@ -1354,19 +1369,7 @@ fn apply_required_strategy(
             }
             if !config.dry_run {
                 // First rename the existing destination
-                // On Windows, handle case where renamed_dest might still exist due to file system caching
-                #[cfg(windows)]
-                {
-                    if fs::rename(dest, &renamed_dest).is_err() {
-                        // Destination might exist due to caching, remove it and try again
-                        let _ = fs::remove_file(&renamed_dest);
-                        fs::rename(dest, &renamed_dest)?;
-                    }
-                }
-                #[cfg(not(windows))]
-                {
-                    fs::rename(dest, &renamed_dest)?;
-                }
+                rename_file(dest, &renamed_dest)?;
             }
             // Then copy/move source to original destination
             return process_file(source, dest, config, stats);
@@ -1438,18 +1441,7 @@ fn handle_file_over_folder(source: &Path, dest: &Path, config: &CopyConfig, stat
                 );
             }
             if !config.dry_run {
-                // On Windows, handle case where renamed_dest might still exist due to file system caching
-                #[cfg(windows)]
-                {
-                    if fs::rename(dest, &renamed_dest).is_err() {
-                        let _ = fs::remove_file(&renamed_dest);
-                        fs::rename(dest, &renamed_dest)?;
-                    }
-                }
-                #[cfg(not(windows))]
-                {
-                    fs::rename(dest, &renamed_dest)?;
-                }
+                rename_file(dest, &renamed_dest)?;
             }
             // Copy file to original path
             return process_file(source, dest, config, stats);
@@ -1544,18 +1536,7 @@ fn handle_folder_over_file(dest: &Path, source: &Path, config: &CopyConfig, stat
                 );
             }
             if !config.dry_run {
-                // On Windows, handle case where renamed_dest might still exist
-                #[cfg(windows)]
-                {
-                    if fs::rename(dest, &renamed_dest).is_err() {
-                        let _ = fs::remove_file(&renamed_dest);
-                        fs::rename(dest, &renamed_dest)?;
-                    }
-                }
-                #[cfg(not(windows))]
-                {
-                    fs::rename(dest, &renamed_dest)?;
-                }
+                rename_file(dest, &renamed_dest)?;
                 fs::create_dir_all(dest)?;
             }
             stats.folders_created.fetch_add(1, Ordering::Relaxed);
@@ -1573,18 +1554,7 @@ fn handle_folder_over_file(dest: &Path, source: &Path, config: &CopyConfig, stat
                 );
             }
             if !config.dry_run {
-                // On Windows, handle case where renamed_dest might still exist
-                #[cfg(windows)]
-                {
-                    if fs::rename(dest, &renamed_dest).is_err() {
-                        let _ = fs::remove_file(&renamed_dest);
-                        fs::rename(dest, &renamed_dest)?;
-                    }
-                }
-                #[cfg(not(windows))]
-                {
-                    fs::rename(dest, &renamed_dest)?;
-                }
+                rename_file(dest, &renamed_dest)?;
                 fs::create_dir_all(dest)?;
             }
             stats.folders_created.fetch_add(1, Ordering::Relaxed);
