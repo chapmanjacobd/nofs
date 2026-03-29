@@ -474,13 +474,13 @@ impl<'ctx> SearchPolicy<'ctx> {
                 if matching_with_space.is_empty() {
                     return Err(NofsError::PathNotFound(relative_path.display().to_string()));
                 }
-                // Safe: we just checked that matching_with_space is not empty
-                #[allow(clippy::expect_used)]
+                // Safe: we just checked that matching_with_space is not empty, so max_by_key will return Some
+                #[allow(clippy::unwrap_used)]
                 Ok(matching_with_space
                     .into_iter()
                     .max_by_key(|(_, space)| *space)
                     .map(|(b, _)| b)
-                    .expect("matching_with_space should not be empty"))
+                    .unwrap())
             }
             Policy::Lfs => {
                 let matching_with_space: Vec<(&Branch, u64)> = self
@@ -502,13 +502,13 @@ impl<'ctx> SearchPolicy<'ctx> {
                 if matching_with_space.is_empty() {
                     return Err(NofsError::PathNotFound(relative_path.display().to_string()));
                 }
-                // Safe: we just checked that matching_with_space is not empty
-                #[allow(clippy::expect_used)]
+                // Safe: we just checked that matching_with_space is not empty, so min_by_key will return Some
+                #[allow(clippy::unwrap_used)]
                 Ok(matching_with_space
                     .into_iter()
                     .min_by_key(|(_, space)| *space)
                     .map(|(b, _)| b)
-                    .expect("matching_with_space should not be empty"))
+                    .unwrap())
             }
             // For search operations, space-based and random policies fall back to "first found"
             // since the file already exists and we just need to locate it.
@@ -524,9 +524,9 @@ impl<'ctx> SearchPolicy<'ctx> {
                 if matching.is_empty() {
                     return Err(NofsError::PathNotFound(relative_path.display().to_string()));
                 }
-                // Safe: we just checked that matching is not empty
-                #[allow(clippy::expect_used)]
-                Ok(matching.first().copied().expect("matching should not be empty"))
+                // Safe: we just checked that matching is not empty, so first() will return Some
+                #[allow(clippy::unwrap_used)]
+                Ok(matching.first().copied().unwrap())
             }
         }
     }

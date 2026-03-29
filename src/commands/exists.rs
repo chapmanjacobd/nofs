@@ -20,34 +20,37 @@ pub fn execute(pool: &Pool, path: &str, verbose: bool, json: bool) -> Result<()>
 
     if pool.exists_cached(pool_path, &cache) {
         // File exists - print first location (cached)
-        if let Some(full_path) = pool.resolve_path_first_cached(pool_path, &cache) {
-            let full_path_str = full_path.display().to_string();
+        match pool.resolve_path_first_cached(pool_path, &cache) {
+            Ok(Some(full_path)) => {
+                let full_path_str = full_path.display().to_string();
 
-            if verbose {
-                eprintln!("selected:");
-                eprintln!("  {} (first-found policy)", full_path.display());
-            }
+                if verbose {
+                    eprintln!("selected:");
+                    eprintln!("  {} (first-found policy)", full_path.display());
+                }
 
-            if json {
-                let output = ExistsOutput {
-                    exists: true,
-                    path: Some(full_path_str),
-                };
-                println!("{}", serde_json::to_string_pretty(&output)?);
-            } else {
-                println!("{full_path_str}");
+                if json {
+                    let output = ExistsOutput {
+                        exists: true,
+                        path: Some(full_path_str),
+                    };
+                    println!("{}", serde_json::to_string_pretty(&output)?);
+                } else {
+                    println!("{full_path_str}");
+                }
             }
-        } else {
-            // Race condition: file was deleted between exists_cached and resolve_path_first_cached
-            // This can happen in concurrent environments where another process deletes the file
-            if json {
-                let output = ExistsOutput {
-                    exists: false,
-                    path: None,
-                };
-                println!("{}", serde_json::to_string_pretty(&output)?);
-            } else {
-                return Err(NofsError::Command(format!("'{path}' not found in share")));
+            Ok(None) | Err(_) => {
+                // Race condition: file was deleted between exists_cached and resolve_path_first_cached,
+                // or a thread panicked during resolution
+                if json {
+                    let output = ExistsOutput {
+                        exists: false,
+                        path: None,
+                    };
+                    println!("{}", serde_json::to_string_pretty(&output)?);
+                } else {
+                    return Err(NofsError::Command(format!("'{path}' not found in share")));
+                }
             }
         }
         Ok(())

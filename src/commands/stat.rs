@@ -26,9 +26,9 @@ pub fn execute(pool: &Pool, human: bool, verbose: bool, json: bool) -> Result<()
         writeln!(handle, "Writable branches: {}", pool.writable_branch_count())?;
     }
 
-    let total = pool.total_space_cached(&cache);
-    let used = pool.total_used_space_cached(&cache);
-    let available = pool.total_available_space_cached(&cache);
+    let total = pool.total_space_cached(&cache).unwrap_or(0);
+    let used = pool.total_used_space_cached(&cache).unwrap_or(0);
+    let available = pool.total_available_space_cached(&cache).unwrap_or(0);
 
     if verbose {
         writeln!(

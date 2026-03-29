@@ -41,8 +41,8 @@ pub fn execute(
     let folder_over_file_mode = parse_folder_conflict_mode(folder_over_file)?;
 
     let config = CopyConfig {
-        copy: false, // Move mode
-        simulate,
+        is_copy: false, // Move mode
+        dry_run: simulate,
         workers,
         verbose,
         file_over_file: file_over_file_strategy,

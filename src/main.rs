@@ -959,8 +959,8 @@ fn main() -> Result<()> {
             let share = extract_share_from_paths(&pool_mgr, sources, destination)?;
 
             let config = commands::cp::CopyConfig {
-                copy: true,
-                simulate: dry_run,
+                is_copy: true,
+                dry_run,
                 workers,
                 verbose: cli.verbose,
                 file_over_file: commands::cp::parse_file_over_file(&file_over_file)?,

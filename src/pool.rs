@@ -210,8 +210,12 @@ impl PoolManager {
 
 impl Pool {
     /// Get total available space across all RW branches
-    #[must_use]
-    pub fn total_available_space(&self) -> u64 {
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if any thread panicked during the space query, as this indicates
+    /// incomplete data.
+    pub fn total_available_space(&self) -> Result<u64> {
         std::thread::scope(|s| {
             let mut handles = Vec::new();
             for branch in &self.branches {
@@ -220,41 +224,68 @@ impl Pool {
                 }
             }
             let mut total: u64 = 0;
+            let mut any_panicked = false;
             for handle in handles {
                 match handle.join() {
                     Ok(Some(space)) => total = total.saturating_add(space),
                     Ok(None) => {} // Space query failed, skip this branch
-                    Err(_) => eprintln!("Warning: thread panicked while querying available space"),
+                    Err(_) => {
+                        eprintln!("Warning: thread panicked while querying available space");
+                        any_panicked = true;
+                    }
                 }
             }
-            total
+            if any_panicked {
+                Err(NofsError::Internal(
+                    "Thread panicked while querying available space; results may be incomplete".to_string(),
+                ))
+            } else {
+                Ok(total)
+            }
         })
     }
 
     /// Get total space across all branches
-    #[must_use]
-    pub fn total_space(&self) -> u64 {
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if any thread panicked during the space query, as this indicates
+    /// incomplete data.
+    pub fn total_space(&self) -> Result<u64> {
         std::thread::scope(|s| {
             let mut handles = Vec::new();
             for branch in &self.branches {
                 handles.push(s.spawn(|| branch.total_space().ok()));
             }
             let mut total: u64 = 0;
+            let mut any_panicked = false;
             for handle in handles {
                 match handle.join() {
                     Ok(Some(space)) => total = total.saturating_add(space),
                     Ok(None) => {} // Space query failed, skip this branch
-                    Err(_) => eprintln!("Warning: thread panicked while querying total space"),
+                    Err(_) => {
+                        eprintln!("Warning: thread panicked while querying total space");
+                        any_panicked = true;
+                    }
                 }
             }
-            total
+            if any_panicked {
+                Err(NofsError::Internal(
+                    "Thread panicked while querying total space; results may be incomplete".to_string(),
+                ))
+            } else {
+                Ok(total)
+            }
         })
     }
 
     /// Get total used space across all branches
-    #[must_use]
-    pub fn total_used_space(&self) -> u64 {
-        self.total_space().saturating_sub(self.total_available_space())
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if any thread panicked during the space query.
+    pub fn total_used_space(&self) -> Result<u64> {
+        Ok(self.total_space()?.saturating_sub(self.total_available_space()?))
     }
 
     /// Get number of branches
@@ -293,8 +324,12 @@ impl Pool {
 
     /// Resolve a pool path to actual branch paths
     /// Returns all branches where the path exists
-    #[must_use]
-    pub fn resolve_path(&self, pool_path: &Path) -> Vec<PathBuf> {
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if any thread panicked during path resolution, as this indicates
+    /// incomplete results.
+    pub fn resolve_path(&self, pool_path: &Path) -> Result<Vec<PathBuf>> {
         std::thread::scope(|s| {
             let mut handles = Vec::new();
             for branch in &self.branches {
@@ -305,20 +340,33 @@ impl Pool {
             }
 
             let mut results = Vec::new();
+            let mut any_panicked = false;
             for handle in handles {
                 match handle.join() {
                     Ok(Some(path)) => results.push(path),
                     Ok(None) => {} // Path doesn't exist in this branch
-                    Err(_) => eprintln!("Warning: thread panicked while resolving path"),
+                    Err(_) => {
+                        eprintln!("Warning: thread panicked while resolving path");
+                        any_panicked = true;
+                    }
                 }
             }
-            results
+            if any_panicked {
+                Err(NofsError::Internal(
+                    "Thread panicked while resolving path; results may be incomplete".to_string(),
+                ))
+            } else {
+                Ok(results)
+            }
         })
     }
 
     /// Find the first branch where a path exists
-    #[must_use]
-    pub fn resolve_path_first(&self, pool_path: &Path) -> Option<PathBuf> {
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if any thread panicked during path resolution.
+    pub fn resolve_path_first(&self, pool_path: &Path) -> Result<Option<PathBuf>> {
         std::thread::scope(|s| {
             let mut handles = Vec::new();
             for branch in &self.branches {
@@ -328,14 +376,22 @@ impl Pool {
                 }));
             }
 
+            let mut any_panicked = false;
             for handle in handles {
                 match handle.join() {
-                    Ok(Some(path)) => return Some(path),
+                    Ok(Some(path)) => return Ok(Some(path)),
                     Ok(None) => {} // Path doesn't exist in this branch
-                    Err(_) => eprintln!("Warning: thread panicked while resolving path"),
+                    Err(_) => {
+                        eprintln!("Warning: thread panicked while resolving path");
+                        any_panicked = true;
+                    }
                 }
             }
-            None
+            if any_panicked {
+                Err(NofsError::Internal("Thread panicked while resolving path".to_string()))
+            } else {
+                Ok(None)
+            }
         })
     }
 
@@ -373,8 +429,12 @@ impl Pool {
     // runtime overhead that defeats the purpose of caching.
 
     /// Get total available space across all RW branches (cached)
-    #[must_use]
-    pub fn total_available_space_cached(&self, cache: &OperationCache) -> u64 {
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if any thread panicked during the space query, as this indicates
+    /// incomplete data.
+    pub fn total_available_space_cached(&self, cache: &OperationCache) -> Result<u64> {
         std::thread::scope(|s| {
             let mut handles = Vec::new();
             for branch in &self.branches {
@@ -383,48 +443,80 @@ impl Pool {
                 }
             }
             let mut total: u64 = 0;
+            let mut any_panicked = false;
             for handle in handles {
                 match handle.join() {
                     Ok(Some(space)) => total = total.saturating_add(space),
                     Ok(None) => {} // Space query failed, skip this branch
-                    Err(_) => eprintln!("Warning: thread panicked while querying available space (cached)"),
+                    Err(_) => {
+                        eprintln!("Warning: thread panicked while querying available space (cached)");
+                        any_panicked = true;
+                    }
                 }
             }
-            total
+            if any_panicked {
+                Err(NofsError::Internal(
+                    "Thread panicked while querying available space (cached); results may be incomplete".to_string(),
+                ))
+            } else {
+                Ok(total)
+            }
         })
     }
 
     /// Get total space across all branches (cached)
-    #[must_use]
-    pub fn total_space_cached(&self, cache: &OperationCache) -> u64 {
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if any thread panicked during the space query, as this indicates
+    /// incomplete data.
+    pub fn total_space_cached(&self, cache: &OperationCache) -> Result<u64> {
         std::thread::scope(|s| {
             let mut handles = Vec::new();
             for branch in &self.branches {
                 handles.push(s.spawn(|| branch.total_space_cached(cache).ok()));
             }
             let mut total: u64 = 0;
+            let mut any_panicked = false;
             for handle in handles {
                 match handle.join() {
                     Ok(Some(space)) => total = total.saturating_add(space),
                     Ok(None) => {} // Space query failed, skip this branch
-                    Err(_) => eprintln!("Warning: thread panicked while querying total space (cached)"),
+                    Err(_) => {
+                        eprintln!("Warning: thread panicked while querying total space (cached)");
+                        any_panicked = true;
+                    }
                 }
             }
-            total
+            if any_panicked {
+                Err(NofsError::Internal(
+                    "Thread panicked while querying total space (cached); results may be incomplete".to_string(),
+                ))
+            } else {
+                Ok(total)
+            }
         })
     }
 
     /// Get total used space across all branches (cached)
-    #[must_use]
-    pub fn total_used_space_cached(&self, cache: &OperationCache) -> u64 {
-        self.total_space_cached(cache)
-            .saturating_sub(self.total_available_space_cached(cache))
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if any thread panicked during the space query.
+    pub fn total_used_space_cached(&self, cache: &OperationCache) -> Result<u64> {
+        Ok(self
+            .total_space_cached(cache)?
+            .saturating_sub(self.total_available_space_cached(cache)?))
     }
 
     /// Resolve a pool path to actual branch paths (cached)
     /// Returns all branches where the path exists
-    #[must_use]
-    pub fn resolve_path_cached(&self, pool_path: &Path, cache: &OperationCache) -> Vec<PathBuf> {
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if any thread panicked during path resolution, as this indicates
+    /// incomplete results.
+    pub fn resolve_path_cached(&self, pool_path: &Path, cache: &OperationCache) -> Result<Vec<PathBuf>> {
         std::thread::scope(|s| {
             let mut handles = Vec::new();
             for branch in &self.branches {
@@ -436,20 +528,33 @@ impl Pool {
             }
 
             let mut results = Vec::new();
+            let mut any_panicked = false;
             for handle in handles {
                 match handle.join() {
                     Ok(Some(path)) => results.push(path),
                     Ok(None) => {} // Path doesn't exist in this branch
-                    Err(_) => eprintln!("Warning: thread panicked while resolving path (cached)"),
+                    Err(_) => {
+                        eprintln!("Warning: thread panicked while resolving path (cached)");
+                        any_panicked = true;
+                    }
                 }
             }
-            results
+            if any_panicked {
+                Err(NofsError::Internal(
+                    "Thread panicked while resolving path (cached); results may be incomplete".to_string(),
+                ))
+            } else {
+                Ok(results)
+            }
         })
     }
 
     /// Find the first branch where a path exists (cached)
-    #[must_use]
-    pub fn resolve_path_first_cached(&self, pool_path: &Path, cache: &OperationCache) -> Option<PathBuf> {
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if any thread panicked during path resolution.
+    pub fn resolve_path_first_cached(&self, pool_path: &Path, cache: &OperationCache) -> Result<Option<PathBuf>> {
         std::thread::scope(|s| {
             let mut handles = Vec::new();
             for branch in &self.branches {
@@ -460,14 +565,24 @@ impl Pool {
                 }));
             }
 
+            let mut any_panicked = false;
             for handle in handles {
                 match handle.join() {
-                    Ok(Some(path)) => return Some(path),
+                    Ok(Some(path)) => return Ok(Some(path)),
                     Ok(None) => {} // Path doesn't exist in this branch
-                    Err(_) => eprintln!("Warning: thread panicked while resolving path (cached)"),
+                    Err(_) => {
+                        eprintln!("Warning: thread panicked while resolving path (cached)");
+                        any_panicked = true;
+                    }
                 }
             }
-            None
+            if any_panicked {
+                Err(NofsError::Internal(
+                    "Thread panicked while resolving path (cached)".to_string(),
+                ))
+            } else {
+                Ok(None)
+            }
         })
     }
 
@@ -540,21 +655,21 @@ mod tests {
     #[test]
     fn test_pool_total_available_space() {
         let (_temp, pool) = create_test_pool();
-        let space = pool.total_available_space();
+        let space = pool.total_available_space().unwrap();
         assert!(space > 0);
     }
 
     #[test]
     fn test_pool_total_space() {
         let (_temp, pool) = create_test_pool();
-        let space = pool.total_space();
+        let space = pool.total_space().unwrap();
         assert!(space > 0);
     }
 
     #[test]
     fn test_pool_total_used_space() {
         let (_temp, pool) = create_test_pool();
-        let used = pool.total_used_space();
+        let used = pool.total_used_space().unwrap();
         // Note: used space can be 0 on empty filesystems
         let _ = used;
     }
@@ -603,7 +718,7 @@ mod tests {
         let file_path = temp.path().join("branch1").join("test.txt");
         fs::write(&file_path, "content").unwrap();
 
-        let resolved = pool.resolve_path(Path::new("test.txt"));
+        let resolved = pool.resolve_path(Path::new("test.txt")).unwrap();
         assert_eq!(resolved.len(), 1);
         assert!(resolved.first().unwrap().exists());
     }
@@ -614,7 +729,7 @@ mod tests {
         let file_path = temp.path().join("branch1").join("test.txt");
         fs::write(&file_path, "content").unwrap();
 
-        let resolved = pool.resolve_path_first(Path::new("test.txt"));
+        let resolved = pool.resolve_path_first(Path::new("test.txt")).unwrap();
         assert!(resolved.is_some());
         assert!(resolved.unwrap().exists());
     }
@@ -622,10 +737,10 @@ mod tests {
     #[test]
     fn test_pool_resolve_path_not_found() {
         let (_temp, pool) = create_test_pool();
-        let resolved = pool.resolve_path(Path::new("nonexistent.txt"));
+        let resolved = pool.resolve_path(Path::new("nonexistent.txt")).unwrap();
         assert!(resolved.is_empty());
 
-        let resolved_first = pool.resolve_path_first(Path::new("nonexistent.txt"));
+        let resolved_first = pool.resolve_path_first(Path::new("nonexistent.txt")).unwrap();
         assert!(resolved_first.is_none());
     }
 
@@ -664,20 +779,20 @@ mod tests {
         let file_path = temp.path().join("branch1").join("test.txt");
         fs::write(&file_path, "content").unwrap();
 
-        let available = pool.total_available_space_cached(&cache);
+        let available = pool.total_available_space_cached(&cache).unwrap();
         assert!(available > 0);
 
-        let total = pool.total_space_cached(&cache);
+        let total = pool.total_space_cached(&cache).unwrap();
         assert!(total > 0);
 
-        let used = pool.total_used_space_cached(&cache);
+        let used = pool.total_used_space_cached(&cache).unwrap();
         // Note: used space can be 0 on empty filesystems
         let _ = used;
 
-        let resolved = pool.resolve_path_cached(Path::new("test.txt"), &cache);
+        let resolved = pool.resolve_path_cached(Path::new("test.txt"), &cache).unwrap();
         assert_eq!(resolved.len(), 1);
 
-        let resolved_first = pool.resolve_path_first_cached(Path::new("test.txt"), &cache);
+        let resolved_first = pool.resolve_path_first_cached(Path::new("test.txt"), &cache).unwrap();
         assert!(resolved_first.is_some());
 
         let exists = pool.exists_cached(Path::new("test.txt"), &cache);

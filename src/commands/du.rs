@@ -58,7 +58,7 @@ pub fn execute(
     let cache = OperationCache::new();
 
     // Resolve the path across all branches (cached)
-    let resolved_paths = pool.resolve_path_cached(pool_path_obj, &cache);
+    let resolved_paths = pool.resolve_path_cached(pool_path_obj, &cache).unwrap_or_default();
 
     if verbose {
         writeln!(handle, "Found {} branch(es) containing this path", resolved_paths.len())?;

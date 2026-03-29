@@ -107,25 +107,30 @@ pub fn execute(
         }
     }
     // Show first branch containing the file (cached)
-    else if let Some(full_path) = pool.resolve_path_first_cached(pool_path, &cache) {
-        if verbose {
-            eprintln!("selected:");
-            eprintln!("  {} (first-found policy)", full_path.display());
-        }
+    else {
+        match pool.resolve_path_first_cached(pool_path, &cache) {
+            Ok(Some(full_path)) => {
+                if verbose {
+                    eprintln!("selected:");
+                    eprintln!("  {} (first-found policy)", full_path.display());
+                }
 
-        if json {
-            let output = WhichOutput {
-                path: path.to_string(),
-                locations: vec![full_path.display().to_string()],
-                conflict: None,
-            };
-            println!("{}", serde_json::to_string_pretty(&output)?);
-        } else {
-            println!("{}", full_path.display());
-        }
-    } else {
-        if !json {
-            eprintln!("nofs: '{path}' not found in share");
+                if json {
+                    let output = WhichOutput {
+                        path: path.to_string(),
+                        locations: vec![full_path.display().to_string()],
+                        conflict: None,
+                    };
+                    println!("{}", serde_json::to_string_pretty(&output)?);
+                } else {
+                    println!("{}", full_path.display());
+                }
+            }
+            Ok(None) | Err(_) => {
+                if !json {
+                    eprintln!("nofs: '{path}' not found in share");
+                }
+            }
         }
     }
 

@@ -18,18 +18,21 @@ pub fn execute(pool: &Pool, path: &str, verbose: bool) -> Result<()> {
     let cache = OperationCache::new();
 
     // Find first branch containing the file (cached)
-    if let Some(full_path) = pool.resolve_path_first_cached(pool_path, &cache) {
-        if verbose {
-            eprintln!("selected:");
-            eprintln!("  {} (first-found policy)", full_path.display());
-        }
+    match pool.resolve_path_first_cached(pool_path, &cache) {
+        Ok(Some(full_path)) => {
+            if verbose {
+                eprintln!("selected:");
+                eprintln!("  {} (first-found policy)", full_path.display());
+            }
 
-        let buffer = std::fs::read(&full_path)?;
-        io::stdout().write_all(&buffer)?;
-    } else {
-        return Err(NofsError::Command(format!(
-            "cannot open '{path}' for reading: No such file"
-        )));
+            let buffer = std::fs::read(&full_path)?;
+            io::stdout().write_all(&buffer)?;
+        }
+        Ok(None) | Err(_) => {
+            return Err(NofsError::Command(format!(
+                "cannot open '{path}' for reading: No such file"
+            )));
+        }
     }
 
     Ok(())

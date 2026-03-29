@@ -46,8 +46,8 @@ fn test_simple_copy() {
     create_file(&src_file, "hello world");
 
     let config = CopyConfig {
-        copy: true,
-        simulate: false,
+        is_copy: true,
+        dry_run: false,
         workers: 1,
         verbose: false,
         ..Default::default()
@@ -126,8 +126,8 @@ fn test_copy_with_conflict_skip() {
     strategy.required = FileOverFileMode::Skip;
 
     let config = CopyConfig {
-        copy: true,
-        simulate: false,
+        is_copy: true,
+        dry_run: false,
         workers: 1,
         verbose: false,
         file_over_file: strategy,
@@ -169,8 +169,8 @@ fn test_copy_with_conflict_delete_dest() {
     let strategy = parse_file_over_file("delete-dest").unwrap();
 
     let config = CopyConfig {
-        copy: true,
-        simulate: false,
+        is_copy: true,
+        dry_run: false,
         workers: 1,
         verbose: false,
         file_over_file: strategy,
@@ -210,8 +210,8 @@ fn test_copy_with_conflict_rename_dest() {
     let strategy = parse_file_over_file("rename-dest").unwrap();
 
     let config = CopyConfig {
-        copy: true,
-        simulate: false,
+        is_copy: true,
+        dry_run: false,
         workers: 1,
         verbose: false,
         file_over_file: strategy,
@@ -254,8 +254,8 @@ fn test_copy_with_conflict_rename_src() {
     let strategy = parse_file_over_file("rename-src").unwrap();
 
     let config = CopyConfig {
-        copy: true,
-        simulate: false,
+        is_copy: true,
+        dry_run: false,
         workers: 1,
         verbose: false,
         file_over_file: strategy,
@@ -294,8 +294,8 @@ fn test_copy_with_hash_skip() {
     let strategy = parse_file_over_file("skip-hash skip").unwrap();
 
     let config = CopyConfig {
-        copy: true,
-        simulate: false,
+        is_copy: true,
+        dry_run: false,
         workers: 1,
         verbose: false,
         file_over_file: strategy,
@@ -331,8 +331,8 @@ fn test_copy_with_size_skip() {
     let strategy = parse_file_over_file("skip-size skip").unwrap();
 
     let config = CopyConfig {
-        copy: true,
-        simulate: false,
+        is_copy: true,
+        dry_run: false,
         workers: 1,
         verbose: false,
         file_over_file: strategy,
@@ -368,8 +368,8 @@ fn test_copy_with_skip_larger() {
     let strategy = parse_file_over_file("skip-larger skip").unwrap();
 
     let config = CopyConfig {
-        copy: true,
-        simulate: false,
+        is_copy: true,
+        dry_run: false,
         workers: 1,
         verbose: false,
         file_over_file: strategy,
@@ -409,8 +409,8 @@ fn test_copy_with_delete_dest_larger() {
     let strategy = parse_file_over_file("delete-dest-larger delete-dest").unwrap();
 
     let config = CopyConfig {
-        copy: true,
-        simulate: false,
+        is_copy: true,
+        dry_run: false,
         workers: 1,
         verbose: false,
         file_over_file: strategy,
@@ -444,8 +444,8 @@ fn test_copy_directory_recursive() {
     create_file(&src.join("subdir").join("deep").join("file3.txt"), "content3");
 
     let config = CopyConfig {
-        copy: true,
-        simulate: false,
+        is_copy: true,
+        dry_run: false,
         workers: 1,
         verbose: false,
         ..Default::default()
@@ -486,8 +486,8 @@ fn test_copy_simulation() {
     create_file(&src_file, "hello");
 
     let config = CopyConfig {
-        copy: true,
-        simulate: true, // Dry run
+        is_copy: true,
+        dry_run: true, // Dry run
         workers: 1,
         verbose: false,
         ..Default::default()
@@ -523,8 +523,8 @@ fn test_copy_with_extension_filter() {
     create_file(&src.join("file.rs"), "rust code");
 
     let config = CopyConfig {
-        copy: true,
-        simulate: false,
+        is_copy: true,
+        dry_run: false,
         workers: 1,
         verbose: false,
         extensions: vec![".txt".to_string(), ".go".to_string()],
@@ -560,8 +560,8 @@ fn test_copy_with_file_limit() {
     create_file(&src.join("file3.txt"), "3");
 
     let config = CopyConfig {
-        copy: true,
-        simulate: false,
+        is_copy: true,
+        dry_run: false,
         workers: 1,
         verbose: false,
         limit: Some(2),
@@ -604,8 +604,8 @@ fn test_global_file_limit() {
     create_file(&src2.join("file4.txt"), "4");
 
     let config = CopyConfig {
-        copy: true,
-        simulate: false,
+        is_copy: true,
+        dry_run: false,
         workers: 1,
         verbose: false,
         limit: Some(2),
@@ -652,8 +652,8 @@ fn test_folder_over_file_conflict() {
     create_file(&dest_src.join("conflict"), "is a file");
 
     let config = CopyConfig {
-        copy: true,
-        simulate: false,
+        is_copy: true,
+        dry_run: false,
         workers: 1,
         verbose: false,
         folder_over_file: FolderConflictMode::RenameDest,
@@ -696,8 +696,8 @@ fn test_file_over_folder_conflict() {
     create_file(&dest_src.join("conflict").join("inner.txt"), "in folder");
 
     let config = CopyConfig {
-        copy: true,
-        simulate: false,
+        is_copy: true,
+        dry_run: false,
         workers: 1,
         verbose: false,
         file_over_folder: FolderConflictMode::Merge,
@@ -734,8 +734,8 @@ fn test_multiple_sources() {
     create_file(&src2.join("file2.txt"), "from src2");
 
     let config = CopyConfig {
-        copy: true,
-        simulate: false,
+        is_copy: true,
+        dry_run: false,
         workers: 1,
         verbose: false,
         ..Default::default()
@@ -996,8 +996,8 @@ fn test_copy_with_conflict_delete_src() {
     let strategy = parse_file_over_file("delete-src").unwrap();
 
     let config = CopyConfig {
-        copy: true,
-        simulate: false,
+        is_copy: true,
+        dry_run: false,
         workers: 1,
         verbose: false,
         file_over_file: strategy,
@@ -1037,8 +1037,8 @@ fn test_copy_with_skip_smaller() {
     let strategy = parse_file_over_file("skip-smaller skip").unwrap();
 
     let config = CopyConfig {
-        copy: true,
-        simulate: false,
+        is_copy: true,
+        dry_run: false,
         workers: 1,
         verbose: false,
         file_over_file: strategy,
@@ -1077,8 +1077,8 @@ fn test_copy_with_delete_dest_smaller() {
     let strategy = parse_file_over_file("delete-dest-smaller delete-dest").unwrap();
 
     let config = CopyConfig {
-        copy: true,
-        simulate: false,
+        is_copy: true,
+        dry_run: false,
         workers: 1,
         verbose: false,
         file_over_file: strategy,
@@ -1117,8 +1117,8 @@ fn test_copy_with_delete_src_smaller() {
     let strategy = parse_file_over_file("delete-src-smaller skip").unwrap();
 
     let config = CopyConfig {
-        copy: true,
-        simulate: false,
+        is_copy: true,
+        dry_run: false,
         workers: 1,
         verbose: false,
         file_over_file: strategy,
@@ -1158,8 +1158,8 @@ fn test_copy_with_delete_src_larger() {
     let strategy = parse_file_over_file("delete-src-larger skip").unwrap();
 
     let config = CopyConfig {
-        copy: true,
-        simulate: false,
+        is_copy: true,
+        dry_run: false,
         workers: 1,
         verbose: false,
         file_over_file: strategy,
@@ -1196,8 +1196,8 @@ fn test_file_over_folder_skip() {
     create_file(&dest_src.join("conflict").join("inner.txt"), "in folder");
 
     let config = CopyConfig {
-        copy: true,
-        simulate: false,
+        is_copy: true,
+        dry_run: false,
         workers: 1,
         verbose: false,
         file_over_folder: FolderConflictMode::Skip,
@@ -1235,8 +1235,8 @@ fn test_file_over_folder_delete_dest() {
     create_file(&dest_src.join("conflict").join("inner.txt"), "in folder");
 
     let config = CopyConfig {
-        copy: true,
-        simulate: false,
+        is_copy: true,
+        dry_run: false,
         workers: 1,
         verbose: false,
         file_over_folder: FolderConflictMode::DeleteDest,
@@ -1274,8 +1274,8 @@ fn test_folder_over_file_skip() {
     create_file(&dest_src.join("conflict"), "is a file");
 
     let config = CopyConfig {
-        copy: true,
-        simulate: false,
+        is_copy: true,
+        dry_run: false,
         workers: 1,
         verbose: false,
         folder_over_file: FolderConflictMode::Skip,
@@ -1314,8 +1314,8 @@ fn test_folder_over_file_delete_src() {
     create_file(&dest_src.join("conflict"), "is a file");
 
     let config = CopyConfig {
-        copy: true,
-        simulate: false,
+        is_copy: true,
+        dry_run: false,
         workers: 1,
         verbose: false,
         folder_over_file: FolderConflictMode::DeleteSrc,
@@ -1354,8 +1354,8 @@ fn test_folder_over_file_delete_dest() {
     create_file(&dest_src.join("conflict"), "is a file");
 
     let config = CopyConfig {
-        copy: true,
-        simulate: false,
+        is_copy: true,
+        dry_run: false,
         workers: 1,
         verbose: false,
         folder_over_file: FolderConflictMode::DeleteDest,
@@ -1393,8 +1393,8 @@ fn test_folder_over_file_rename_src() {
     create_file(&dest_src.join("conflict"), "is a file");
 
     let config = CopyConfig {
-        copy: true,
-        simulate: false,
+        is_copy: true,
+        dry_run: false,
         workers: 1,
         verbose: false,
         folder_over_file: FolderConflictMode::RenameSrc,
@@ -1433,8 +1433,8 @@ fn test_folder_over_folder_merge() {
     create_file(&dest.join("src").join("subdir").join("file2.txt"), "from dest");
 
     let config = CopyConfig {
-        copy: true,
-        simulate: false,
+        is_copy: true,
+        dry_run: false,
         workers: 1,
         verbose: false,
         ..Default::default()
@@ -1474,8 +1474,8 @@ fn test_copy_with_delete_dest_hash() {
     let strategy = parse_file_over_file("delete-dest-hash delete-dest").unwrap();
 
     let config = CopyConfig {
-        copy: true,
-        simulate: false,
+        is_copy: true,
+        dry_run: false,
         workers: 1,
         verbose: false,
         file_over_file: strategy,
@@ -1514,8 +1514,8 @@ fn test_copy_with_delete_dest_size() {
     let strategy = parse_file_over_file("delete-dest-size delete-dest").unwrap();
 
     let config = CopyConfig {
-        copy: true,
-        simulate: false,
+        is_copy: true,
+        dry_run: false,
         workers: 1,
         verbose: false,
         file_over_file: strategy,
@@ -1554,8 +1554,8 @@ fn test_copy_with_delete_src_hash() {
     let strategy = parse_file_over_file("delete-src-hash skip").unwrap();
 
     let config = CopyConfig {
-        copy: true,
-        simulate: false,
+        is_copy: true,
+        dry_run: false,
         workers: 1,
         verbose: false,
         file_over_file: strategy,
@@ -1595,8 +1595,8 @@ fn test_copy_with_delete_src_size() {
     let strategy = parse_file_over_file("delete-src-size skip").unwrap();
 
     let config = CopyConfig {
-        copy: true,
-        simulate: false,
+        is_copy: true,
+        dry_run: false,
         workers: 1,
         verbose: false,
         file_over_file: strategy,
@@ -1633,8 +1633,8 @@ fn test_file_over_folder_rename_src() {
     create_file(&dest_src.join("conflict").join("inner.txt"), "in folder");
 
     let config = CopyConfig {
-        copy: true,
-        simulate: false,
+        is_copy: true,
+        dry_run: false,
         workers: 1,
         verbose: false,
         file_over_folder: FolderConflictMode::RenameSrc,
@@ -1674,8 +1674,8 @@ fn test_file_over_folder_rename_dest() {
     create_file(&dest_src.join("conflict").join("inner.txt"), "in folder");
 
     let config = CopyConfig {
-        copy: true,
-        simulate: false,
+        is_copy: true,
+        dry_run: false,
         workers: 1,
         verbose: false,
         file_over_folder: FolderConflictMode::RenameDest,
@@ -1715,8 +1715,8 @@ fn test_folder_over_file_rename_dest() {
     create_file(&dest_src.join("conflict"), "is a file");
 
     let config = CopyConfig {
-        copy: true,
-        simulate: false,
+        is_copy: true,
+        dry_run: false,
         workers: 1,
         verbose: false,
         folder_over_file: FolderConflictMode::RenameDest,
@@ -1763,8 +1763,8 @@ fn test_copy_skip_modified_newer() {
     let strategy = parse_file_over_file("skip-modified-newer skip").unwrap();
 
     let config = CopyConfig {
-        copy: true,
-        simulate: false,
+        is_copy: true,
+        dry_run: false,
         workers: 1,
         verbose: false,
         file_over_file: strategy,
@@ -1809,8 +1809,8 @@ fn test_copy_skip_modified_older() {
     let strategy = parse_file_over_file("skip-modified-older skip").unwrap();
 
     let config = CopyConfig {
-        copy: true,
-        simulate: false,
+        is_copy: true,
+        dry_run: false,
         workers: 1,
         verbose: false,
         file_over_file: strategy,
@@ -1855,8 +1855,8 @@ fn test_copy_delete_dest_modified_newer() {
     let strategy = parse_file_over_file("delete-dest-modified-newer delete-dest").unwrap();
 
     let config = CopyConfig {
-        copy: true,
-        simulate: false,
+        is_copy: true,
+        dry_run: false,
         workers: 1,
         verbose: false,
         file_over_file: strategy,

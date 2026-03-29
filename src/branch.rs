@@ -96,13 +96,27 @@ impl Branch {
                 // Try to parse as BranchMode first, otherwise treat as minfreespace
                 if let Ok(parsed_mode) = BranchMode::from_str(opt) {
                     mode = parsed_mode;
-                } else if opt.chars().any(char::is_numeric) {
-                    // Treat as minfreespace value
-                    minfreespace = Some(opt.to_string());
                 } else {
-                    return Err(NofsError::Branch(format!(
-                        "Invalid branch option: '{opt}'. Expected RW/RO/NC or a size value (e.g., 4G)"
-                    )));
+                    // Validate as a size value by checking it starts with a digit or decimal point
+                    // and contains only valid size characters (digits, dots, and letters for suffix)
+                    let is_valid_size = !opt.is_empty()
+                        && (opt.starts_with(char::is_numeric) || opt.starts_with('.'))
+                        && opt.chars().all(|c| c.is_ascii_alphanumeric() || c == '.');
+
+                    if is_valid_size {
+                        // Validate by attempting to parse
+                        if crate::policy::parse_size(opt).is_ok() {
+                            minfreespace = Some(opt.to_string());
+                        } else {
+                            return Err(NofsError::Branch(format!(
+                                "Invalid minfreespace value: '{opt}'. Expected a size (e.g., 4G, 512M, 1000000)"
+                            )));
+                        }
+                    } else {
+                        return Err(NofsError::Branch(format!(
+                            "Invalid branch option: '{opt}'. Expected RW/RO/NC or a size value (e.g., 4G)"
+                        )));
+                    }
                 }
             }
         }

@@ -555,7 +555,7 @@ fn execute_action(
                     reason
                 );
             }
-            if !config.simulate {
+            if !config.dry_run {
                 fs::remove_file(source)?;
             }
             stats.files_skipped.fetch_add(1, Ordering::Relaxed);
@@ -568,7 +568,7 @@ fn execute_action(
                     reason
                 );
             }
-            if !config.simulate {
+            if !config.dry_run {
                 fs::remove_file(dest)?;
             }
         }
@@ -655,8 +655,8 @@ pub struct CopyStats {
 #[non_exhaustive]
 #[derive(Debug, Clone)]
 pub struct CopyConfig {
-    pub copy: bool,     // true = copy, false = move
-    pub simulate: bool, // dry-run mode
+    pub is_copy: bool,  // true = copy, false = move
+    pub dry_run: bool,  // dry-run mode (simulate)
     pub workers: usize, // number of parallel workers
     pub verbose: bool,  // verbose output
     pub file_over_file: FileOverFileStrategy,
@@ -681,8 +681,8 @@ pub struct SizeFilter {
 impl Default for CopyConfig {
     fn default() -> Self {
         Self {
-            copy: true,
-            simulate: false,
+            is_copy: true,
+            dry_run: false,
             // Default of 4 workers balances parallelism with overhead.
             // This works well for most systems (typically 4+ cores) while
             // avoiding excessive thread contention on smaller machines.
@@ -738,7 +738,7 @@ pub fn execute(
     }
 
     // Create destination directory if needed for multiple sources
-    if !config.simulate && !dest_exists && sources.len() > 1 {
+    if !config.dry_run && !dest_exists && sources.len() > 1 {
         fs::create_dir_all(&dest_path)?;
     }
 
@@ -965,7 +965,7 @@ fn process_directory(source: &Path, dest: &Path, config: &CopyConfig, stats: &Ar
             return handle_folder_over_file(dest, source, config, stats);
         }
     } else {
-        if !config.simulate {
+        if !config.dry_run {
             fs::create_dir_all(dest)?;
         }
     }
@@ -1140,9 +1140,9 @@ fn process_file(source: &Path, dest: &Path, config: &CopyConfig, stats: &Arc<Cop
         }
     }
 
-    if config.simulate {
+    if config.dry_run {
         if config.verbose {
-            let action = if config.copy { "copy" } else { "move" };
+            let action = if config.is_copy { "copy" } else { "move" };
             eprintln!(
                 "[SIMULATE] {} {} -> {} ({})",
                 action,
@@ -1159,7 +1159,7 @@ fn process_file(source: &Path, dest: &Path, config: &CopyConfig, stats: &Arc<Cop
         fs::create_dir_all(parent)?;
     }
 
-    if config.copy {
+    if config.is_copy {
         // Copy the file
         copy_file_contents(source, dest)?;
     } else {
@@ -1174,7 +1174,7 @@ fn process_file(source: &Path, dest: &Path, config: &CopyConfig, stats: &Arc<Cop
     stats.bytes_copied.fetch_add(file_size, Ordering::Relaxed);
 
     if config.verbose {
-        let action = if config.copy { "copy" } else { "move" };
+        let action = if config.is_copy { "copy" } else { "move" };
         eprintln!(
             "{} {} -> {} ({})",
             action,
@@ -1339,7 +1339,7 @@ fn apply_required_strategy(
                     shell_quote(renamed_dest.to_string_lossy().as_ref())
                 );
             }
-            if !config.simulate {
+            if !config.dry_run {
                 // First rename the existing destination
                 fs::rename(dest, &renamed_dest)?;
             }
@@ -1374,7 +1374,7 @@ fn handle_file_over_folder(source: &Path, dest: &Path, config: &CopyConfig, stat
                     shell_quote(source.to_string_lossy().as_ref())
                 );
             }
-            if !config.simulate {
+            if !config.dry_run {
                 fs::remove_file(source)?;
             }
         }
@@ -1385,7 +1385,7 @@ fn handle_file_over_folder(source: &Path, dest: &Path, config: &CopyConfig, stat
                     shell_quote(dest.to_string_lossy().as_ref())
                 );
             }
-            if !config.simulate {
+            if !config.dry_run {
                 fs::remove_dir_all(dest)?;
             }
             // Now copy file to original path
@@ -1412,7 +1412,7 @@ fn handle_file_over_folder(source: &Path, dest: &Path, config: &CopyConfig, stat
                     shell_quote(renamed_dest.to_string_lossy().as_ref())
                 );
             }
-            if !config.simulate {
+            if !config.dry_run {
                 fs::rename(dest, &renamed_dest)?;
             }
             // Copy file to original path
@@ -1459,7 +1459,7 @@ fn handle_folder_over_file(dest: &Path, source: &Path, config: &CopyConfig, stat
                     shell_quote(source.to_string_lossy().as_ref())
                 );
             }
-            if !config.simulate {
+            if !config.dry_run {
                 fs::remove_dir_all(source)?;
             }
             Ok(())
@@ -1471,11 +1471,11 @@ fn handle_folder_over_file(dest: &Path, source: &Path, config: &CopyConfig, stat
                     shell_quote(dest.to_string_lossy().as_ref())
                 );
             }
-            if !config.simulate {
+            if !config.dry_run {
                 fs::remove_file(dest)?;
             }
             // Now create the folder and copy contents
-            if !config.simulate {
+            if !config.dry_run {
                 fs::create_dir_all(dest)?;
             }
             stats.folders_created.fetch_add(1, Ordering::Relaxed);
@@ -1490,7 +1490,7 @@ fn handle_folder_over_file(dest: &Path, source: &Path, config: &CopyConfig, stat
                     shell_quote(new_dest.to_string_lossy().as_ref())
                 );
             }
-            if !config.simulate {
+            if !config.dry_run {
                 fs::create_dir_all(&new_dest)?;
             }
             stats.folders_created.fetch_add(1, Ordering::Relaxed);
@@ -1506,7 +1506,7 @@ fn handle_folder_over_file(dest: &Path, source: &Path, config: &CopyConfig, stat
                     shell_quote(renamed_dest.to_string_lossy().as_ref())
                 );
             }
-            if !config.simulate {
+            if !config.dry_run {
                 fs::rename(dest, &renamed_dest)?;
                 fs::create_dir_all(dest)?;
             }
@@ -1524,7 +1524,7 @@ fn handle_folder_over_file(dest: &Path, source: &Path, config: &CopyConfig, stat
                     shell_quote(renamed_dest.to_string_lossy().as_ref())
                 );
             }
-            if !config.simulate {
+            if !config.dry_run {
                 fs::rename(dest, &renamed_dest)?;
                 fs::create_dir_all(dest)?;
             }

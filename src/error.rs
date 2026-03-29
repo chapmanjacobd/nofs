@@ -32,6 +32,9 @@ pub enum NofsError {
     #[error("Conflict resolution error: {0}")]
     Conflict(String),
 
+    #[error("Internal error: {0}")]
+    Internal(String),
+
     #[error("{0}")]
     Command(String),
 
