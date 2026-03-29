@@ -1166,9 +1166,20 @@ fn process_file(source: &Path, dest: &Path, config: &CopyConfig, stats: &Arc<Cop
         copy_file_contents(source, dest)?;
     } else {
         // Move the file (try rename first, fall back to copy+delete)
-        if fs::rename(source, dest).is_err() {
-            copy_file_contents(source, dest)?;
-            fs::remove_file(source)?;
+        // On Windows, use replace to handle existing destination
+        #[cfg(windows)]
+        {
+            if fs::rename(source, dest).or_else(|_| fs::replace(source, dest)).is_err() {
+                copy_file_contents(source, dest)?;
+                fs::remove_file(source)?;
+            }
+        }
+        #[cfg(not(windows))]
+        {
+            if fs::rename(source, dest).is_err() {
+                copy_file_contents(source, dest)?;
+                fs::remove_file(source)?;
+            }
         }
     }
 
@@ -1343,7 +1354,19 @@ fn apply_required_strategy(
             }
             if !config.dry_run {
                 // First rename the existing destination
-                fs::rename(dest, &renamed_dest)?;
+                // On Windows, handle case where renamed_dest might still exist due to file system caching
+                #[cfg(windows)]
+                {
+                    if fs::rename(dest, &renamed_dest).is_err() {
+                        // Destination might exist due to caching, remove it and try again
+                        let _ = fs::remove_file(&renamed_dest);
+                        fs::rename(dest, &renamed_dest)?;
+                    }
+                }
+                #[cfg(not(windows))]
+                {
+                    fs::rename(dest, &renamed_dest)?;
+                }
             }
             // Then copy/move source to original destination
             return process_file(source, dest, config, stats);
@@ -1415,7 +1438,18 @@ fn handle_file_over_folder(source: &Path, dest: &Path, config: &CopyConfig, stat
                 );
             }
             if !config.dry_run {
-                fs::rename(dest, &renamed_dest)?;
+                // On Windows, handle case where renamed_dest might still exist due to file system caching
+                #[cfg(windows)]
+                {
+                    if fs::rename(dest, &renamed_dest).is_err() {
+                        let _ = fs::remove_file(&renamed_dest);
+                        fs::rename(dest, &renamed_dest)?;
+                    }
+                }
+                #[cfg(not(windows))]
+                {
+                    fs::rename(dest, &renamed_dest)?;
+                }
             }
             // Copy file to original path
             return process_file(source, dest, config, stats);
@@ -1443,6 +1477,7 @@ fn handle_file_over_folder(source: &Path, dest: &Path, config: &CopyConfig, stat
 /// # Errors
 ///
 /// Returns an error if file operations fail.
+#[allow(clippy::too_many_lines)]
 fn handle_folder_over_file(dest: &Path, source: &Path, config: &CopyConfig, stats: &Arc<CopyStats>) -> Result<()> {
     match config.folder_over_file {
         FolderConflictMode::Skip => {
@@ -1509,7 +1544,18 @@ fn handle_folder_over_file(dest: &Path, source: &Path, config: &CopyConfig, stat
                 );
             }
             if !config.dry_run {
-                fs::rename(dest, &renamed_dest)?;
+                // On Windows, handle case where renamed_dest might still exist
+                #[cfg(windows)]
+                {
+                    if fs::rename(dest, &renamed_dest).is_err() {
+                        let _ = fs::remove_file(&renamed_dest);
+                        fs::rename(dest, &renamed_dest)?;
+                    }
+                }
+                #[cfg(not(windows))]
+                {
+                    fs::rename(dest, &renamed_dest)?;
+                }
                 fs::create_dir_all(dest)?;
             }
             stats.folders_created.fetch_add(1, Ordering::Relaxed);
@@ -1527,7 +1573,18 @@ fn handle_folder_over_file(dest: &Path, source: &Path, config: &CopyConfig, stat
                 );
             }
             if !config.dry_run {
-                fs::rename(dest, &renamed_dest)?;
+                // On Windows, handle case where renamed_dest might still exist
+                #[cfg(windows)]
+                {
+                    if fs::rename(dest, &renamed_dest).is_err() {
+                        let _ = fs::remove_file(&renamed_dest);
+                        fs::rename(dest, &renamed_dest)?;
+                    }
+                }
+                #[cfg(not(windows))]
+                {
+                    fs::rename(dest, &renamed_dest)?;
+                }
                 fs::create_dir_all(dest)?;
             }
             stats.folders_created.fetch_add(1, Ordering::Relaxed);
