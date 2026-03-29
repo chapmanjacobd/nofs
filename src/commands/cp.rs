@@ -46,6 +46,8 @@ fn rename_file(src: &Path, dest: &Path) -> io::Result<()> {
                 // If destination exists, try removing it and retrying
                 if dest.exists() {
                     let _ = fs::remove_file(dest);
+                    // Small delay to ensure Windows releases the file handle
+                    std::thread::sleep(std::time::Duration::from_millis(1));
                     fs::rename(src, dest)?;
                 } else {
                     // Destination doesn't exist, return original error
