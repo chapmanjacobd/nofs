@@ -1094,13 +1094,22 @@ fn extract_share_from_paths<'a>(
 ) -> Result<Option<&'a pool::Pool>> {
     // Check if any path has a context prefix
     for path in sources.iter().chain(std::iter::once(&destination.to_string())) {
-        if let Some((ctx, _)) = path.split_once(':') {
+        if let Some((ctx, after_colon)) = path.split_once(':') {
             // Check for path separators (both Unix / and Windows \) to distinguish
             // share paths (e.g., "media:/movies") from Windows drive letters (e.g., "C:\")
             if !ctx.contains('/') && !ctx.contains('\\') {
-                // This looks like a context prefix
-                let share = pool_mgr.get_pool(ctx)?;
-                return Ok(Some(share));
+                // Check if this looks like a Windows drive letter (single letter followed by colon)
+                // e.g., "C:", "D:", etc.
+                let is_windows_drive = ctx.len() == 1 && ctx.chars().next().is_some_and(|c| c.is_ascii_alphabetic());
+
+                // Also check if the part after colon starts with a path separator (e.g., "C:\path" or "C:/path")
+                let has_drive_separator = after_colon.starts_with('\\') || after_colon.starts_with('/');
+
+                if !is_windows_drive || !has_drive_separator {
+                    // This looks like a context prefix
+                    let share = pool_mgr.get_pool(ctx)?;
+                    return Ok(Some(share));
+                }
             }
         }
     }

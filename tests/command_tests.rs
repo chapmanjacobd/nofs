@@ -112,7 +112,9 @@ paths = ['{0}/disk1', '{0}/disk2']
         ]);
 
         assert!(output.success(), "Command failed: {}", output.stderr);
-        assert!(output.stdout.contains("disk1/dir/unique_file.txt"));
+        // Normalize path separators for cross-platform compatibility
+        let normalized_output = output.stdout.replace('\\', "/");
+        assert!(normalized_output.contains("disk1/dir/unique_file.txt"));
     }
 
     #[test]
