@@ -1095,7 +1095,9 @@ fn extract_share_from_paths<'a>(
     // Check if any path has a context prefix
     for path in sources.iter().chain(std::iter::once(&destination.to_string())) {
         if let Some((ctx, _)) = path.split_once(':') {
-            if !ctx.contains('/') {
+            // Check for path separators (both Unix / and Windows \) to distinguish
+            // share paths (e.g., "media:/movies") from Windows drive letters (e.g., "C:\")
+            if !ctx.contains('/') && !ctx.contains('\\') {
                 // This looks like a context prefix
                 let share = pool_mgr.get_pool(ctx)?;
                 return Ok(Some(share));

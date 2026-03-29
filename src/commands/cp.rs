@@ -47,7 +47,9 @@ fn resolve_path(
 ) -> Result<ResolvedPath> {
     if let Some(colon_idx) = path_str.find(':') {
         let potential_prefix = &path_str[..colon_idx];
-        if !potential_prefix.contains('/') {
+        // Check for path separators (both Unix / and Windows \) to distinguish
+        // share paths (e.g., "media:/movies") from Windows drive letters (e.g., "C:\")
+        if !potential_prefix.contains('/') && !potential_prefix.contains('\\') {
             let share_name = potential_prefix;
             let relative_path = &path_str[colon_idx + 1..];
 
@@ -135,8 +137,8 @@ fn resolve_dest_path(
     };
 
     let potential_prefix = &dest_str[..colon_idx];
-    // If prefix contains '/', it's not a share name (likely a Windows path like C:)
-    if potential_prefix.contains('/') {
+    // If prefix contains path separators, it's not a share name (likely a Windows path like C:)
+    if potential_prefix.contains('/') || potential_prefix.contains('\\') {
         return Ok(PathBuf::from(dest_str));
     }
 
