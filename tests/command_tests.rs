@@ -339,7 +339,10 @@ paths = ["{0}/disk1", "{0}/disk2"]
 
         assert!(output.success(), "Command failed: {}", output.stderr);
         // Should show disk usage for the directory
-        assert!(output.stdout.contains(&ctx.root.display().to_string()));
+        // Normalize path separators for cross-platform compatibility
+        let stdout_normalized = output.stdout.replace('\\', "/");
+        let root_path = ctx.root.display().to_string().replace('\\', "/");
+        assert!(stdout_normalized.contains(&root_path));
     }
 
     #[test]
@@ -477,8 +480,12 @@ paths = ["{0}/disk1", "{0}/disk2"]
 
         assert!(output.success(), "Command failed: {}", output.stderr);
         // Should show both branch paths
-        assert!(output.stdout.contains(&branch1.display().to_string()));
-        assert!(output.stdout.contains(&branch2.display().to_string()));
+        // Normalize path separators for cross-platform compatibility
+        let stdout_normalized = output.stdout.replace('\\', "/");
+        let branch1_path = branch1.display().to_string().replace('\\', "/");
+        let branch2_path = branch2.display().to_string().replace('\\', "/");
+        assert!(stdout_normalized.contains(&branch1_path));
+        assert!(stdout_normalized.contains(&branch2_path));
     }
 
     #[test]
@@ -502,9 +509,12 @@ paths = ["{0}/disk1"]
 
         assert!(output.success(), "Command failed: {}", output.stderr);
         // Should show disk1 path, not filesystem root
-        assert!(output.stdout.contains(&branch_path.display().to_string()));
-        assert!(!output.stdout.contains("/afs/"));
-        assert!(!output.stdout.contains("/bin/"));
+        // Normalize path separators for cross-platform compatibility
+        let stdout_normalized = output.stdout.replace('\\', "/");
+        let branch_path_str = branch_path.display().to_string().replace('\\', "/");
+        assert!(stdout_normalized.contains(&branch_path_str));
+        assert!(!stdout_normalized.contains("/afs/"));
+        assert!(!stdout_normalized.contains("/bin/"));
     }
 
     #[test]
@@ -562,9 +572,12 @@ paths = ["{0}/disk1"]
 
         assert!(output.success(), "Command failed: {}", output.stderr);
         // Should show disk1 path, not filesystem root
-        assert!(output.stdout.contains(&branch_path.display().to_string()));
-        assert!(!output.stdout.contains("/afs/"));
-        assert!(!output.stdout.contains("/bin/"));
+        // Normalize path separators for cross-platform compatibility
+        let stdout_normalized = output.stdout.replace('\\', "/");
+        let branch_path_str = branch_path.display().to_string().replace('\\', "/");
+        assert!(stdout_normalized.contains(&branch_path_str));
+        assert!(!stdout_normalized.contains("/afs/"));
+        assert!(!stdout_normalized.contains("/bin/"));
     }
 
     #[test]
@@ -620,8 +633,11 @@ paths = ["{0}/disk1"]
 
         assert!(output.success(), "Command failed: {}", output.stderr);
         // Should show subdir path, not filesystem root
-        assert!(output.stdout.contains(&branch_path.display().to_string()));
-        assert!(!output.stdout.contains("/afs/"));
+        // Normalize path separators for cross-platform compatibility
+        let stdout_normalized = output.stdout.replace('\\', "/");
+        let branch_path_str = branch_path.display().to_string().replace('\\', "/");
+        assert!(stdout_normalized.contains(&branch_path_str));
+        assert!(!stdout_normalized.contains("/afs/"));
     }
 
     #[test]

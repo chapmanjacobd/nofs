@@ -119,9 +119,13 @@ mod tests {
 
         assert!(output.success(), "Command failed: {}", output.stderr);
         // Should select one of the branches
+        // Normalize path separators for cross-platform compatibility
+        let stdout_normalized = output.stdout.replace('\\', "/");
+        let branch1_path = branch1.display().to_string().replace('\\', "/");
+        let branch2_path = branch2.display().to_string().replace('\\', "/");
         assert!(
-            output.stdout.contains(&branch1.display().to_string())
-                || output.stdout.contains(&branch2.display().to_string())
+            stdout_normalized.contains(&branch1_path)
+                || stdout_normalized.contains(&branch2_path)
         );
     }
 
@@ -280,7 +284,10 @@ mod tests {
         ]);
 
         assert!(output.success(), "Command failed: {}", output.stderr);
-        assert!(output.stdout.contains(&branch.display().to_string()));
+        // Normalize path separators for cross-platform compatibility
+        let branch_path = branch.display().to_string().replace('\\', "/");
+        let stdout_normalized = output.stdout.replace('\\', "/");
+        assert!(stdout_normalized.contains(&branch_path), "Expected stdout to contain '{}', got: {}", branch_path, output.stdout);
     }
 
     #[test]
@@ -345,8 +352,12 @@ mod tests {
 
         assert!(output.success(), "Command failed: {}", output.stderr);
         // Should select RW branch, not NC
-        assert!(output.stdout.contains(&branch1.display().to_string()));
-        assert!(!output.stdout.contains(&branch2.display().to_string()));
+        // Normalize path separators for cross-platform compatibility
+        let stdout_normalized = output.stdout.replace('\\', "/");
+        let branch1_path = branch1.display().to_string().replace('\\', "/");
+        let branch2_path = branch2.display().to_string().replace('\\', "/");
+        assert!(stdout_normalized.contains(&branch1_path));
+        assert!(!stdout_normalized.contains(&branch2_path));
     }
 
     #[test]
