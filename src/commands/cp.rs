@@ -1658,7 +1658,10 @@ fn get_unique_filename(base: &Path) -> PathBuf {
                 .as_millis();
             return dir.join(format!("{}_{}", file_name.to_string_lossy(), timestamp));
         };
-        let extension = file_name.extension().and_then(|s| s.to_str()).unwrap_or("");
+        let extension = std::path::Path::new(file_name)
+            .extension()
+            .and_then(|s| s.to_str())
+            .unwrap_or("");
 
         let (base_name, start_idx) = find_suffix_and_index(file_stem);
 
