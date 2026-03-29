@@ -83,11 +83,12 @@ mod tests {
         let branch_path = test_dir.join("branch1");
         fs::create_dir_all(&branch_path).unwrap();
 
+        // Use single quotes for TOML to avoid escape sequence issues with Windows paths
         let config_content = format!(
-            r#"
+            "
 [share.test]
-paths = ["{}"]
-"#,
+paths = ['{}']
+",
             branch_path.display()
         );
 

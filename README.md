@@ -38,9 +38,9 @@ sudo cp target/release/nofs /usr/local/bin/
 ```toml
 # ~/.config/nofs/config.toml
 [share.fast]
-paths = ["/nvme/cache"]
-nc_paths = ["/hdd/storage"]  # HDD can read/modify but not create
-create_policy = "lfs"  # Fill SSD first (least free space)
+paths = ['/nvme/cache']
+nc_paths = ['/hdd/storage']  # HDD can read/modify but not create
+create_policy = 'lfs'  # Fill SSD first (least free space)
 ```
 
 ### Media Server Setup
@@ -48,13 +48,13 @@ create_policy = "lfs"  # Fill SSD first (least free space)
 ```toml
 # /etc/nofs/config.toml
 [share.movies]
-paths = ["/hdd1/movies", "/hdd2/movies"]
-ro_paths = ["/hdd3/movies"]  # Read-only backup
-create_policy = "pfrd"
+paths = ['/hdd1/movies', '/hdd2/movies']
+ro_paths = ['/hdd3/movies']  # Read-only backup
+create_policy = 'pfrd'
 
 [share.tv]
-paths = ["/hdd1/tv", "/hdd2/tv"]
-create_policy = "mfs"
+paths = ['/hdd1/tv', '/hdd2/tv']
+create_policy = 'mfs'
 ```
 
 ## Policies
@@ -90,13 +90,13 @@ create_policy = "mfs"
 ```toml
 # .nofs.toml
 [share.name]
-paths = ["/path1", "/path2"]       # Required: RW branch paths
-ro_paths = ["/path3"]              # Optional: read-only branches
-nc_paths = ["/path4"]              # Optional: no-create branches
-create_policy = "pfrd"             # Policy for create operations
-search_policy = "ff"               # Policy for search operations
-action_policy = "epall"            # Policy for action operations
-minfreespace = "4G"                # Minimum free space threshold
+paths = ['/path1', '/path2']       # Required: RW branch paths
+ro_paths = ['/path3']              # Optional: read-only branches
+nc_paths = ['/path4']              # Optional: no-create branches
+create_policy = 'pfrd'             # Policy for create operations
+search_policy = 'ff'               # Policy for search operations
+action_policy = 'epall'            # Policy for action operations
+minfreespace = '4G'                # Minimum free space threshold
 ```
 
 ### Branch Modes

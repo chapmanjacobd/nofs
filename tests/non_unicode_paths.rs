@@ -239,12 +239,12 @@ mod tests {
         fs::create_dir_all(&branch_path).unwrap();
         fs::write(branch_path.join("file.txt"), "content").unwrap();
 
-        // Config uses lossy conversion
+        // Config uses lossy conversion - use single quotes for TOML to avoid escape issues
         let config = format!(
-            r#"
+            "
 [share.test]
-paths = ["{}"]
-"#,
+paths = ['{}']
+",
             branch_path.to_string_lossy()
         );
 
@@ -307,12 +307,12 @@ paths = ["{}"]
         let branch2_path = ctx.root.join(branch2_name);
         fs::create_dir_all(&branch2_path).unwrap();
 
-        // Config with lossy-converted paths
+        // Config with lossy-converted paths - use single quotes for TOML to avoid escape issues
         let config = format!(
-            r#"
+            "
 [share.test]
-paths = ["{}", "{}"]
-"#,
+paths = ['{}', '{}']
+",
             branch1_path.to_string_lossy(),
             branch2_path.to_string_lossy()
         );

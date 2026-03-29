@@ -380,11 +380,12 @@ mod tests {
         // Create branch with Unicode name
         let branch_path = ctx.create_branch("branch_测试", &["file.txt"]);
 
+        // Use single quotes for TOML to avoid escape sequence issues with Windows paths
         let config = format!(
-            r#"
+            "
 [share.test]
-paths = ["{}"]
-"#,
+paths = ['{}']
+",
             branch_path.parent().unwrap().display()
         );
 
@@ -428,11 +429,12 @@ paths = ["{}"]
         let branch1_path = ctx.create_branch("disk1_测试", &[]);
         let branch2_path = ctx.create_branch("disk2_🎉", &[]);
 
+        // Use single quotes for TOML to avoid escape sequence issues with Windows paths
         let config = format!(
-            r#"
+            "
 [share.test]
-paths = ["{}", "{}"]
-"#,
+paths = ['{}', '{}']
+",
             branch1_path.display(),
             branch2_path.display()
         );
