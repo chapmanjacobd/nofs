@@ -10,7 +10,7 @@
 //! - Unpaired low surrogates
 //! - Mixed valid/invalid surrogate sequences
 //!
-//! Note: Valid Unicode characters (emoji, CJK, etc.) are tested in unicode_paths.rs
+//! Note: Valid Unicode characters (emoji, CJK, etc.) are tested in `unicode_paths.rs`
 //! since they work on all platforms.
 
 #[path = "common.rs"]
@@ -107,7 +107,8 @@ mod tests {
 
         // Mix of valid surrogate pair followed by unpaired high surrogate
         let surrogate_name: Vec<u16> = vec![
-            0xD83D, 0xDE00, // Valid pair (😀)
+            0xD83D,
+            0xDE00, // Valid pair (😀)
             b'_' as u16,
             0xD800, // Invalid unpaired high surrogate
             b'.' as u16,

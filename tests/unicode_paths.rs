@@ -257,17 +257,17 @@ mod tests {
         // - NFC (composed): U+00E9 (é)
         // - NFD (decomposed): U+0065 U+0301 (e + combining acute)
 
-        let nfc_name = "file_\u{00E9}.txt"; // é as single codepoint
-        let nfd_name = "file_e\u{0301}.txt"; // e + combining accent
+        let composed_name = "file_\u{00E9}.txt"; // é as single codepoint
+        let decomposed_name = "file_e\u{0301}.txt"; // e + combining accent
 
-        let nfc_file = branch_path.join(nfc_name);
-        let nfd_file = branch_path.join(nfd_name);
+        let composed_file = branch_path.join(composed_name);
+        let decomposed_file = branch_path.join(decomposed_name);
 
-        fs::write(&nfc_file, "nfc content").unwrap();
-        fs::write(&nfd_file, "nfd content").unwrap();
+        fs::write(&composed_file, "nfc content").unwrap();
+        fs::write(&decomposed_file, "nfd content").unwrap();
 
-        assert!(nfc_file.exists());
-        assert!(nfd_file.exists());
+        assert!(composed_file.exists());
+        assert!(decomposed_file.exists());
 
         let output = ctx.run_nofs(&["--paths", &branch_path.display().to_string(), "ls", "/"]);
 
