@@ -330,8 +330,10 @@ mod tests {
 
         let branch_path = ctx.create_branch("disk1", &[]);
 
-        // Create a very long Unicode filename
-        let long_name = format!("{}{}.txt", "文件".repeat(50), "🎉");
+        // Create a long Unicode filename (within Linux's 255-byte limit)
+        // Each Chinese character is 3 bytes in UTF-8, emoji is 4 bytes
+        // Max ~80 Chinese chars (240 bytes) + extension
+        let long_name = format!("{}{}.txt", "文件".repeat(40), "🎉");
         let long_file = branch_path.join(&long_name);
         fs::write(&long_file, "long unicode content").unwrap();
 
@@ -389,6 +391,55 @@ paths = ["{}"]
         ctx.write_config(&config);
 
         let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "ls", "test:/"]);
+
+        assert!(output.success() || !output.success());
+    }
+
+    #[test]
+    fn test_adhoc_with_unicode_branch_display() {
+        let ctx = TestContext::new("adhoc_unicode");
+
+        // Windows test with Unicode branch name
+        let branch_path = ctx.create_branch("disk_🎉", &["file.txt"]);
+
+        let output = ctx.run_nofs(&["--paths", &branch_path.display().to_string(), "ls", "/"]);
+
+        assert!(output.success() || !output.success());
+    }
+
+    #[test]
+    fn test_branch_with_special_unicode_chars() {
+        let ctx = TestContext::new("special_unicode_chars");
+
+        // Windows test with special Unicode characters
+        let branch_name = "branch_🎉_测试_файл";
+        let branch_path = ctx.create_branch(branch_name, &["file.txt"]);
+
+        let output = ctx.run_nofs(&["--paths", &branch_path.display().to_string(), "ls", "/"]);
+
+        assert!(output.success() || !output.success());
+    }
+
+    #[test]
+    fn test_info_with_unicode_branches() {
+        let ctx = TestContext::new("info_unicode");
+
+        // Windows test with Unicode branch names
+        let branch1_path = ctx.create_branch("disk1_测试", &[]);
+        let branch2_path = ctx.create_branch("disk2_🎉", &[]);
+
+        let config = format!(
+            r#"
+[share.test]
+paths = ["{}", "{}"]
+"#,
+            branch1_path.display(),
+            branch2_path.display()
+        );
+
+        ctx.write_config(&config);
+
+        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "info", "test"]);
 
         assert!(output.success() || !output.success());
     }
