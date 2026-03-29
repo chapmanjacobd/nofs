@@ -26,17 +26,32 @@ use std::os::unix::ffi::OsStrExt;
 /// retries the rename after removing the destination if it still exists
 /// due to filesystem caching.
 ///
+/// If src and dest are the same path, this is a no-op (returns Ok).
+///
 /// # Errors
 ///
 /// Returns an error if the rename operation fails.
 fn rename_file(src: &Path, dest: &Path) -> io::Result<()> {
+    // Same path - nothing to do
+    if src == dest {
+        return Ok(());
+    }
+
     #[cfg(windows)]
     {
         // On Windows, retry rename after removing destination if it still exists
-        if fs::rename(src, dest).is_err() {
-            // Destination might exist due to caching, remove it and try again
-            let _ = fs::remove_file(dest);
-            fs::rename(src, dest)?;
+        match fs::rename(src, dest) {
+            Ok(()) => return Ok(()),
+            Err(e) => {
+                // If destination exists, try removing it and retrying
+                if dest.exists() {
+                    let _ = fs::remove_file(dest);
+                    fs::rename(src, dest)?;
+                } else {
+                    // Destination doesn't exist, return original error
+                    return Err(e);
+                }
+            }
         }
     }
     #[cfg(not(windows))]
@@ -1187,6 +1202,17 @@ fn process_file(source: &Path, dest: &Path, config: &CopyConfig, stats: &Arc<Cop
         fs::create_dir_all(parent)?;
     }
 
+    // Same path - nothing to do
+    if source == dest {
+        if config.verbose {
+            eprintln!(
+                "Skipping {} (source and destination are the same)",
+                shell_quote(source.to_string_lossy().as_ref())
+            );
+        }
+        return Ok(());
+    }
+
     if config.is_copy {
         // Copy the file
         copy_file_contents(source, dest)?;
@@ -1234,9 +1260,12 @@ fn copy_file_contents(source: &Path, dest: &Path) -> Result<()> {
     let mut dst_file = fs::File::create(dest)?;
     io::copy(&mut src_file, &mut dst_file)?;
 
-    // Preserve metadata
-    let metadata = fs::metadata(source)?;
-    fs::set_permissions(dest, metadata.permissions())?;
+    // Preserve metadata (Unix only - Windows uses different permission model)
+    #[cfg(unix)]
+    {
+        let metadata = fs::metadata(source)?;
+        fs::set_permissions(dest, metadata.permissions())?;
+    }
 
     Ok(())
 }
@@ -1576,6 +1605,7 @@ fn process_source_contents(source: &Path, dest: &Path, config: &CopyConfig, stat
         let entry_name = entry.file_name();
         let entry_dest = dest.join(&entry_name);
 
+        // Process each entry, but continue on error to process remaining files
         if let Err(e) = process_source(&entry_path, &entry_dest, config, stats) {
             eprintln!(
                 "Error processing {}: {}",
