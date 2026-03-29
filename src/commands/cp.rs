@@ -1626,12 +1626,13 @@ fn get_unique_filename(base: &Path) -> PathBuf {
             let new_path = dir.join(new_name_os);
 
             // Use atomic file creation to avoid TOCTOU race conditions
-            if std::fs::OpenOptions::new()
+            // On Windows, we must drop the handle before deleting
+            if let Ok(handle) = std::fs::OpenOptions::new()
                 .write(true)
                 .create_new(true)
                 .open(&new_path)
-                .is_ok()
             {
+                drop(handle); // Drop the file handle before deleting (required on Windows)
                 let _ = std::fs::remove_file(&new_path);
                 return new_path;
             }
@@ -1675,12 +1676,14 @@ fn get_unique_filename(base: &Path) -> PathBuf {
             };
             let new_path = dir.join(&new_name);
 
-            if std::fs::OpenOptions::new()
+            // Try to create file exclusively to check if name is available
+            // On Windows, we must drop the handle before deleting
+            if let Ok(handle) = std::fs::OpenOptions::new()
                 .write(true)
                 .create_new(true)
                 .open(&new_path)
-                .is_ok()
             {
+                drop(handle); // Drop the file handle before deleting (required on Windows)
                 let _ = std::fs::remove_file(&new_path);
                 return new_path;
             }
