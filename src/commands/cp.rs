@@ -72,10 +72,9 @@ pub(crate) struct ResolvedPath {
 
 /// Resolve a path that may have a share: prefix
 ///
-/// If the path has a share prefix (e.g., <media:/path>), it will be resolved
-/// using the provided share. For existing files, finds the branch containing
-/// the file. For new paths, uses policy-based branch selection.
-/// Otherwise, the path is returned as-is.
+/// Supported formats:
+/// - `share:path` - relative path in share
+/// - `share:\path` or `share:/path` - absolute path in share (leading separator stripped)
 ///
 /// # Errors
 ///
@@ -107,21 +106,21 @@ pub(crate) fn resolve_path(
         });
     }
 
-    // Look for a second colon in the remaining path (before any path separator)
-    let relative_path_after_first_colon =
-        after_first_colon
-            .find([':', '/', '\\'])
-            .map_or(after_first_colon, |second_colon| {
-                // Two colons pattern: "share:X:\path" or "share:X:/path"
-                // Check if the character at second_colon is a colon (not a path separator)
-                if after_first_colon.chars().nth(second_colon) == Some(':') {
-                    // Pattern is "share:drive:\path" - skip the drive letter part
-                    &after_first_colon[second_colon + 1..]
-                } else {
-                    // Pattern is "share:/path" - single colon, use everything after first colon
-                    after_first_colon
-                }
-            });
+    // Check if this looks like a native Windows path (e.g., "C:\path" or "D:/path")
+    // Pattern: single letter followed by colon and path separator
+    let is_windows_drive = {
+        let mut chars = after_first_colon.chars();
+        matches!(chars.next(), Some(c) if c.is_ascii_alphabetic())
+            && chars.next() == Some(':')
+            && matches!(chars.next(), Some('\\' | '/'))
+    };
+
+    if is_windows_drive {
+        return Ok(ResolvedPath {
+            path: PathBuf::from(path_str),
+            branch_index: None,
+        });
+    }
 
     // Now check if potential_share matches the share name
     let Some(pool) = share else {
@@ -140,8 +139,8 @@ pub(crate) fn resolve_path(
         });
     }
 
-    // Strip Windows drive letter from relative path if present (e.g., "C:\data" → "\data")
-    let relative_path = strip_drive_letter(relative_path_after_first_colon);
+    // Strip leading path separators from relative path
+    let relative_path = strip_leading_separators(after_first_colon);
 
     let branch = if for_create {
         // For create operations, use policy-based selection
@@ -162,22 +161,9 @@ pub(crate) fn resolve_path(
     })
 }
 
-/// Strip Windows drive letter from a path if present (e.g., `C:\data` → `\data`, `<D:/file>` → `/file`)
-fn strip_drive_letter(path: &str) -> &str {
-    // Check for pattern like "C:\" or "D:/" (single letter followed by : and path separator)
-    let mut chars = path.chars();
-    let first = chars.next();
-    let second = chars.next();
-    let third = chars.next();
-
-    if let (Some(_), Some(':'), Some(sep)) = (first, second, third) {
-        if sep == '\\' || sep == '/' {
-            // Return path starting from the separator (e.g., "\data" or "/file")
-            // Skip both the drive letter and the colon
-            return &path[2..];
-        }
-    }
-    path
+/// Strip leading path separators from a path (e.g., `\test` → `test`, `/test` → `test`)
+fn strip_leading_separators(path: &str) -> &str {
+    path.trim_start_matches(['/', '\\'])
 }
 
 #[cfg(test)]
@@ -185,22 +171,23 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_strip_drive_letter() {
-        // Windows paths with drive letters should be stripped
-        assert_eq!(strip_drive_letter(r"C:\data"), r"\data");
-        assert_eq!(strip_drive_letter(r"D:/file"), r"/file");
-        assert_eq!(strip_drive_letter(r"Z:\path\to\file"), r"\path\to\file");
-        assert_eq!(strip_drive_letter(r"c:\lowercase"), r"\lowercase");
+    fn test_strip_leading_separators() {
+        // Leading separators should be stripped
+        assert_eq!(strip_leading_separators(r"\test"), "test");
+        assert_eq!(strip_leading_separators("/test"), "test");
+        assert_eq!(strip_leading_separators(r"\path\to\file"), r"path\to\file");
+        assert_eq!(strip_leading_separators("/path/to/file"), "path/to/file");
+        assert_eq!(strip_leading_separators(r"\/mixed"), "mixed");
+        assert_eq!(strip_leading_separators(r"\\double"), r"double");
 
-        // Unix-style paths should remain unchanged
-        assert_eq!(strip_drive_letter("/home/user"), "/home/user");
-        assert_eq!(strip_drive_letter("relative/path"), "relative/path");
+        // No leading separators should remain unchanged
+        assert_eq!(strip_leading_separators("relative/path"), "relative/path");
+        assert_eq!(strip_leading_separators(r"relative\path"), r"relative\path");
 
         // Edge cases
-        assert_eq!(strip_drive_letter("C:"), "C:"); // No path separator
-        assert_eq!(strip_drive_letter(r"CD:\path"), r"CD:\path"); // Not a single letter
-        assert_eq!(strip_drive_letter(""), ""); // Empty string
-        assert_eq!(strip_drive_letter(r"C:\"), r"\"); // Just drive root
+        assert_eq!(strip_leading_separators(""), ""); // Empty string
+        assert_eq!(strip_leading_separators(r"\"), ""); // Just separator
+        assert_eq!(strip_leading_separators("/"), ""); // Just separator
     }
 }
 
@@ -261,21 +248,18 @@ pub(crate) fn resolve_dest_path(
         return Ok(PathBuf::from(dest_str));
     }
 
-    // Look for a second colon in the remaining path (before any path separator)
-    let relative_path_after_first_colon =
-        after_first_colon
-            .find([':', '/', '\\'])
-            .map_or(after_first_colon, |second_colon| {
-                // Two colons pattern: "share:X:\path" or "share:X:/path"
-                // Check if the character at second_colon is a colon (not a path separator)
-                if after_first_colon.chars().nth(second_colon) == Some(':') {
-                    // Pattern is "share:drive:\path" - skip the drive letter part
-                    &after_first_colon[second_colon + 1..]
-                } else {
-                    // Pattern is "share:/path" - single colon, use everything after first colon
-                    after_first_colon
-                }
-            });
+    // Check if this looks like a native Windows path (e.g., "C:\path" or "D:/path")
+    // Pattern: single letter followed by colon and path separator
+    let is_windows_drive = {
+        let mut chars = after_first_colon.chars();
+        matches!(chars.next(), Some(c) if c.is_ascii_alphabetic())
+            && chars.next() == Some(':')
+            && matches!(chars.next(), Some('\\' | '/'))
+    };
+
+    if is_windows_drive {
+        return Ok(PathBuf::from(dest_str));
+    }
 
     // Now check if potential_share matches the share name
     let Some(pool) = share else {
@@ -288,8 +272,8 @@ pub(crate) fn resolve_dest_path(
         return Ok(PathBuf::from(dest_str));
     }
 
-    // Strip Windows drive letter from relative path if present (e.g., "C:\data" → "\data")
-    let relative_path = strip_drive_letter(relative_path_after_first_colon);
+    // Strip leading path separators from relative path
+    let relative_path = strip_leading_separators(after_first_colon);
 
     // Try to use the same branch as the source (for efficient same-branch operations)
     if let Some(src_idx) = source_branch_index {
@@ -1368,6 +1352,8 @@ fn copy_file_contents(source: &Path, dest: &Path) -> Result<()> {
         let metadata = fs::metadata(source)?;
 
         // Copy file attributes using Windows API
+        use std::os::windows::fs::MetadataExt;
+
         let attrs = metadata.file_attributes();
         if attrs != 0 {
             // Use windows-sys to set file attributes
