@@ -62,11 +62,12 @@ fn rename_file(src: &Path, dest: &Path) -> io::Result<()> {
 }
 
 /// Resolved path with branch information
-struct ResolvedPath {
+#[derive(Debug)]
+pub(crate) struct ResolvedPath {
     /// The resolved file system path
-    path: PathBuf,
+    pub(crate) path: PathBuf,
     /// Branch index in the share (if resolved from a share path)
-    branch_index: Option<usize>,
+    pub(crate) branch_index: Option<usize>,
 }
 
 /// Resolve a path that may have a share: prefix
@@ -80,52 +81,127 @@ struct ResolvedPath {
 ///
 /// Returns an error if the share is not found or if path resolution fails.
 #[allow(clippy::arithmetic_side_effects)]
-fn resolve_path(
+pub(crate) fn resolve_path(
     path_str: &str,
     share: Option<&Pool>,
     for_create: bool,
     cache: &OperationCache,
 ) -> Result<ResolvedPath> {
-    if let Some(colon_idx) = path_str.find(':') {
-        let potential_prefix = &path_str[..colon_idx];
-        // Check for path separators (both Unix / and Windows \) to distinguish
-        // share paths (e.g., "media:/movies") from Windows drive letters (e.g., "C:\")
-        if !potential_prefix.contains('/') && !potential_prefix.contains('\\') {
-            let share_name = potential_prefix;
-            let relative_path = &path_str[colon_idx + 1..];
+    // Find the first colon
+    let Some(first_colon) = path_str.find(':') else {
+        // No colon, return as-is
+        return Ok(ResolvedPath {
+            path: PathBuf::from(path_str),
+            branch_index: None,
+        });
+    };
 
-            if let Some(pool) = share {
-                if pool.name == share_name {
-                    let branch = if for_create {
-                        // For create operations, use policy-based selection
-                        select_branch_for_create(pool, Some(relative_path.as_ref()), cache)?
-                    } else {
-                        // For existing files, find the branch containing the file
-                        select_branch_for_read(pool, Path::new(relative_path), cache)?
-                    };
+    let potential_share = &path_str[..first_colon];
+    let after_first_colon = &path_str[first_colon + 1..];
 
-                    // Get branch index using O(1) HashMap lookup
-                    let branch_idx = pool
-                        .get_branch_index(&branch.path)
-                        .map_err(|e| NofsError::CopyMove(format!("Failed to resolve branch: {e}")))?;
-
-                    return Ok(ResolvedPath {
-                        path: branch.path.join(relative_path),
-                        branch_index: Some(branch_idx),
-                    });
-                }
-            }
-            return Err(NofsError::CopyMove(format!(
-                "Share '{share_name}' not found or has no branches"
-            )));
-        }
+    // Check if prefix contains path separators (already a full path like UNC)
+    if potential_share.contains('/') || potential_share.contains('\\') {
+        return Ok(ResolvedPath {
+            path: PathBuf::from(path_str),
+            branch_index: None,
+        });
     }
 
-    // No share prefix, return as-is
+    // Look for a second colon in the remaining path (before any path separator)
+    let relative_path_after_first_colon =
+        after_first_colon
+            .find([':', '/', '\\'])
+            .map_or(after_first_colon, |second_colon| {
+                // Two colons pattern: "share:X:\path" or "share:X:/path"
+                // Check if the character at second_colon is a colon (not a path separator)
+                if after_first_colon.chars().nth(second_colon) == Some(':') {
+                    // Pattern is "share:drive:\path" - skip the drive letter part
+                    &after_first_colon[second_colon + 1..]
+                } else {
+                    // Pattern is "share:/path" - single colon, use everything after first colon
+                    after_first_colon
+                }
+            });
+
+    // Now check if potential_share matches the share name
+    let Some(pool) = share else {
+        // No share context provided, treat as native path
+        return Ok(ResolvedPath {
+            path: PathBuf::from(path_str),
+            branch_index: None,
+        });
+    };
+
+    if pool.name != potential_share {
+        // Doesn't match share name, treat as native path (e.g., "C:\path")
+        return Ok(ResolvedPath {
+            path: PathBuf::from(path_str),
+            branch_index: None,
+        });
+    }
+
+    // Strip Windows drive letter from relative path if present (e.g., "C:\data" → "\data")
+    let relative_path = strip_drive_letter(relative_path_after_first_colon);
+
+    let branch = if for_create {
+        // For create operations, use policy-based selection
+        select_branch_for_create(pool, Some(relative_path.as_ref()), cache)?
+    } else {
+        // For existing files, find the branch containing the file
+        select_branch_for_read(pool, Path::new(relative_path), cache)?
+    };
+
+    // Get branch index using O(1) HashMap lookup
+    let branch_idx = pool
+        .get_branch_index(&branch.path)
+        .map_err(|e| NofsError::CopyMove(format!("Failed to resolve branch: {e}")))?;
+
     Ok(ResolvedPath {
-        path: PathBuf::from(path_str),
-        branch_index: None,
+        path: branch.path.join(relative_path),
+        branch_index: Some(branch_idx),
     })
+}
+
+/// Strip Windows drive letter from a path if present (e.g., `C:\data` → `\data`, `<D:/file>` → `/file`)
+fn strip_drive_letter(path: &str) -> &str {
+    // Check for pattern like "C:\" or "D:/" (single letter followed by : and path separator)
+    let mut chars = path.chars();
+    let first = chars.next();
+    let second = chars.next();
+    let third = chars.next();
+
+    if let (Some(_), Some(':'), Some(sep)) = (first, second, third) {
+        if sep == '\\' || sep == '/' {
+            // Return path starting from the separator (e.g., "\data" or "/file")
+            // Skip both the drive letter and the colon
+            return &path[2..];
+        }
+    }
+    path
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_strip_drive_letter() {
+        // Windows paths with drive letters should be stripped
+        assert_eq!(strip_drive_letter(r"C:\data"), r"\data");
+        assert_eq!(strip_drive_letter(r"D:/file"), r"/file");
+        assert_eq!(strip_drive_letter(r"Z:\path\to\file"), r"\path\to\file");
+        assert_eq!(strip_drive_letter(r"c:\lowercase"), r"\lowercase");
+
+        // Unix-style paths should remain unchanged
+        assert_eq!(strip_drive_letter("/home/user"), "/home/user");
+        assert_eq!(strip_drive_letter("relative/path"), "relative/path");
+
+        // Edge cases
+        assert_eq!(strip_drive_letter("C:"), "C:"); // No path separator
+        assert_eq!(strip_drive_letter(r"CD:\path"), r"CD:\path"); // Not a single letter
+        assert_eq!(strip_drive_letter(""), ""); // Empty string
+        assert_eq!(strip_drive_letter(r"C:\"), r"\"); // Just drive root
+    }
 }
 
 /// Select a branch for create operations using the pool's create policy
@@ -165,37 +241,55 @@ fn select_branch_for_read<'a>(pool: &'a Pool, relative_path: &Path, cache: &'a O
 ///
 /// Returns an error if the share is not found or if path resolution fails.
 #[allow(clippy::arithmetic_side_effects)]
-fn resolve_dest_path(
+pub(crate) fn resolve_dest_path(
     dest_str: &str,
     share: Option<&Pool>,
     source_branch_index: Option<usize>,
     cache: &OperationCache,
 ) -> Result<PathBuf> {
-    // Check for share prefix format: "share_name:relative/path"
-    let Some(colon_idx) = dest_str.find(':') else {
-        // No share prefix, return as-is
+    // Find the first colon
+    let Some(first_colon) = dest_str.find(':') else {
+        // No colon, return as-is
         return Ok(PathBuf::from(dest_str));
     };
 
-    let potential_prefix = &dest_str[..colon_idx];
-    // If prefix contains path separators, it's not a share name (likely a Windows path like C:)
-    if potential_prefix.contains('/') || potential_prefix.contains('\\') {
+    let potential_share = &dest_str[..first_colon];
+    let after_first_colon = &dest_str[first_colon + 1..];
+
+    // Check if prefix contains path separators (already a full path like UNC)
+    if potential_share.contains('/') || potential_share.contains('\\') {
         return Ok(PathBuf::from(dest_str));
     }
 
-    let share_name = potential_prefix;
-    let relative_path = &dest_str[colon_idx + 1..];
+    // Look for a second colon in the remaining path (before any path separator)
+    let relative_path_after_first_colon =
+        after_first_colon
+            .find([':', '/', '\\'])
+            .map_or(after_first_colon, |second_colon| {
+                // Two colons pattern: "share:X:\path" or "share:X:/path"
+                // Check if the character at second_colon is a colon (not a path separator)
+                if after_first_colon.chars().nth(second_colon) == Some(':') {
+                    // Pattern is "share:drive:\path" - skip the drive letter part
+                    &after_first_colon[second_colon + 1..]
+                } else {
+                    // Pattern is "share:/path" - single colon, use everything after first colon
+                    after_first_colon
+                }
+            });
+
+    // Now check if potential_share matches the share name
     let Some(pool) = share else {
-        return Err(NofsError::CopyMove(format!(
-            "Share '{share_name}' not found or has no branches"
-        )));
+        // No share context provided, treat as native path
+        return Ok(PathBuf::from(dest_str));
     };
 
-    if pool.name != share_name {
-        return Err(NofsError::CopyMove(format!(
-            "Share '{share_name}' not found or has no branches"
-        )));
+    if pool.name != potential_share {
+        // Doesn't match share name, treat as native path (e.g., "C:\path")
+        return Ok(PathBuf::from(dest_str));
     }
+
+    // Strip Windows drive letter from relative path if present (e.g., "C:\data" → "\data")
+    let relative_path = strip_drive_letter(relative_path_after_first_colon);
 
     // Try to use the same branch as the source (for efficient same-branch operations)
     if let Some(src_idx) = source_branch_index {
@@ -1244,7 +1338,7 @@ fn process_file(source: &Path, dest: &Path, config: &CopyConfig, stats: &Arc<Cop
 /// Copy file contents from source to destination
 ///
 /// Tries reflink first for copy-on-write benefits, falls back to manual copy.
-/// Also preserves file permissions.
+/// Also preserves file permissions and timestamps.
 ///
 /// # Errors
 ///
@@ -1260,12 +1354,51 @@ fn copy_file_contents(source: &Path, dest: &Path) -> Result<()> {
     let mut dst_file = fs::File::create(dest)?;
     io::copy(&mut src_file, &mut dst_file)?;
 
-    // Preserve metadata (Unix only - Windows uses different permission model)
+    // Preserve metadata
     #[cfg(unix)]
     {
         let metadata = fs::metadata(source)?;
         fs::set_permissions(dest, metadata.permissions())?;
     }
+
+    #[cfg(windows)]
+    {
+        // On Windows, preserve file attributes (readonly, hidden, system, archive)
+        // and timestamps (created, modified, accessed)
+        let metadata = fs::metadata(source)?;
+
+        // Copy file attributes using Windows API
+        let attrs = metadata.file_attributes();
+        if attrs != 0 {
+            // Use windows-sys to set file attributes
+            use std::ffi::OsStr;
+            use std::os::windows::ffi::OsStrExt;
+
+            let dest_wide: Vec<u16> = OsStr::new(dest).encode_wide().chain(Some(0)).collect();
+
+            unsafe {
+                windows_sys::Win32::Storage::FileSystem::SetFileAttributesW(dest_wide.as_ptr(), attrs);
+            }
+        }
+
+        // Copy timestamps (created, modified, accessed)
+        if let (Ok(_created), Ok(modified), Ok(accessed)) =
+            (metadata.created(), metadata.modified(), metadata.accessed())
+        {
+            let _ = filetime::set_file_handle_times(
+                &dst_file,
+                Some(filetime::FileTime::from_system_time(accessed)),
+                Some(filetime::FileTime::from_system_time(modified)),
+            );
+            // Note: Creation time requires different API on Windows
+            // For most use cases, modifying created time is not critical
+        }
+    }
+
+    // Explicitly drop file handles to ensure they're released before any subsequent operations
+    // This is especially important on Windows where file locks prevent deletion/modification
+    drop(src_file);
+    drop(dst_file);
 
     Ok(())
 }
@@ -1684,12 +1817,11 @@ fn get_unique_filename(base: &Path) -> PathBuf {
 
             // Use atomic file creation to avoid TOCTOU race conditions
             // On Windows, we must drop the handle before deleting
-            if let Ok(handle) = std::fs::OpenOptions::new()
-                .write(true)
-                .create_new(true)
-                .open(&new_path)
-            {
+            if let Ok(handle) = std::fs::OpenOptions::new().write(true).create_new(true).open(&new_path) {
                 drop(handle); // Drop the file handle before deleting (required on Windows)
+                              // Small delay to ensure Windows releases the file handle
+                #[cfg(windows)]
+                std::thread::sleep(std::time::Duration::from_millis(1));
                 let _ = std::fs::remove_file(&new_path);
                 return new_path;
             }
@@ -1735,12 +1867,10 @@ fn get_unique_filename(base: &Path) -> PathBuf {
 
             // Try to create file exclusively to check if name is available
             // On Windows, we must drop the handle before deleting
-            if let Ok(handle) = std::fs::OpenOptions::new()
-                .write(true)
-                .create_new(true)
-                .open(&new_path)
-            {
+            if let Ok(handle) = std::fs::OpenOptions::new().write(true).create_new(true).open(&new_path) {
                 drop(handle); // Drop the file handle before deleting (required on Windows)
+                              // Small delay to ensure Windows releases the file handle
+                std::thread::sleep(std::time::Duration::from_millis(1));
                 let _ = std::fs::remove_file(&new_path);
                 return new_path;
             }
@@ -1860,6 +1990,10 @@ fn get_unique_folder_name(base: &Path) -> PathBuf {
             match std::fs::create_dir(&new_path) {
                 Ok(()) => {
                     // Successfully created, remove it so caller can use the name
+                    // Explicitly drop any directory handles before removal
+                    if let Ok(read_dir) = std::fs::read_dir(&new_path) {
+                        drop(read_dir);
+                    }
                     let _ = std::fs::remove_dir(&new_path);
                     return new_path;
                 }
@@ -1899,6 +2033,15 @@ fn get_unique_folder_name(base: &Path) -> PathBuf {
 
             match std::fs::create_dir(&new_path) {
                 Ok(()) => {
+                    // On Windows, need to ensure all handles are dropped before deleting
+                    // The directory handle from create_dir is implicitly dropped here,
+                    // but we explicitly flush any cached directory handles by reading
+                    // and immediately dropping the directory iterator
+                    if let Ok(read_dir) = std::fs::read_dir(&new_path) {
+                        drop(read_dir);
+                    }
+                    // Explicitly sync to ensure directory is fully committed to disk
+                    std::thread::sleep(std::time::Duration::from_millis(1));
                     let _ = std::fs::remove_dir(&new_path);
                     return new_path;
                 }

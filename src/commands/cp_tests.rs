@@ -13,8 +13,8 @@ fn assert_ok<T: std::fmt::Debug>(result: Result<T, crate::error::NofsError>, tes
     match result {
         Ok(v) => v,
         Err(e) => {
-            eprintln!("{} failed: {:?}", test_name, e);
-            panic!("{} failed: {:?}", test_name, e);
+            eprintln!("{test_name} failed: {e:?}");
+            panic!("{test_name} failed: {e:?}");
         }
     }
 }
@@ -470,9 +470,13 @@ fn test_copy_directory_recursive() {
     );
 
     if let Err(e) = &result {
-        eprintln!("test_copy_directory_recursive failed: {:?}", e);
+        eprintln!("test_copy_directory_recursive failed: {e:?}");
     }
-    assert!(result.is_ok(), "copy directory recursive failed: {:?}", result.unwrap_err());
+    assert!(
+        result.is_ok(),
+        "copy directory recursive failed: {:?}",
+        result.unwrap_err()
+    );
 
     let dest_file1 = dest.join("src").join("file1.txt");
     let dest_file2 = dest.join("src").join("subdir").join("file2.txt");
@@ -1919,6 +1923,126 @@ fn test_parse_file_over_file_mtime_ctime_options() {
             );
         } else {
             assert!(result.is_err(), "Expected '{input}' to fail, but it succeeded");
+        }
+    }
+}
+
+/// Table-driven tests for path parsing to verify share vs native path detection
+#[test]
+fn test_path_parsing_formats() {
+    use crate::cache::OperationCache;
+    use crate::commands::cp::resolve_path;
+
+    let cache = OperationCache::new();
+
+    // Test cases: (input_path, should_resolve_as_native, description)
+    // should_resolve_as_native indicates whether the path should be treated as a native path
+    // (true = native path). Without share context, share-like paths are treated as native.
+    let test_cases = [
+        // Windows drive letters - should be treated as native paths
+        ("C:\\Users\\test", true, "Windows C: drive"),
+        ("D:\\Data\\file.txt", true, "Windows D: drive"),
+        ("Z:\\", true, "Windows Z: drive root"),
+        ("c:\\lowercase", true, "Windows lowercase drive"),
+        // UNC paths - should be treated as native paths
+        ("\\\\server\\share", true, "UNC path"),
+        ("\\\\server\\share\\path", true, "UNC path with subpath"),
+        // Unix absolute paths - should be treated as native paths (no colon)
+        ("/home/user/file", true, "Unix absolute path"),
+        ("/etc/config", true, "Unix etc path"),
+        // Relative paths - should be treated as native paths
+        ("relative/path", true, "Relative path with slash"),
+        ("file.txt", true, "Simple filename"),
+        ("..\\parent\\file", true, "Relative Windows path"),
+        // Share-like paths without share context - treated as native (no share to resolve)
+        ("media:/movies", true, "Share-like Unix path without context"),
+        ("pool1:/data/file.txt", true, "Share-like Unix path without context"),
+        // Share-like paths with Windows-style paths - treated as native without context
+        ("media:C:\\test\\file", true, "Share-like Windows path without context"),
+        ("pool1:D:\\data", true, "Share-like Windows path without context"),
+        // Edge cases - single letter prefix is treated as Windows drive
+        ("a:\\path", true, "Single letter 'a' is drive"),
+        ("z:/path", true, "Single letter 'z' is drive"),
+        // Multi-char prefixes without share context - treated as native
+        ("ab:/path", true, "Two-letter prefix without context"),
+        ("ab:C:\\path", true, "Two-letter prefix with Windows path"),
+    ];
+
+    for (input, should_be_native, description) in test_cases {
+        // Test resolve_path - without a share context, all paths should resolve as native
+        let result = resolve_path(input, None, false, &cache);
+
+        assert!(
+            result.is_ok(),
+            "{description}: expected '{input}' to resolve as native path, got: {result:?}"
+        );
+
+        if should_be_native {
+            // Verify it resolved to the original path
+            let resolved = result.unwrap();
+            assert_eq!(
+                resolved.path,
+                std::path::PathBuf::from(input),
+                "{description}: expected path to be '{input}', got '{}'",
+                resolved.path.display()
+            );
+        }
+    }
+}
+
+#[test]
+fn test_dest_path_parsing_formats() {
+    use crate::cache::OperationCache;
+    use crate::commands::cp::resolve_dest_path;
+
+    let cache = OperationCache::new();
+
+    // Test cases: (input_path, should_resolve_as_native, description)
+    let test_cases = [
+        // Windows drive letters - should be treated as native paths
+        ("C:\\Users\\test", true, "Windows C: drive"),
+        ("D:\\Data\\file.txt", true, "Windows D: drive"),
+        ("Z:\\", true, "Windows Z: drive root"),
+        // UNC paths - should be treated as native paths
+        ("\\\\server\\share", true, "UNC path"),
+        ("\\\\server\\share\\path", true, "UNC path with subpath"),
+        // Unix absolute paths - should be treated as native paths (no colon)
+        ("/home/user/file", true, "Unix absolute path"),
+        // Relative paths - should be treated as native paths
+        ("relative/path", true, "Relative path with slash"),
+        ("file.txt", true, "Simple filename"),
+        // Share paths with Unix-style paths - without share context, treated as native
+        ("media:/movies", true, "Share-like path without context"),
+        ("pool1:/data/file.txt", true, "Share-like path without context"),
+        // Share paths with Windows-style paths - without share context, treated as native
+        ("media:C:\\test\\file", true, "Share+Windows path without context"),
+        ("pool1:D:\\data", true, "Share+Windows path without context"),
+        // Edge cases - single letter prefix is treated as Windows drive
+        ("a:\\path", true, "Single letter 'a' is drive"),
+        ("z:/path", true, "Single letter 'z' is drive"),
+        // Multi-char prefixes without share context - treated as native
+        ("ab:/path", true, "Two-letter prefix without context"),
+        ("ab:C:\\path", true, "Two-letter prefix with Windows path"),
+    ];
+
+    for (input, should_be_native, description) in test_cases {
+        // Test resolve_dest_path - without a share context, all paths should resolve as native
+        let result = resolve_dest_path(input, None, None, &cache);
+
+        assert!(
+            result.is_ok(),
+            "{description}: expected '{input}' to resolve as native path, got: {result:?}"
+        );
+
+        if should_be_native {
+            // Verify it resolved to the original path
+            let resolved = result.unwrap();
+            assert_eq!(
+                resolved,
+                std::path::PathBuf::from(input),
+                "{description}: expected path to be '{input}', got '{}'",
+                resolved.display()
+            );
         }
     }
 }

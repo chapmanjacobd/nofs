@@ -27,6 +27,9 @@ dashmap = "6.1"
 fs4 = "0.13.1"
 dirs = "6"
 
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.59", features = ["Win32_Storage_FileSystem"] }
+
 [workspace]
 resolver = "2"
 
