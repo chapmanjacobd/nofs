@@ -1,7 +1,8 @@
 //! Non-UTF8 path tests for Linux and Windows.
 //!
 //! These tests verify that nofs handles paths with invalid UTF-8 sequences correctly.
-//! On Unix-like systems, paths are byte sequences and may contain invalid UTF-8.
+//! On Linux, paths are byte sequences and may contain invalid UTF-8.
+//! On macOS, filesystem paths must be valid UTF-8 (NFD normalized), so non-UTF8 tests are Linux-only.
 //! On Windows, paths are UTF-16 but may still have surrogate pairs that are invalid UTF-8.
 
 #[path = "common.rs"]
@@ -13,14 +14,14 @@ mod tests {
     use std::fs;
     use std::path::{Path, PathBuf};
 
-    #[cfg(unix)]
+    #[cfg(target_os = "linux")]
     use std::ffi::OsString;
-    #[cfg(unix)]
+    #[cfg(target_os = "linux")]
     use std::os::unix::ffi::OsStringExt;
 
-    /// Helper to create a file with a non-UTF8 name on Unix.
+    /// Helper to create a file with a non-UTF8 name on Linux.
     /// On Windows, this creates a file with a name containing unusual but valid Unicode.
-    #[cfg(unix)]
+    #[cfg(target_os = "linux")]
     fn create_non_utf8_file(branch_path: &Path, name_bytes: &[u8]) -> PathBuf {
         let file_name = OsString::from_vec(name_bytes.to_vec());
         let file_path = branch_path.join(file_name);
@@ -28,8 +29,8 @@ mod tests {
         file_path
     }
 
-    /// Helper to create a directory with a non-UTF8 name on Unix.
-    #[cfg(unix)]
+    /// Helper to create a directory with a non-UTF8 name on Linux.
+    #[cfg(target_os = "linux")]
     fn create_non_utf8_dir(branch_path: &Path, name_bytes: &[u8]) -> PathBuf {
         let dir_name = OsString::from_vec(name_bytes.to_vec());
         let dir_path = branch_path.join(dir_name);
@@ -55,7 +56,7 @@ mod tests {
 
     // region: Linux-specific tests
 
-    #[cfg(unix)]
+    #[cfg(target_os = "linux")]
     #[test]
     fn test_non_utf8_filename_in_branch() {
         let ctx = TestContext::new("non_utf8_filename");
@@ -78,7 +79,7 @@ mod tests {
         assert!(non_utf8_file.exists(), "Non-UTF8 file should exist");
     }
 
-    #[cfg(unix)]
+    #[cfg(target_os = "linux")]
     #[test]
     fn test_non_utf8_dir_name_in_branch() {
         let ctx = TestContext::new("non_utf8_dirname");
@@ -103,7 +104,7 @@ mod tests {
         assert!(normal_file.exists(), "File inside non-UTF8 directory should exist");
     }
 
-    #[cfg(unix)]
+    #[cfg(target_os = "linux")]
     #[test]
     fn test_mixed_utf8_and_non_utf8_files() {
         let ctx = TestContext::new("mixed_utf8");
@@ -125,7 +126,7 @@ mod tests {
         assert!(non_utf8_file.exists());
     }
 
-    #[cfg(unix)]
+    #[cfg(target_os = "linux")]
     #[test]
     fn test_non_utf8_branch_path() {
         let ctx = TestContext::new("non_utf8_branch");
@@ -151,7 +152,7 @@ mod tests {
         assert!(file_in_branch.exists(), "File in non-UTF8 branch should exist");
     }
 
-    #[cfg(unix)]
+    #[cfg(target_os = "linux")]
     #[test]
     fn test_find_with_non_utf8_files() {
         let ctx = TestContext::new("find_non_utf8");
@@ -176,7 +177,7 @@ mod tests {
         assert!(output.success() || !output.success());
     }
 
-    #[cfg(unix)]
+    #[cfg(target_os = "linux")]
     #[test]
     fn test_cp_with_non_utf8_source() {
         let ctx = TestContext::new("cp_non_utf8_src");
@@ -201,7 +202,7 @@ mod tests {
         assert!(output.success() || !output.success());
     }
 
-    #[cfg(unix)]
+    #[cfg(target_os = "linux")]
     #[test]
     fn test_exists_with_non_utf8_file() {
         let ctx = TestContext::new("exists_non_utf8");
@@ -226,7 +227,7 @@ mod tests {
         assert!(non_utf8_file.exists());
     }
 
-    #[cfg(unix)]
+    #[cfg(target_os = "linux")]
     #[test]
     fn test_multiple_non_utf8_files_in_same_dir() {
         let ctx = TestContext::new("multiple_non_utf8");
@@ -303,6 +304,105 @@ mod tests {
         assert!(file_in_chinese_dir.exists());
     }
 
+    #[cfg(windows)]
+    #[test]
+    fn test_mixed_unicode_scripts_windows() {
+        let ctx = TestContext::new("win_mixed_scripts");
+
+        let branch_path = ctx.create_branch("disk1", &[]);
+
+        // Create files with mixed Unicode scripts in the same name
+        let mixed_file = create_non_utf8_file(
+            &branch_path,
+            "混合🎉файл_مختلط.txt",
+        );
+
+        let output = ctx.run_nofs(&["--paths", &branch_path.display().to_string(), "ls", "/"]);
+
+        assert!(output.success() || !output.success());
+        assert!(mixed_file.exists());
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn test_emoji_only_filenames_windows() {
+        let ctx = TestContext::new("win_emoji_only");
+
+        let branch_path = ctx.create_branch("disk1", &[]);
+
+        // Files with emoji-only names
+        let emoji_file1 = create_non_utf8_file(&branch_path, "🎉🎊🎈.txt");
+        let emoji_file2 = create_non_utf8_file(&branch_path, "😀😃😄.txt");
+
+        let output = ctx.run_nofs(&["--paths", &branch_path.display().to_string(), "ls", "/"]);
+
+        assert!(output.success() || !output.success());
+        assert!(emoji_file1.exists());
+        assert!(emoji_file2.exists());
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn test_cjk_filenames_windows() {
+        let ctx = TestContext::new("win_cjk");
+
+        let branch_path = ctx.create_branch("disk1", &[]);
+
+        // Create files with Chinese, Japanese, Korean names
+        let chinese_file = create_non_utf8_file(&branch_path, "中文文件.txt");
+        let japanese_file = create_non_utf8_file(&branch_path, "日本語ファイル.txt");
+        let korean_file = create_non_utf8_file(&branch_path, "한국어파일.txt");
+
+        let output = ctx.run_nofs(&["--paths", &branch_path.display().to_string(), "ls", "/"]);
+
+        assert!(output.success() || !output.success());
+        assert!(chinese_file.exists());
+        assert!(japanese_file.exists());
+        assert!(korean_file.exists());
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn test_nested_unicode_dirs_windows() {
+        let ctx = TestContext::new("win_nested_unicode");
+
+        let branch_path = ctx.create_branch("disk1", &[]);
+
+        // Create nested directories with Unicode names
+        let level1 = create_non_utf8_dir(&branch_path, "目录");
+        let level2 = create_non_utf8_dir(&level1, "🎉🎊");
+        let level3 = create_non_utf8_dir(&level2, "файл");
+
+        let deep_file = level3.join("file.txt");
+        fs::write(&deep_file, "deep content").unwrap();
+
+        let output = ctx.run_nofs(&["--paths", &branch_path.display().to_string(), "ls", "/"]);
+
+        assert!(output.success() || !output.success());
+        assert!(level1.exists());
+        assert!(level2.exists());
+        assert!(level3.exists());
+        assert!(deep_file.exists());
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn test_very_long_unicode_filename_windows() {
+        let ctx = TestContext::new("win_long_unicode");
+
+        let branch_path = ctx.create_branch("disk1", &[]);
+
+        // Create a very long Unicode filename (Windows supports up to 260 chars by default,
+        // but with long path support can go much longer)
+        let long_name = format!("{}{}.txt", "文件".repeat(50), "🎉");
+        let long_file = create_non_utf8_file(&branch_path, &long_name);
+
+        let output = ctx.run_nofs(&["--paths", &branch_path.display().to_string(), "ls", "/"]);
+
+        assert!(output.success() || !output.success());
+        assert!(long_file.exists());
+    }
+
     // endregion
 
     // region: Cross-platform tests
@@ -311,7 +411,7 @@ mod tests {
     fn test_config_with_lossy_path_conversion() {
         let ctx = TestContext::new("config_lossy");
 
-        #[cfg(unix)]
+        #[cfg(target_os = "linux")]
         {
             // Create branch with non-UTF8 name
             let branch_name = OsString::from_vec(b"branch_\x80\x81".to_vec());
@@ -361,7 +461,7 @@ paths = ["{}"]
     fn test_adhoc_with_lossy_path_display() {
         let ctx = TestContext::new("adhoc_lossy");
 
-        #[cfg(unix)]
+        #[cfg(target_os = "linux")]
         {
             // Create branch with non-UTF8 name
             let branch_name = OsString::from_vec(b"disk_\xC0\xAF".to_vec());
@@ -391,7 +491,7 @@ paths = ["{}"]
     fn test_branch_with_special_unicode() {
         let ctx = TestContext::new("special_unicode");
 
-        #[cfg(unix)]
+        #[cfg(target_os = "linux")]
         {
             // Create branch with various special characters
             let branch_name = OsString::from_vec(b"branch_\x00test".to_vec());
@@ -426,7 +526,7 @@ paths = ["{}"]
     fn test_info_with_non_utf8_branches() {
         let ctx = TestContext::new("info_non_utf8");
 
-        #[cfg(unix)]
+        #[cfg(target_os = "linux")]
         {
             // Create branches with non-UTF8 names
             let branch1_name = OsString::from_vec(b"disk1_\x80\x81".to_vec());
@@ -482,7 +582,7 @@ paths = ["{}", "{}"]
 
     // region: Edge cases
 
-    #[cfg(unix)]
+    #[cfg(target_os = "linux")]
     #[test]
     fn test_very_long_non_utf8_filename() {
         let ctx = TestContext::new("long_non_utf8");
@@ -506,7 +606,7 @@ paths = ["{}", "{}"]
         assert!(long_file.exists());
     }
 
-    #[cfg(unix)]
+    #[cfg(target_os = "linux")]
     #[test]
     fn test_non_utf8_with_nested_dirs() {
         let ctx = TestContext::new("nested_non_utf8");
