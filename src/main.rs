@@ -69,7 +69,7 @@ struct Cli {
 
     /// Comma-separated list of branch paths (ad-hoc mode)
     /// Format: /path1,/path2 or /path1=RW,/path2=RO
-    #[arg(long, global = true, help_heading = "Configuration")]
+    #[arg(long, global = true, help_heading = "Configuration", num_args = 1)]
     paths: Option<String>,
 
     // Policy options
@@ -179,10 +179,13 @@ EXAMPLES:
     nofs which media:/photos/vacation.jpg        # Find branch containing file
     nofs which -a media:/docs/readme.txt         # Show all branches with file
     nofs which --conflicts media:/config.toml    # Check for conflicts
+    nofs which -a dump/image/ dump/video/        # Multiple paths, all matches
 
 OUTPUT:
-    Shows the branch path(s) containing the specified file.
-    With --all, shows all branches that contain the file.
+    Shows the branch path(s) containing the specified file(s).
+    With --all, shows all branches that contain each file.
+    Multiple paths can be specified; without --all, only the first match
+    is shown per path following the normal policy.
 
 CONFLICT DETECTION:
     --conflicts
@@ -194,9 +197,9 @@ CONFLICT DETECTION:
         More accurate but slower. Requires --conflicts flag."
     )]
     Which {
-        /// Path within the share (format: [context:]path).
-        #[arg(value_name = "PATH")]
-        path: String,
+        /// Path(s) within the share (format: [context:]path).
+        #[arg(required = true, value_name = "PATH")]
+        which_paths: Vec<String>,
 
         /// Show all branches containing the file (not just the first).
         #[arg(short, long)]
@@ -891,13 +894,15 @@ fn main() -> Result<()> {
             )?;
         }
         Commands::Which {
-            path,
+            which_paths,
             all,
             conflicts,
             hash,
         } => {
-            let (pool, pool_path) = pool_mgr.resolve_context_path(&path)?;
-            commands::which::execute(pool, pool_path, all, cli.verbose, conflicts, hash, cli.json)?;
+            for path in &which_paths {
+                let (pool, pool_path) = pool_mgr.resolve_context_path(path)?;
+                commands::which::execute(pool, pool_path, all, cli.verbose, conflicts, hash, cli.json)?;
+            }
         }
         Commands::Create { path } => {
             let (pool, pool_path) = pool_mgr.resolve_context_path(&path)?;

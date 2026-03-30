@@ -9,7 +9,7 @@ use serde_json;
 use std::io::{self, Write};
 use std::path::Path;
 
-/// Execute the which command
+/// Execute the which command for a single path
 ///
 /// # Errors
 ///
