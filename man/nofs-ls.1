@@ -4,7 +4,7 @@
 .SH NAME
 ls \- List directory contents (like ls)
 .SH SYNOPSIS
-\fBls\fR [\fB\-l\fR|\fB\-\-long\fR] [\fB\-a\fR|\fB\-\-all\fR] [\fB\-\-conflicts\fR] [\fB\-\-hash\fR] [\fB\-h\fR|\fB\-\-help\fR] <\fIPATH\fR> 
+\fBls\fR [\fB\-l\fR|\fB\-\-long\fR] [\fB\-a\fR|\fB\-\-all\fR] [\fB\-\-conflicts\fR] [\fB\-\-hash\fR] [\fB\-h\fR|\fB\-\-help\fR] <\fIPATHS\fR> 
 .SH DESCRIPTION
 List directory contents (like ls)
 .SH OPTIONS
@@ -24,14 +24,15 @@ Use hash comparison for conflict detection (slower but more accurate)
 \fB\-h\fR, \fB\-\-help\fR
 Print help
 .TP
-<\fIPATH\fR>
-Path within the share (format: [context:]path)
+<\fIPATHS\fR>
+Path(s) within the share (format: [context:]path)
 .SH EXTRA
 EXAMPLES:
     nofs ls media:/                    # List root of media share
     nofs ls \-l media:/photos           # Detailed listing
     nofs ls \-\-conflicts media:/docs    # Detect conflicting files
     nofs ls \-\-conflicts \-\-hash media:/ # Use hash for conflict detection
+    nofs ls dir1/ dir2/                # List multiple directories
 
 CONFLICT DETECTION:
     \-\-conflicts

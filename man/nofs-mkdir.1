@@ -4,7 +4,7 @@
 .SH NAME
 mkdir \- Create directories
 .SH SYNOPSIS
-\fBmkdir\fR [\fB\-p\fR|\fB\-\-parents\fR] [\fB\-v\fR|\fB\-\-verbose\fR] [\fB\-h\fR|\fB\-\-help\fR] <\fIPATH\fR> 
+\fBmkdir\fR [\fB\-p\fR|\fB\-\-parents\fR] [\fB\-v\fR|\fB\-\-verbose\fR] [\fB\-h\fR|\fB\-\-help\fR] <\fIPATHS\fR> 
 .SH DESCRIPTION
 Create directories
 .SH OPTIONS
@@ -18,13 +18,14 @@ Print each directory as it is created
 \fB\-h\fR, \fB\-\-help\fR
 Print help
 .TP
-<\fIPATH\fR>
-Path within the share (format: [context:]path)
+<\fIPATHS\fR>
+Path(s) within the share (format: [context:]path)
 .SH EXTRA
 EXAMPLES:
     nofs mkdir media:/new_folder             # Create single directory
     nofs mkdir \-p media:/a/b/c               # Create nested directories
     nofs mkdir \-pv media:/photos/2024        # Verbose creation
+    nofs mkdir dir1/ dir2/ dir3/             # Create multiple directories
 
 NOTES:
     Without \-p, fails if parent directories don\*(Aqt exist.

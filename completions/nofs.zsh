@@ -56,7 +56,7 @@ _arguments "${_arguments_options[@]}" : \
 '--help[Print help]' \
 '-V[Print version]' \
 '--version[Print version]' \
-':path -- Path within the share (format\: \[context\:\]path):_default' \
+'*::ls_paths -- Path(s) within the share (format\: \[context\:\]path):_default' \
 && ret=0
 ;;
 (find)
@@ -76,7 +76,7 @@ _arguments "${_arguments_options[@]}" : \
 '--help[Print help]' \
 '-V[Print version]' \
 '--version[Print version]' \
-':path -- Starting path within the share (format\: \[context\:\]path):_default' \
+'*::find_paths -- Starting path(s) within the share (format\: \[context\:\]path):_default' \
 && ret=0
 ;;
 (which)
@@ -97,7 +97,7 @@ _arguments "${_arguments_options[@]}" : \
 '--help[Print help]' \
 '-V[Print version]' \
 '--version[Print version]' \
-':path -- Path within the share (format\: \[context\:\]path):_default' \
+'*::which_paths -- Path(s) within the share (format\: \[context\:\]path):_default' \
 && ret=0
 ;;
 (create)
@@ -114,7 +114,7 @@ _arguments "${_arguments_options[@]}" : \
 '--help[Print help]' \
 '-V[Print version]' \
 '--version[Print version]' \
-':path -- Path within the share (format\: \[context\:\]path):_default' \
+'*::create_paths -- Path(s) within the share (format\: \[context\:\]path):_default' \
 && ret=0
 ;;
 (stat)
@@ -167,7 +167,7 @@ _arguments "${_arguments_options[@]}" : \
 '--help[Print help]' \
 '-V[Print version]' \
 '--version[Print version]' \
-':path -- Path within the share (format\: \[context\:\]path):_default' \
+'*::exists_paths -- Path(s) within the share (format\: \[context\:\]path):_default' \
 && ret=0
 ;;
 (cat)
@@ -184,7 +184,7 @@ _arguments "${_arguments_options[@]}" : \
 '--help[Print help]' \
 '-V[Print version]' \
 '--version[Print version]' \
-':path -- Path within the share (format\: \[context\:\]path):_default' \
+'*::cat_paths -- Path(s) within the share (format\: \[context\:\]path):_default' \
 && ret=0
 ;;
 (cp)
@@ -207,6 +207,7 @@ _arguments "${_arguments_options[@]}" : \
 '--size-limit=[Limit total size transferred (e.g., 100M, 1G)]:SIZE:_default' \
 '-c+[Path to configuration file]:CONFIG:_default' \
 '--config=[Path to configuration file]:CONFIG:_default' \
+'--paths=[Comma-separated list of branch paths (ad-hoc mode) Format\: /path1,/path2 or /path1=RW,/path2=RO]:PATHS:_default' \
 '--policy=[Policy to use for branch selection]:POLICY:_default' \
 '--minfreespace=[Minimum free space required on branch (e.g., "4G", "100M")]:MINFREESPACE:_default' \
 '-n[Simulate without making changes (dry-run)]' \
@@ -218,7 +219,7 @@ _arguments "${_arguments_options[@]}" : \
 '--help[Print help (see more with '\''--help'\'')]' \
 '-V[Print version]' \
 '--version[Print version]' \
-'*::paths -- Source paths \[...\] and destination (last argument). Format\: \[context\:\]path or regular path:_default' \
+'*::cp_paths -- Source paths \[...\] and destination (last argument). Format\: \[context\:\]path or regular path:_default' \
 && ret=0
 ;;
 (mv)
@@ -241,6 +242,7 @@ _arguments "${_arguments_options[@]}" : \
 '--size-limit=[Limit total size moved (e.g., 100M, 1G)]:SIZE:_default' \
 '-c+[Path to configuration file]:CONFIG:_default' \
 '--config=[Path to configuration file]:CONFIG:_default' \
+'--paths=[Comma-separated list of branch paths (ad-hoc mode) Format\: /path1,/path2 or /path1=RW,/path2=RO]:PATHS:_default' \
 '--policy=[Policy to use for branch selection]:POLICY:_default' \
 '--minfreespace=[Minimum free space required on branch (e.g., "4G", "100M")]:MINFREESPACE:_default' \
 '-n[Simulate without making changes (dry-run)]' \
@@ -252,13 +254,14 @@ _arguments "${_arguments_options[@]}" : \
 '--help[Print help (see more with '\''--help'\'')]' \
 '-V[Print version]' \
 '--version[Print version]' \
-'*::paths -- Source paths \[...\] and destination (last argument). Format\: \[context\:\]path or regular path:_default' \
+'*::mv_paths -- Source paths \[...\] and destination (last argument). Format\: \[context\:\]path or regular path:_default' \
 && ret=0
 ;;
 (rm)
 _arguments "${_arguments_options[@]}" : \
 '-c+[Path to configuration file]:CONFIG:_default' \
 '--config=[Path to configuration file]:CONFIG:_default' \
+'--paths=[Comma-separated list of branch paths (ad-hoc mode) Format\: /path1,/path2 or /path1=RW,/path2=RO]:PATHS:_default' \
 '--policy=[Policy to use for branch selection]:POLICY:_default' \
 '--minfreespace=[Minimum free space required on branch (e.g., "4G", "100M")]:MINFREESPACE:_default' \
 '-r[Remove directories and their contents recursively]' \
@@ -270,7 +273,7 @@ _arguments "${_arguments_options[@]}" : \
 '--help[Print help]' \
 '-V[Print version]' \
 '--version[Print version]' \
-'*::paths -- Path(s) within the share (format\: \[context\:\]path). Supports glob patterns:_default' \
+'*::rm_paths -- Path(s) within the share (format\: \[context\:\]path). Supports glob patterns:_default' \
 && ret=0
 ;;
 (mkdir)
@@ -289,7 +292,7 @@ _arguments "${_arguments_options[@]}" : \
 '--help[Print help]' \
 '-V[Print version]' \
 '--version[Print version]' \
-':path -- Path within the share (format\: \[context\:\]path):_default' \
+'*::mkdir_paths -- Path(s) within the share (format\: \[context\:\]path):_default' \
 && ret=0
 ;;
 (rmdir)
@@ -306,7 +309,7 @@ _arguments "${_arguments_options[@]}" : \
 '--help[Print help]' \
 '-V[Print version]' \
 '--version[Print version]' \
-':path -- Path within the share (format\: \[context\:\]path):_default' \
+'*::rmdir_paths -- Path(s) within the share (format\: \[context\:\]path):_default' \
 && ret=0
 ;;
 (touch)
@@ -323,7 +326,7 @@ _arguments "${_arguments_options[@]}" : \
 '--help[Print help]' \
 '-V[Print version]' \
 '--version[Print version]' \
-':path -- Path within the share (format\: \[context\:\]path):_default' \
+'*::touch_paths -- Path(s) within the share (format\: \[context\:\]path):_default' \
 && ret=0
 ;;
 (du)
@@ -345,7 +348,7 @@ _arguments "${_arguments_options[@]}" : \
 '--help[Print help]' \
 '-V[Print version]' \
 '--version[Print version]' \
-':path -- Path within the share (format\: \[context\:\]path):_default' \
+'*::du_paths -- Path(s) within the share (format\: \[context\:\]path):_default' \
 && ret=0
 ;;
 (completions)

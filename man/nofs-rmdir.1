@@ -4,7 +4,7 @@
 .SH NAME
 rmdir \- Remove empty directories
 .SH SYNOPSIS
-\fBrmdir\fR [\fB\-v\fR|\fB\-\-verbose\fR] [\fB\-h\fR|\fB\-\-help\fR] <\fIPATH\fR> 
+\fBrmdir\fR [\fB\-v\fR|\fB\-\-verbose\fR] [\fB\-h\fR|\fB\-\-help\fR] <\fIPATHS\fR> 
 .SH DESCRIPTION
 Remove empty directories
 .SH OPTIONS
@@ -15,12 +15,13 @@ Print the directory as it is removed
 \fB\-h\fR, \fB\-\-help\fR
 Print help
 .TP
-<\fIPATH\fR>
-Path within the share (format: [context:]path)
+<\fIPATHS\fR>
+Path(s) within the share (format: [context:]path)
 .SH EXTRA
 EXAMPLES:
     nofs rmdir media:/empty_folder           # Remove empty directory
     nofs rmdir \-v media:/old_logs            # Verbose removal
+    nofs rmdir empty1/ empty2/               # Remove multiple empty directories
 
 NOTES:
     Only works on empty directories. Use \*(Aqrm \-r\*(Aq for non\-empty directories.

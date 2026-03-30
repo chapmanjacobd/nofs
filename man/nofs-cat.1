@@ -4,7 +4,7 @@
 .SH NAME
 cat \- Read file content (from first found branch)
 .SH SYNOPSIS
-\fBcat\fR [\fB\-h\fR|\fB\-\-help\fR] <\fIPATH\fR> 
+\fBcat\fR [\fB\-h\fR|\fB\-\-help\fR] <\fIPATHS\fR> 
 .SH DESCRIPTION
 Read file content (from first found branch)
 .SH OPTIONS
@@ -12,12 +12,13 @@ Read file content (from first found branch)
 \fB\-h\fR, \fB\-\-help\fR
 Print help
 .TP
-<\fIPATH\fR>
-Path within the share (format: [context:]path)
+<\fIPATHS\fR>
+Path(s) within the share (format: [context:]path)
 .SH EXTRA
 EXAMPLES:
     nofs cat media:/config.toml            # Print file contents
     nofs cat media:/docs/readme.txt        # View text file
+    nofs cat file1.txt file2.txt           # View multiple files
 
 NOTES:
     Reads from the first branch containing the file.

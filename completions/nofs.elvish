@@ -195,6 +195,7 @@ set edit:completion:arg-completer[nofs] = {|@words|
             cand --size-limit 'Limit total size transferred (e.g., 100M, 1G)'
             cand -c 'Path to configuration file'
             cand --config 'Path to configuration file'
+            cand --paths 'Comma-separated list of branch paths (ad-hoc mode) Format: /path1,/path2 or /path1=RW,/path2=RO'
             cand --policy 'Policy to use for branch selection'
             cand --minfreespace 'Minimum free space required on branch (e.g., "4G", "100M")'
             cand -n 'Simulate without making changes (dry-run)'
@@ -226,6 +227,7 @@ set edit:completion:arg-completer[nofs] = {|@words|
             cand --size-limit 'Limit total size moved (e.g., 100M, 1G)'
             cand -c 'Path to configuration file'
             cand --config 'Path to configuration file'
+            cand --paths 'Comma-separated list of branch paths (ad-hoc mode) Format: /path1,/path2 or /path1=RW,/path2=RO'
             cand --policy 'Policy to use for branch selection'
             cand --minfreespace 'Minimum free space required on branch (e.g., "4G", "100M")'
             cand -n 'Simulate without making changes (dry-run)'
@@ -241,6 +243,7 @@ set edit:completion:arg-completer[nofs] = {|@words|
         &'nofs;rm'= {
             cand -c 'Path to configuration file'
             cand --config 'Path to configuration file'
+            cand --paths 'Comma-separated list of branch paths (ad-hoc mode) Format: /path1,/path2 or /path1=RW,/path2=RO'
             cand --policy 'Policy to use for branch selection'
             cand --minfreespace 'Minimum free space required on branch (e.g., "4G", "100M")'
             cand -r 'Remove directories and their contents recursively'

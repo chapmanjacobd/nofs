@@ -4,7 +4,7 @@
 .SH NAME
 du \- Show disk usage (recursive directory size calculation)
 .SH SYNOPSIS
-\fBdu\fR [\fB\-H\fR|\fB\-\-human\fR] [\fB\-a\fR|\fB\-\-all\fR] [\fB\-\-maxdepth\fR] [\fB\-h\fR|\fB\-\-help\fR] <\fIPATH\fR> 
+\fBdu\fR [\fB\-H\fR|\fB\-\-human\fR] [\fB\-a\fR|\fB\-\-all\fR] [\fB\-\-maxdepth\fR] [\fB\-h\fR|\fB\-\-help\fR] <\fIPATHS\fR> 
 .SH DESCRIPTION
 Show disk usage (recursive directory size calculation)
 .SH OPTIONS
@@ -21,14 +21,15 @@ Maximum directory traversal depth (0 = starting directory only)
 \fB\-h\fR, \fB\-\-help\fR
 Print help
 .TP
-<\fIPATH\fR>
-Path within the share (format: [context:]path)
+<\fIPATHS\fR>
+Path(s) within the share (format: [context:]path)
 .SH EXTRA
 EXAMPLES:
     nofs du media:/                  # Show disk usage for entire share
     nofs du \-H media:/photos         # Human\-readable sizes
     nofs du \-a media:/docs           # Show all subdirectory sizes
     nofs du \-\-maxdepth 1 media:/     # Only show top\-level directories
+    nofs du dir1/ dir2/              # Show disk usage for multiple directories
 
 OUTPUT:
     Shows disk usage for the specified path across all branches.

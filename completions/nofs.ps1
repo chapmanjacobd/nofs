@@ -207,6 +207,7 @@ Register-ArgumentCompleter -Native -CommandName 'nofs' -ScriptBlock {
             [CompletionResult]::new('--size-limit', '--size-limit', [CompletionResultType]::ParameterName, 'Limit total size transferred (e.g., 100M, 1G)')
             [CompletionResult]::new('-c', '-c', [CompletionResultType]::ParameterName, 'Path to configuration file')
             [CompletionResult]::new('--config', '--config', [CompletionResultType]::ParameterName, 'Path to configuration file')
+            [CompletionResult]::new('--paths', '--paths', [CompletionResultType]::ParameterName, 'Comma-separated list of branch paths (ad-hoc mode) Format: /path1,/path2 or /path1=RW,/path2=RO')
             [CompletionResult]::new('--policy', '--policy', [CompletionResultType]::ParameterName, 'Policy to use for branch selection')
             [CompletionResult]::new('--minfreespace', '--minfreespace', [CompletionResultType]::ParameterName, 'Minimum free space required on branch (e.g., "4G", "100M")')
             [CompletionResult]::new('-n', '-n', [CompletionResultType]::ParameterName, 'Simulate without making changes (dry-run)')
@@ -239,6 +240,7 @@ Register-ArgumentCompleter -Native -CommandName 'nofs' -ScriptBlock {
             [CompletionResult]::new('--size-limit', '--size-limit', [CompletionResultType]::ParameterName, 'Limit total size moved (e.g., 100M, 1G)')
             [CompletionResult]::new('-c', '-c', [CompletionResultType]::ParameterName, 'Path to configuration file')
             [CompletionResult]::new('--config', '--config', [CompletionResultType]::ParameterName, 'Path to configuration file')
+            [CompletionResult]::new('--paths', '--paths', [CompletionResultType]::ParameterName, 'Comma-separated list of branch paths (ad-hoc mode) Format: /path1,/path2 or /path1=RW,/path2=RO')
             [CompletionResult]::new('--policy', '--policy', [CompletionResultType]::ParameterName, 'Policy to use for branch selection')
             [CompletionResult]::new('--minfreespace', '--minfreespace', [CompletionResultType]::ParameterName, 'Minimum free space required on branch (e.g., "4G", "100M")')
             [CompletionResult]::new('-n', '-n', [CompletionResultType]::ParameterName, 'Simulate without making changes (dry-run)')
@@ -255,6 +257,7 @@ Register-ArgumentCompleter -Native -CommandName 'nofs' -ScriptBlock {
         'nofs;rm' {
             [CompletionResult]::new('-c', '-c', [CompletionResultType]::ParameterName, 'Path to configuration file')
             [CompletionResult]::new('--config', '--config', [CompletionResultType]::ParameterName, 'Path to configuration file')
+            [CompletionResult]::new('--paths', '--paths', [CompletionResultType]::ParameterName, 'Comma-separated list of branch paths (ad-hoc mode) Format: /path1,/path2 or /path1=RW,/path2=RO')
             [CompletionResult]::new('--policy', '--policy', [CompletionResultType]::ParameterName, 'Policy to use for branch selection')
             [CompletionResult]::new('--minfreespace', '--minfreespace', [CompletionResultType]::ParameterName, 'Minimum free space required on branch (e.g., "4G", "100M")')
             [CompletionResult]::new('-r', '-r', [CompletionResultType]::ParameterName, 'Remove directories and their contents recursively')

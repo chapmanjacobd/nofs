@@ -4,7 +4,7 @@
 .SH NAME
 exists \- Check if a file exists and return its location
 .SH SYNOPSIS
-\fBexists\fR [\fB\-h\fR|\fB\-\-help\fR] <\fIPATH\fR> 
+\fBexists\fR [\fB\-h\fR|\fB\-\-help\fR] <\fIPATHS\fR> 
 .SH DESCRIPTION
 Check if a file exists and return its location
 .SH OPTIONS
@@ -12,12 +12,13 @@ Check if a file exists and return its location
 \fB\-h\fR, \fB\-\-help\fR
 Print help
 .TP
-<\fIPATH\fR>
-Path within the share (format: [context:]path)
+<\fIPATHS\fR>
+Path(s) within the share (format: [context:]path)
 .SH EXTRA
 EXAMPLES:
     nofs exists media:/photos/pic.jpg      # Check if file exists
     nofs exists media:/docs/missing.txt    # Returns error if not found
+    nofs exists file1.txt file2.txt        # Check multiple files
 
 EXIT CODES:
     0 \- File exists

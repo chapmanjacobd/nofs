@@ -136,6 +136,7 @@ complete -c nofs -n "__fish_nofs_using_subcommand cp" -s S -l size -d 'Filter by
 complete -c nofs -n "__fish_nofs_using_subcommand cp" -s l -l limit -d 'Limit number of files transferred' -r
 complete -c nofs -n "__fish_nofs_using_subcommand cp" -l size-limit -d 'Limit total size transferred (e.g., 100M, 1G)' -r
 complete -c nofs -n "__fish_nofs_using_subcommand cp" -s c -l config -d 'Path to configuration file' -r
+complete -c nofs -n "__fish_nofs_using_subcommand cp" -l paths -d 'Comma-separated list of branch paths (ad-hoc mode) Format: /path1,/path2 or /path1=RW,/path2=RO' -r
 complete -c nofs -n "__fish_nofs_using_subcommand cp" -l policy -d 'Policy to use for branch selection' -r
 complete -c nofs -n "__fish_nofs_using_subcommand cp" -l minfreespace -d 'Minimum free space required on branch (e.g., "4G", "100M")' -r
 complete -c nofs -n "__fish_nofs_using_subcommand cp" -s n -l dry-run -d 'Simulate without making changes (dry-run)'
@@ -154,6 +155,7 @@ complete -c nofs -n "__fish_nofs_using_subcommand mv" -s S -l size -d 'Filter by
 complete -c nofs -n "__fish_nofs_using_subcommand mv" -s l -l limit -d 'Limit number of files moved' -r
 complete -c nofs -n "__fish_nofs_using_subcommand mv" -l size-limit -d 'Limit total size moved (e.g., 100M, 1G)' -r
 complete -c nofs -n "__fish_nofs_using_subcommand mv" -s c -l config -d 'Path to configuration file' -r
+complete -c nofs -n "__fish_nofs_using_subcommand mv" -l paths -d 'Comma-separated list of branch paths (ad-hoc mode) Format: /path1,/path2 or /path1=RW,/path2=RO' -r
 complete -c nofs -n "__fish_nofs_using_subcommand mv" -l policy -d 'Policy to use for branch selection' -r
 complete -c nofs -n "__fish_nofs_using_subcommand mv" -l minfreespace -d 'Minimum free space required on branch (e.g., "4G", "100M")' -r
 complete -c nofs -n "__fish_nofs_using_subcommand mv" -s n -l dry-run -d 'Simulate without making changes (dry-run)'
@@ -162,6 +164,7 @@ complete -c nofs -n "__fish_nofs_using_subcommand mv" -l json -d 'Output in JSON
 complete -c nofs -n "__fish_nofs_using_subcommand mv" -s h -l help -d 'Print help (see more with \'--help\')'
 complete -c nofs -n "__fish_nofs_using_subcommand mv" -s V -l version -d 'Print version'
 complete -c nofs -n "__fish_nofs_using_subcommand rm" -s c -l config -d 'Path to configuration file' -r
+complete -c nofs -n "__fish_nofs_using_subcommand rm" -l paths -d 'Comma-separated list of branch paths (ad-hoc mode) Format: /path1,/path2 or /path1=RW,/path2=RO' -r
 complete -c nofs -n "__fish_nofs_using_subcommand rm" -l policy -d 'Policy to use for branch selection' -r
 complete -c nofs -n "__fish_nofs_using_subcommand rm" -l minfreespace -d 'Minimum free space required on branch (e.g., "4G", "100M")' -r
 complete -c nofs -n "__fish_nofs_using_subcommand rm" -s r -l recursive -d 'Remove directories and their contents recursively'

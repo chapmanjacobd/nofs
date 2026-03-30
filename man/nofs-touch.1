@@ -4,7 +4,7 @@
 .SH NAME
 touch \- Create or update files
 .SH SYNOPSIS
-\fBtouch\fR [\fB\-v\fR|\fB\-\-verbose\fR] [\fB\-h\fR|\fB\-\-help\fR] <\fIPATH\fR> 
+\fBtouch\fR [\fB\-v\fR|\fB\-\-verbose\fR] [\fB\-h\fR|\fB\-\-help\fR] <\fIPATHS\fR> 
 .SH DESCRIPTION
 Create or update files
 .SH OPTIONS
@@ -15,13 +15,14 @@ Print the file path after creation/update
 \fB\-h\fR, \fB\-\-help\fR
 Print help
 .TP
-<\fIPATH\fR>
-Path within the share (format: [context:]path)
+<\fIPATHS\fR>
+Path(s) within the share (format: [context:]path)
 .SH EXTRA
 EXAMPLES:
     nofs touch media:/newfile.txt            # Create empty file
     nofs touch media:/existing.txt           # Update modification time
     nofs touch \-v media:/data.log            # Verbose creation
+    nofs touch file1.txt file2.txt           # Touch multiple files
 
 NOTES:
     Creates an empty file if it doesn\*(Aqt exist.

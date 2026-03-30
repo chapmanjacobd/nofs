@@ -4,7 +4,7 @@
 .SH NAME
 which \- Find which branch contains a file
 .SH SYNOPSIS
-\fBwhich\fR [\fB\-a\fR|\fB\-\-all\fR] [\fB\-\-conflicts\fR] [\fB\-\-hash\fR] [\fB\-h\fR|\fB\-\-help\fR] <\fIPATH\fR> 
+\fBwhich\fR [\fB\-a\fR|\fB\-\-all\fR] [\fB\-\-conflicts\fR] [\fB\-\-hash\fR] [\fB\-h\fR|\fB\-\-help\fR] <\fIPATHS\fR> 
 .SH DESCRIPTION
 Find which branch contains a file
 .SH OPTIONS
@@ -21,17 +21,20 @@ Use hash comparison for conflict detection (slower but more accurate)
 \fB\-h\fR, \fB\-\-help\fR
 Print help
 .TP
-<\fIPATH\fR>
-Path within the share (format: [context:]path)
+<\fIPATHS\fR>
+Path(s) within the share (format: [context:]path)
 .SH EXTRA
 EXAMPLES:
     nofs which media:/photos/vacation.jpg        # Find branch containing file
     nofs which \-a media:/docs/readme.txt         # Show all branches with file
     nofs which \-\-conflicts media:/config.toml    # Check for conflicts
+    nofs which \-a dump/image/ dump/video/        # Multiple paths, all matches
 
 OUTPUT:
-    Shows the branch path(s) containing the specified file.
-    With \-\-all, shows all branches that contain the file.
+    Shows the branch path(s) containing the specified file(s).
+    With \-\-all, shows all branches that contain each file.
+    Multiple paths can be specified; without \-\-all, only the first match
+    is shown per path following the normal policy.
 
 CONFLICT DETECTION:
     \-\-conflicts

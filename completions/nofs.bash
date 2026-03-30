@@ -165,7 +165,7 @@ _nofs() {
             return 0
             ;;
         nofs__cat)
-            opts="-c -v -h -V --config --paths --policy --minfreespace --verbose --json --help --version <PATH>"
+            opts="-c -v -h -V --config --paths --policy --minfreespace --verbose --json --help --version <PATHS>..."
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -233,7 +233,7 @@ _nofs() {
             return 0
             ;;
         nofs__cp)
-            opts="-n -j -e -E -I -S -l -c -v -h -V --file-over-file --file-over-folder --folder-over-file --dry-run --workers --ext --exclude --include --size --limit --size-limit --config --policy --minfreespace --verbose --json --help --version <PATHS>..."
+            opts="-n -j -e -E -I -S -l -c -v -h -V --file-over-file --file-over-folder --folder-over-file --dry-run --workers --ext --exclude --include --size --limit --size-limit --config --paths --policy --minfreespace --verbose --json --help --version <PATHS>..."
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -311,6 +311,10 @@ _nofs() {
                     COMPREPLY=($(compgen -f "${cur}"))
                     return 0
                     ;;
+                --paths)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
                 --policy)
                     COMPREPLY=($(compgen -f "${cur}"))
                     return 0
@@ -327,7 +331,7 @@ _nofs() {
             return 0
             ;;
         nofs__create)
-            opts="-c -v -h -V --config --paths --policy --minfreespace --verbose --json --help --version <PATH>"
+            opts="-c -v -h -V --config --paths --policy --minfreespace --verbose --json --help --version <PATHS>..."
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -361,7 +365,7 @@ _nofs() {
             return 0
             ;;
         nofs__du)
-            opts="-H -a -c -v -h -V --human --all --maxdepth --config --paths --policy --minfreespace --verbose --json --help --version <PATH>"
+            opts="-H -a -c -v -h -V --human --all --maxdepth --config --paths --policy --minfreespace --verbose --json --help --version <PATHS>..."
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -399,7 +403,7 @@ _nofs() {
             return 0
             ;;
         nofs__exists)
-            opts="-c -v -h -V --config --paths --policy --minfreespace --verbose --json --help --version <PATH>"
+            opts="-c -v -h -V --config --paths --policy --minfreespace --verbose --json --help --version <PATHS>..."
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -433,7 +437,7 @@ _nofs() {
             return 0
             ;;
         nofs__find)
-            opts="-c -v -h -V --name --type --maxdepth --config --paths --policy --minfreespace --verbose --json --help --version <PATH>"
+            opts="-c -v -h -V --name --type --maxdepth --config --paths --policy --minfreespace --verbose --json --help --version <PATHS>..."
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -779,7 +783,7 @@ _nofs() {
             return 0
             ;;
         nofs__ls)
-            opts="-l -a -c -v -h -V --long --all --conflicts --hash --config --paths --policy --minfreespace --verbose --json --help --version <PATH>"
+            opts="-l -a -c -v -h -V --long --all --conflicts --hash --config --paths --policy --minfreespace --verbose --json --help --version <PATHS>..."
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -859,7 +863,7 @@ _nofs() {
             return 0
             ;;
         nofs__mkdir)
-            opts="-p -v -c -h -V --parents --verbose --config --paths --policy --minfreespace --json --help --version <PATH>"
+            opts="-p -v -c -h -V --parents --verbose --config --paths --policy --minfreespace --json --help --version <PATHS>..."
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -893,7 +897,7 @@ _nofs() {
             return 0
             ;;
         nofs__mv)
-            opts="-n -j -e -E -I -S -l -c -v -h -V --file-over-file --file-over-folder --folder-over-file --dry-run --workers --ext --exclude --include --size --limit --size-limit --config --policy --minfreespace --verbose --json --help --version <PATHS>..."
+            opts="-n -j -e -E -I -S -l -c -v -h -V --file-over-file --file-over-folder --folder-over-file --dry-run --workers --ext --exclude --include --size --limit --size-limit --config --paths --policy --minfreespace --verbose --json --help --version <PATHS>..."
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -971,6 +975,10 @@ _nofs() {
                     COMPREPLY=($(compgen -f "${cur}"))
                     return 0
                     ;;
+                --paths)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
                 --policy)
                     COMPREPLY=($(compgen -f "${cur}"))
                     return 0
@@ -987,7 +995,7 @@ _nofs() {
             return 0
             ;;
         nofs__rm)
-            opts="-r -v -c -h -V --recursive --verbose --config --policy --minfreespace --json --help --version <PATHS>..."
+            opts="-r -v -c -h -V --recursive --verbose --config --paths --policy --minfreespace --json --help --version <PATHS>..."
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -998,6 +1006,10 @@ _nofs() {
                     return 0
                     ;;
                 -c)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --paths)
                     COMPREPLY=($(compgen -f "${cur}"))
                     return 0
                     ;;
@@ -1017,7 +1029,7 @@ _nofs() {
             return 0
             ;;
         nofs__rmdir)
-            opts="-v -c -h -V --verbose --config --paths --policy --minfreespace --json --help --version <PATH>"
+            opts="-v -c -h -V --verbose --config --paths --policy --minfreespace --json --help --version <PATHS>..."
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -1051,7 +1063,7 @@ _nofs() {
             return 0
             ;;
         nofs__stat)
-            opts="-H -c -v -h -V --human --config --paths --policy --minfreespace --verbose --json --help --version [PATH]"
+            opts="-H -c -v -h -V --human --config --paths --policy --minfreespace --verbose --json --help --version [PATHS]"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -1085,7 +1097,7 @@ _nofs() {
             return 0
             ;;
         nofs__touch)
-            opts="-v -c -h -V --verbose --config --paths --policy --minfreespace --json --help --version <PATH>"
+            opts="-v -c -h -V --verbose --config --paths --policy --minfreespace --json --help --version <PATHS>..."
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -1119,7 +1131,7 @@ _nofs() {
             return 0
             ;;
         nofs__which)
-            opts="-a -c -v -h -V --all --conflicts --hash --config --paths --policy --minfreespace --verbose --json --help --version <PATH>"
+            opts="-a -c -v -h -V --all --conflicts --hash --config --paths --policy --minfreespace --verbose --json --help --version <PATHS>..."
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0

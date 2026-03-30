@@ -4,7 +4,7 @@
 .SH NAME
 find \- Find files matching a pattern
 .SH SYNOPSIS
-\fBfind\fR [\fB\-\-name\fR] [\fB\-\-type\fR] [\fB\-\-maxdepth\fR] [\fB\-h\fR|\fB\-\-help\fR] <\fIPATH\fR> 
+\fBfind\fR [\fB\-\-name\fR] [\fB\-\-type\fR] [\fB\-\-maxdepth\fR] [\fB\-h\fR|\fB\-\-help\fR] <\fIPATHS\fR> 
 .SH DESCRIPTION
 Find files matching a pattern
 .SH OPTIONS
@@ -21,14 +21,15 @@ Maximum directory traversal depth (0 = starting directory only)
 \fB\-h\fR, \fB\-\-help\fR
 Print help
 .TP
-<\fIPATH\fR>
-Starting path within the share (format: [context:]path)
+<\fIPATHS\fR>
+Starting path(s) within the share (format: [context:]path)
 .SH EXTRA
 EXAMPLES:
     nofs find media:/ \-\-name "*.jpg"           # Find all JPEG files
     nofs find media:/photos \-t f \-\-name "*.png" # Find PNG files only
     nofs find media:/ \-t d \-\-maxdepth 2          # Directories up to 2 levels deep
     nofs find media:/ \-\-name "**/backup/*"      # Files in any backup folder
+    nofs find dir1/ dir2/ \-\-name "*.log"        # Find in multiple directories
 
 OPTIONS:
     \-\-name <PATTERN>

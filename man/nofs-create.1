@@ -4,7 +4,7 @@
 .SH NAME
 create \- Get the best branch path for creating a new file
 .SH SYNOPSIS
-\fBcreate\fR [\fB\-h\fR|\fB\-\-help\fR] <\fIPATH\fR> 
+\fBcreate\fR [\fB\-h\fR|\fB\-\-help\fR] <\fIPATHS\fR> 
 .SH DESCRIPTION
 Get the best branch path for creating a new file
 .SH OPTIONS
@@ -12,12 +12,13 @@ Get the best branch path for creating a new file
 \fB\-h\fR, \fB\-\-help\fR
 Print help
 .TP
-<\fIPATH\fR>
-Path within the share (format: [context:]path)
+<\fIPATHS\fR>
+Path(s) within the share (format: [context:]path)
 .SH EXTRA
 EXAMPLES:
     nofs create media:/newfile.txt              # Get path for new file
     nofs create media:/photos/vacation.jpg      # Get path in subdirectory
+    nofs create file1.txt file2.txt             # Get paths for multiple files
 
 OUTPUT:
     Returns the full filesystem path where a new file should be created.

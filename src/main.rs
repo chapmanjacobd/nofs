@@ -117,7 +117,7 @@ CONFLICT DETECTION:
         More accurate but slower on large files. Requires --conflicts flag.")]
     Ls {
         /// Path(s) within the share (format: [context:]path).
-        #[arg(required = true, value_name = "PATH")]
+        #[arg(required = true, value_name = "PATHS")]
         ls_paths: Vec<String>,
 
         /// Show detailed information (permissions, size, modification time).
@@ -157,7 +157,7 @@ OPTIONS:
         Limit directory traversal depth. 0 = only the starting directory.")]
     Find {
         /// Starting path(s) within the share (format: [context:]path).
-        #[arg(required = true, value_name = "PATH")]
+        #[arg(required = true, value_name = "PATHS")]
         find_paths: Vec<String>,
 
         /// Filename pattern (glob syntax: *.txt, **/logs/*).
@@ -200,7 +200,7 @@ CONFLICT DETECTION:
     )]
     Which {
         /// Path(s) within the share (format: [context:]path).
-        #[arg(required = true, value_name = "PATH")]
+        #[arg(required = true, value_name = "PATHS")]
         which_paths: Vec<String>,
 
         /// Show all branches containing the file (not just the first).
@@ -228,7 +228,7 @@ OUTPUT:
     Uses the configured branch selection policy (e.g., pfrd, mfs, rand).")]
     Create {
         /// Path(s) within the share (format: [context:]path).
-        #[arg(required = true, value_name = "PATH")]
+        #[arg(required = true, value_name = "PATHS")]
         create_paths: Vec<String>,
     },
 
@@ -244,7 +244,7 @@ OUTPUT:
     With -H, sizes are shown in KB, MB, GB instead of bytes.")]
     Stat {
         /// Path within the share (defaults to root).
-        #[arg(value_name = "PATH")]
+        #[arg(value_name = "PATHS")]
         path: Option<String>,
 
         /// Show human-readable sizes (KB, MB, GB instead of bytes).
@@ -284,7 +284,7 @@ OUTPUT:
     Prints the branch path containing the file if it exists.")]
     Exists {
         /// Path(s) within the share (format: [context:]path).
-        #[arg(required = true, value_name = "PATH")]
+        #[arg(required = true, value_name = "PATHS")]
         exists_paths: Vec<String>,
     },
 
@@ -300,7 +300,7 @@ NOTES:
     For binary files, output may not be readable in terminal.")]
     Cat {
         /// Path(s) within the share (format: [context:]path).
-        #[arg(required = true, value_name = "PATH")]
+        #[arg(required = true, value_name = "PATHS")]
         cat_paths: Vec<String>,
     },
 
@@ -385,7 +385,7 @@ PERFORMANCE OPTIONS:
         /// Source paths [...] and destination (last argument).
         /// Format: [context:]path or regular path.
         #[arg(required = true, value_name = "PATHS")]
-        paths: Vec<String>,
+        cp_paths: Vec<String>,
 
         // Conflict resolution options
         /// File-over-file conflict strategy.
@@ -546,7 +546,7 @@ PERFORMANCE OPTIONS:
         /// Source paths [...] and destination (last argument).
         /// Format: [context:]path or regular path.
         #[arg(required = true, value_name = "PATHS")]
-        paths: Vec<String>,
+        mv_paths: Vec<String>,
 
         // Conflict resolution options
         /// File-over-file conflict strategy.
@@ -639,7 +639,7 @@ WARNING:
     Rm {
         /// Path(s) within the share (format: [context:]path). Supports glob patterns.
         #[arg(required = true, value_name = "PATHS")]
-        paths: Vec<String>,
+        rm_paths: Vec<String>,
 
         /// Remove directories and their contents recursively.
         #[arg(short, long)]
@@ -663,7 +663,7 @@ NOTES:
     With -p, creates all missing parent directories.")]
     Mkdir {
         /// Path(s) within the share (format: [context:]path).
-        #[arg(required = true, value_name = "PATH")]
+        #[arg(required = true, value_name = "PATHS")]
         mkdir_paths: Vec<String>,
 
         /// Create parent directories as needed.
@@ -686,7 +686,7 @@ NOTES:
     Only works on empty directories. Use 'rm -r' for non-empty directories.")]
     Rmdir {
         /// Path(s) within the share (format: [context:]path).
-        #[arg(required = true, value_name = "PATH")]
+        #[arg(required = true, value_name = "PATHS")]
         rmdir_paths: Vec<String>,
 
         /// Print the directory as it is removed.
@@ -707,7 +707,7 @@ NOTES:
     Updates the modification time if the file already exists.")]
     Touch {
         /// Path(s) within the share (format: [context:]path).
-        #[arg(required = true, value_name = "PATH")]
+        #[arg(required = true, value_name = "PATHS")]
         touch_paths: Vec<String>,
 
         /// Print the file path after creation/update.
@@ -730,7 +730,7 @@ OUTPUT:
     With -H, sizes are shown in KB, MB, GB instead of bytes.")]
     Du {
         /// Path(s) within the share (format: [context:]path).
-        #[arg(required = true, value_name = "PATH")]
+        #[arg(required = true, value_name = "PATHS")]
         du_paths: Vec<String>,
 
         /// Show human-readable sizes (KB, MB, GB instead of bytes).
@@ -953,7 +953,7 @@ fn main() -> Result<()> {
             }
         }
         Commands::Cp {
-            paths,
+            cp_paths,
             file_over_file,
             file_over_folder,
             folder_over_file,
@@ -967,7 +967,7 @@ fn main() -> Result<()> {
             size_limit,
         } => {
             // Parse sources and destination
-            let Some((destination, sources)) = paths.split_last() else {
+            let Some((destination, sources)) = cp_paths.split_last() else {
                 return Err(NofsError::Config(
                     "At least one source and one destination are required".to_string(),
                 ));
@@ -1004,7 +1004,7 @@ fn main() -> Result<()> {
             }
         }
         Commands::Mv {
-            paths,
+            mv_paths,
             file_over_file,
             file_over_folder,
             folder_over_file,
@@ -1018,7 +1018,7 @@ fn main() -> Result<()> {
             size_limit,
         } => {
             // Parse sources and destination
-            let Some((destination, sources)) = paths.split_last() else {
+            let Some((destination, sources)) = mv_paths.split_last() else {
                 return Err(NofsError::CopyMove(
                     "At least one source and one destination are required".to_string(),
                 ));
@@ -1056,13 +1056,13 @@ fn main() -> Result<()> {
             }
         }
         Commands::Rm {
-            paths,
+            rm_paths,
             recursive,
             verbose,
         } => {
             let mut any_failed = false;
-            for path in paths {
-                let (pool, pool_path) = pool_mgr.resolve_context_path(&path)?;
+            for path in &rm_paths {
+                let (pool, pool_path) = pool_mgr.resolve_context_path(path)?;
                 if let Err(e) = commands::rm::execute(pool, pool_path, recursive, verbose || cli.verbose) {
                     eprintln!("nofs: {e}");
                     any_failed = true;
@@ -1072,7 +1072,11 @@ fn main() -> Result<()> {
                 return Err(NofsError::Command("Some removal operations failed".to_string()));
             }
         }
-        Commands::Mkdir { mkdir_paths, parents, verbose } => {
+        Commands::Mkdir {
+            mkdir_paths,
+            parents,
+            verbose,
+        } => {
             for path in &mkdir_paths {
                 let (pool, pool_path) = pool_mgr.resolve_context_path(path)?;
                 commands::mkdir::execute(pool, pool_path, parents, verbose || cli.verbose)?;
