@@ -1,6 +1,6 @@
 # nofs
 
-A lightweight [shared filesystem](https://en.wikipedia.org/wiki/Clustered_file_system#Shared-disk_file_system) tool
+A lightweight tool to merge filesystems as if they were a union / overlay mount
 
 ## Overview
 
