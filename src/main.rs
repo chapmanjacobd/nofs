@@ -105,6 +105,7 @@ EXAMPLES:
     nofs ls -l media:/photos           # Detailed listing
     nofs ls --conflicts media:/docs    # Detect conflicting files
     nofs ls --conflicts --hash media:/ # Use hash for conflict detection
+    nofs ls dir1/ dir2/                # List multiple directories
 
 CONFLICT DETECTION:
     --conflicts
@@ -115,9 +116,9 @@ CONFLICT DETECTION:
         Use full file hash comparison instead of size/mtime for conflict detection.
         More accurate but slower on large files. Requires --conflicts flag.")]
     Ls {
-        /// Path within the share (format: [context:]path).
-        #[arg(value_name = "PATH")]
-        path: String,
+        /// Path(s) within the share (format: [context:]path).
+        #[arg(required = true, value_name = "PATH")]
+        ls_paths: Vec<String>,
 
         /// Show detailed information (permissions, size, modification time).
         #[arg(short, long)]
@@ -143,6 +144,7 @@ EXAMPLES:
     nofs find media:/photos -t f --name \"*.png\" # Find PNG files only
     nofs find media:/ -t d --maxdepth 2          # Directories up to 2 levels deep
     nofs find media:/ --name \"**/backup/*\"      # Files in any backup folder
+    nofs find dir1/ dir2/ --name \"*.log\"        # Find in multiple directories
 
 OPTIONS:
     --name <PATTERN>
@@ -154,9 +156,9 @@ OPTIONS:
     --maxdepth <N>
         Limit directory traversal depth. 0 = only the starting directory.")]
     Find {
-        /// Starting path within the share (format: [context:]path).
-        #[arg(value_name = "PATH")]
-        path: String,
+        /// Starting path(s) within the share (format: [context:]path).
+        #[arg(required = true, value_name = "PATH")]
+        find_paths: Vec<String>,
 
         /// Filename pattern (glob syntax: *.txt, **/logs/*).
         #[arg(long, value_name = "PATTERN")]
@@ -219,14 +221,15 @@ CONFLICT DETECTION:
 EXAMPLES:
     nofs create media:/newfile.txt              # Get path for new file
     nofs create media:/photos/vacation.jpg      # Get path in subdirectory
+    nofs create file1.txt file2.txt             # Get paths for multiple files
 
 OUTPUT:
     Returns the full filesystem path where a new file should be created.
     Uses the configured branch selection policy (e.g., pfrd, mfs, rand).")]
     Create {
-        /// Path within the share (format: [context:]path).
-        #[arg(value_name = "PATH")]
-        path: String,
+        /// Path(s) within the share (format: [context:]path).
+        #[arg(required = true, value_name = "PATH")]
+        create_paths: Vec<String>,
     },
 
     /// Show filesystem statistics.
@@ -271,6 +274,7 @@ OUTPUT:
 EXAMPLES:
     nofs exists media:/photos/pic.jpg      # Check if file exists
     nofs exists media:/docs/missing.txt    # Returns error if not found
+    nofs exists file1.txt file2.txt        # Check multiple files
 
 EXIT CODES:
     0 - File exists
@@ -279,9 +283,9 @@ EXIT CODES:
 OUTPUT:
     Prints the branch path containing the file if it exists.")]
     Exists {
-        /// Path within the share (format: [context:]path).
-        #[arg(value_name = "PATH")]
-        path: String,
+        /// Path(s) within the share (format: [context:]path).
+        #[arg(required = true, value_name = "PATH")]
+        exists_paths: Vec<String>,
     },
 
     /// Read file content (from first found branch).
@@ -289,14 +293,15 @@ OUTPUT:
 EXAMPLES:
     nofs cat media:/config.toml            # Print file contents
     nofs cat media:/docs/readme.txt        # View text file
+    nofs cat file1.txt file2.txt           # View multiple files
 
 NOTES:
     Reads from the first branch containing the file.
     For binary files, output may not be readable in terminal.")]
     Cat {
-        /// Path within the share (format: [context:]path).
-        #[arg(value_name = "PATH")]
-        path: String,
+        /// Path(s) within the share (format: [context:]path).
+        #[arg(required = true, value_name = "PATH")]
+        cat_paths: Vec<String>,
     },
 
     /// Copy files/directories (supports nofs context paths).
@@ -651,14 +656,15 @@ EXAMPLES:
     nofs mkdir media:/new_folder             # Create single directory
     nofs mkdir -p media:/a/b/c               # Create nested directories
     nofs mkdir -pv media:/photos/2024        # Verbose creation
+    nofs mkdir dir1/ dir2/ dir3/             # Create multiple directories
 
 NOTES:
     Without -p, fails if parent directories don't exist.
     With -p, creates all missing parent directories.")]
     Mkdir {
-        /// Path within the share (format: [context:]path).
-        #[arg(value_name = "PATH")]
-        path: String,
+        /// Path(s) within the share (format: [context:]path).
+        #[arg(required = true, value_name = "PATH")]
+        mkdir_paths: Vec<String>,
 
         /// Create parent directories as needed.
         #[arg(short, long)]
@@ -674,13 +680,14 @@ NOTES:
 EXAMPLES:
     nofs rmdir media:/empty_folder           # Remove empty directory
     nofs rmdir -v media:/old_logs            # Verbose removal
+    nofs rmdir empty1/ empty2/               # Remove multiple empty directories
 
 NOTES:
     Only works on empty directories. Use 'rm -r' for non-empty directories.")]
     Rmdir {
-        /// Path within the share (format: [context:]path).
-        #[arg(value_name = "PATH")]
-        path: String,
+        /// Path(s) within the share (format: [context:]path).
+        #[arg(required = true, value_name = "PATH")]
+        rmdir_paths: Vec<String>,
 
         /// Print the directory as it is removed.
         #[arg(short, long)]
@@ -693,14 +700,15 @@ EXAMPLES:
     nofs touch media:/newfile.txt            # Create empty file
     nofs touch media:/existing.txt           # Update modification time
     nofs touch -v media:/data.log            # Verbose creation
+    nofs touch file1.txt file2.txt           # Touch multiple files
 
 NOTES:
     Creates an empty file if it doesn't exist.
     Updates the modification time if the file already exists.")]
     Touch {
-        /// Path within the share (format: [context:]path).
-        #[arg(value_name = "PATH")]
-        path: String,
+        /// Path(s) within the share (format: [context:]path).
+        #[arg(required = true, value_name = "PATH")]
+        touch_paths: Vec<String>,
 
         /// Print the file path after creation/update.
         #[arg(short, long)]
@@ -714,15 +722,16 @@ EXAMPLES:
     nofs du -H media:/photos         # Human-readable sizes
     nofs du -a media:/docs           # Show all subdirectory sizes
     nofs du --maxdepth 1 media:/     # Only show top-level directories
+    nofs du dir1/ dir2/              # Show disk usage for multiple directories
 
 OUTPUT:
     Shows disk usage for the specified path across all branches.
     With -a, shows sizes for all subdirectories.
     With -H, sizes are shown in KB, MB, GB instead of bytes.")]
     Du {
-        /// Path within the share (format: [context:]path).
-        #[arg(value_name = "PATH")]
-        path: String,
+        /// Path(s) within the share (format: [context:]path).
+        #[arg(required = true, value_name = "PATH")]
+        du_paths: Vec<String>,
 
         /// Show human-readable sizes (KB, MB, GB instead of bytes).
         #[arg(short = 'H', long)]
@@ -867,31 +876,35 @@ fn main() -> Result<()> {
     // Execute the command
     match cli.command {
         Commands::Ls {
-            path,
+            ls_paths,
             long,
             all,
             conflicts,
             hash,
         } => {
-            let (pool, pool_path) = pool_mgr.resolve_context_path(&path)?;
-            commands::ls::execute(pool, pool_path, long, all, cli.verbose, conflicts, hash, cli.json)?;
+            for path in &ls_paths {
+                let (pool, pool_path) = pool_mgr.resolve_context_path(path)?;
+                commands::ls::execute(pool, pool_path, long, all, cli.verbose, conflicts, hash, cli.json)?;
+            }
         }
         Commands::Find {
-            path,
+            find_paths,
             name,
             type_,
             maxdepth,
         } => {
-            let (pool, pool_path) = pool_mgr.resolve_context_path(&path)?;
-            commands::find::execute(
-                pool,
-                pool_path,
-                name.as_deref(),
-                type_.as_deref(),
-                maxdepth,
-                cli.verbose,
-                cli.json,
-            )?;
+            for path in &find_paths {
+                let (pool, pool_path) = pool_mgr.resolve_context_path(path)?;
+                commands::find::execute(
+                    pool,
+                    pool_path,
+                    name.as_deref(),
+                    type_.as_deref(),
+                    maxdepth,
+                    cli.verbose,
+                    cli.json,
+                )?;
+            }
         }
         Commands::Which {
             which_paths,
@@ -904,9 +917,11 @@ fn main() -> Result<()> {
                 commands::which::execute(pool, pool_path, all, cli.verbose, conflicts, hash, cli.json)?;
             }
         }
-        Commands::Create { path } => {
-            let (pool, pool_path) = pool_mgr.resolve_context_path(&path)?;
-            commands::create::execute(pool, pool_path, cli.verbose, cli.json)?;
+        Commands::Create { create_paths } => {
+            for path in &create_paths {
+                let (pool, pool_path) = pool_mgr.resolve_context_path(path)?;
+                commands::create::execute(pool, pool_path, cli.verbose, cli.json)?;
+            }
         }
         Commands::Stat { path, human } => {
             let pool = if let Some(p) = &path {
@@ -925,13 +940,17 @@ fn main() -> Result<()> {
                 commands::info::execute_all(&pool_mgr, cli.verbose, cli.json)?;
             }
         }
-        Commands::Exists { path } => {
-            let (pool, pool_path) = pool_mgr.resolve_context_path(&path)?;
-            commands::exists::execute(pool, pool_path, cli.verbose, cli.json)?;
+        Commands::Exists { exists_paths } => {
+            for path in &exists_paths {
+                let (pool, pool_path) = pool_mgr.resolve_context_path(path)?;
+                commands::exists::execute(pool, pool_path, cli.verbose, cli.json)?;
+            }
         }
-        Commands::Cat { path } => {
-            let (pool, pool_path) = pool_mgr.resolve_context_path(&path)?;
-            commands::cat::execute(pool, pool_path, cli.verbose)?;
+        Commands::Cat { cat_paths } => {
+            for path in &cat_paths {
+                let (pool, pool_path) = pool_mgr.resolve_context_path(path)?;
+                commands::cat::execute(pool, pool_path, cli.verbose)?;
+            }
         }
         Commands::Cp {
             paths,
@@ -1053,26 +1072,34 @@ fn main() -> Result<()> {
                 return Err(NofsError::Command("Some removal operations failed".to_string()));
             }
         }
-        Commands::Mkdir { path, parents, verbose } => {
-            let (pool, pool_path) = pool_mgr.resolve_context_path(&path)?;
-            commands::mkdir::execute(pool, pool_path, parents, verbose || cli.verbose)?;
+        Commands::Mkdir { mkdir_paths, parents, verbose } => {
+            for path in &mkdir_paths {
+                let (pool, pool_path) = pool_mgr.resolve_context_path(path)?;
+                commands::mkdir::execute(pool, pool_path, parents, verbose || cli.verbose)?;
+            }
         }
-        Commands::Rmdir { path, verbose } => {
-            let (pool, pool_path) = pool_mgr.resolve_context_path(&path)?;
-            commands::rmdir::execute(pool, pool_path, verbose || cli.verbose)?;
+        Commands::Rmdir { rmdir_paths, verbose } => {
+            for path in &rmdir_paths {
+                let (pool, pool_path) = pool_mgr.resolve_context_path(path)?;
+                commands::rmdir::execute(pool, pool_path, verbose || cli.verbose)?;
+            }
         }
-        Commands::Touch { path, verbose } => {
-            let (pool, pool_path) = pool_mgr.resolve_context_path(&path)?;
-            commands::touch::execute(pool, pool_path, verbose || cli.verbose)?;
+        Commands::Touch { touch_paths, verbose } => {
+            for path in &touch_paths {
+                let (pool, pool_path) = pool_mgr.resolve_context_path(path)?;
+                commands::touch::execute(pool, pool_path, verbose || cli.verbose)?;
+            }
         }
         Commands::Du {
-            path,
+            du_paths,
             human,
             all,
             maxdepth,
         } => {
-            let (pool, pool_path) = pool_mgr.resolve_context_path(&path)?;
-            commands::du::execute(pool, pool_path, human, maxdepth, all, cli.json, cli.verbose)?;
+            for path in &du_paths {
+                let (pool, pool_path) = pool_mgr.resolve_context_path(path)?;
+                commands::du::execute(pool, pool_path, human, maxdepth, all, cli.json, cli.verbose)?;
+            }
         }
         // These commands are handled earlier and don't reach here
         Commands::Completions { .. } | Commands::Manpage { .. } => unreachable!(),
