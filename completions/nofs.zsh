@@ -200,8 +200,8 @@ _arguments "${_arguments_options[@]}" : \
 '*--exclude=[Exclude files matching glob pattern]:PATTERN:_default' \
 '*-I+[Include only files matching glob pattern]:PATTERN:_default' \
 '*--include=[Include only files matching glob pattern]:PATTERN:_default' \
-'*-S+[Filter by file size (e.g., +5M, -10M)]:SIZE:_default' \
-'*--size=[Filter by file size (e.g., +5M, -10M)]:SIZE:_default' \
+'--min-size=[Minimum file size to include (e.g., 5M, 1G)]:SIZE:_default' \
+'--max-size=[Maximum file size to include (e.g., 10M, 2G)]:SIZE:_default' \
 '-l+[Limit number of files transferred]:N:_default' \
 '--limit=[Limit number of files transferred]:N:_default' \
 '--size-limit=[Limit total size transferred (e.g., 100M, 1G)]:SIZE:_default' \
@@ -235,8 +235,8 @@ _arguments "${_arguments_options[@]}" : \
 '*--exclude=[Exclude files matching glob pattern]:PATTERN:_default' \
 '*-I+[Include only files matching glob pattern]:PATTERN:_default' \
 '*--include=[Include only files matching glob pattern]:PATTERN:_default' \
-'*-S+[Filter by file size (e.g., +5M, -10M)]:SIZE:_default' \
-'*--size=[Filter by file size (e.g., +5M, -10M)]:SIZE:_default' \
+'--min-size=[Minimum file size to include (e.g., 5M, 1G)]:SIZE:_default' \
+'--max-size=[Maximum file size to include (e.g., 10M, 2G)]:SIZE:_default' \
 '-l+[Limit number of files moved]:N:_default' \
 '--limit=[Limit number of files moved]:N:_default' \
 '--size-limit=[Limit total size moved (e.g., 100M, 1G)]:SIZE:_default' \

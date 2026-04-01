@@ -233,7 +233,7 @@ _nofs() {
             return 0
             ;;
         nofs__cp)
-            opts="-n -j -e -E -I -S -l -c -v -h -V --file-over-file --file-over-folder --folder-over-file --dry-run --workers --ext --exclude --include --size --limit --size-limit --config --paths --policy --minfreespace --verbose --json --help --version <PATHS>..."
+            opts="-n -j -e -E -I -l -c -v -h -V --file-over-file --file-over-folder --folder-over-file --dry-run --workers --ext --exclude --include --min-size --max-size --limit --size-limit --config --paths --policy --minfreespace --verbose --json --help --version <PATHS>..."
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -283,11 +283,11 @@ _nofs() {
                     COMPREPLY=($(compgen -f "${cur}"))
                     return 0
                     ;;
-                --size)
+                --min-size)
                     COMPREPLY=($(compgen -f "${cur}"))
                     return 0
                     ;;
-                -S)
+                --max-size)
                     COMPREPLY=($(compgen -f "${cur}"))
                     return 0
                     ;;
@@ -897,7 +897,7 @@ _nofs() {
             return 0
             ;;
         nofs__mv)
-            opts="-n -j -e -E -I -S -l -c -v -h -V --file-over-file --file-over-folder --folder-over-file --dry-run --workers --ext --exclude --include --size --limit --size-limit --config --paths --policy --minfreespace --verbose --json --help --version <PATHS>..."
+            opts="-n -j -e -E -I -l -c -v -h -V --file-over-file --file-over-folder --folder-over-file --dry-run --workers --ext --exclude --include --min-size --max-size --limit --size-limit --config --paths --policy --minfreespace --verbose --json --help --version <PATHS>..."
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -947,11 +947,11 @@ _nofs() {
                     COMPREPLY=($(compgen -f "${cur}"))
                     return 0
                     ;;
-                --size)
+                --min-size)
                     COMPREPLY=($(compgen -f "${cur}"))
                     return 0
                     ;;
-                -S)
+                --max-size)
                     COMPREPLY=($(compgen -f "${cur}"))
                     return 0
                     ;;

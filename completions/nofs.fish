@@ -132,7 +132,8 @@ complete -c nofs -n "__fish_nofs_using_subcommand cp" -s j -l workers -d 'Number
 complete -c nofs -n "__fish_nofs_using_subcommand cp" -s e -l ext -d 'Filter by file extensions (e.g., .mkv, .jpg)' -r
 complete -c nofs -n "__fish_nofs_using_subcommand cp" -s E -l exclude -d 'Exclude files matching glob pattern' -r
 complete -c nofs -n "__fish_nofs_using_subcommand cp" -s I -l include -d 'Include only files matching glob pattern' -r
-complete -c nofs -n "__fish_nofs_using_subcommand cp" -s S -l size -d 'Filter by file size (e.g., +5M, -10M)' -r
+complete -c nofs -n "__fish_nofs_using_subcommand cp" -l min-size -d 'Minimum file size to include (e.g., 5M, 1G)' -r
+complete -c nofs -n "__fish_nofs_using_subcommand cp" -l max-size -d 'Maximum file size to include (e.g., 10M, 2G)' -r
 complete -c nofs -n "__fish_nofs_using_subcommand cp" -s l -l limit -d 'Limit number of files transferred' -r
 complete -c nofs -n "__fish_nofs_using_subcommand cp" -l size-limit -d 'Limit total size transferred (e.g., 100M, 1G)' -r
 complete -c nofs -n "__fish_nofs_using_subcommand cp" -s c -l config -d 'Path to configuration file' -r
@@ -151,7 +152,8 @@ complete -c nofs -n "__fish_nofs_using_subcommand mv" -s j -l workers -d 'Number
 complete -c nofs -n "__fish_nofs_using_subcommand mv" -s e -l ext -d 'Filter by file extensions (e.g., .mkv, .jpg)' -r
 complete -c nofs -n "__fish_nofs_using_subcommand mv" -s E -l exclude -d 'Exclude files matching glob pattern' -r
 complete -c nofs -n "__fish_nofs_using_subcommand mv" -s I -l include -d 'Include only files matching glob pattern' -r
-complete -c nofs -n "__fish_nofs_using_subcommand mv" -s S -l size -d 'Filter by file size (e.g., +5M, -10M)' -r
+complete -c nofs -n "__fish_nofs_using_subcommand mv" -l min-size -d 'Minimum file size to include (e.g., 5M, 1G)' -r
+complete -c nofs -n "__fish_nofs_using_subcommand mv" -l max-size -d 'Maximum file size to include (e.g., 10M, 2G)' -r
 complete -c nofs -n "__fish_nofs_using_subcommand mv" -s l -l limit -d 'Limit number of files moved' -r
 complete -c nofs -n "__fish_nofs_using_subcommand mv" -l size-limit -d 'Limit total size moved (e.g., 100M, 1G)' -r
 complete -c nofs -n "__fish_nofs_using_subcommand mv" -s c -l config -d 'Path to configuration file' -r

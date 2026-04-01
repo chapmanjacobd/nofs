@@ -1320,6 +1320,8 @@ fn copy_file_contents(source: &Path, dest: &Path) -> Result<()> {
 
             let dest_wide: Vec<u16> = OsStr::new(dest).encode_wide().chain(Some(0)).collect();
 
+            // SAFETY: Calling SetFileAttributesW with a valid null-terminated wide string pointer.
+            // `dest_wide` is null-terminated by `.chain(Some(0))` and outlives the pointer usage.
             unsafe {
                 windows_sys::Win32::Storage::FileSystem::SetFileAttributesW(dest_wide.as_ptr(), attrs);
             }

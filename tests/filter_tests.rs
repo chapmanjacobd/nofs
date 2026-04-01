@@ -48,7 +48,8 @@ mod tests {
             "--paths",
             &branch.parent().unwrap().display().to_string(),
             "cp",
-            "-S=-500B",
+            "--max-size",
+            "500B",
             &branch.display().to_string(),
             dest_dir.to_str().unwrap(),
         ]);
@@ -76,7 +77,8 @@ mod tests {
             "--paths",
             &branch.parent().unwrap().display().to_string(),
             "cp",
-            "-S=+500B",
+            "--min-size",
+            "500B",
             &branch.display().to_string(),
             dest_dir.to_str().unwrap(),
         ]);
@@ -105,7 +107,10 @@ mod tests {
             "--paths",
             &branch.parent().unwrap().display().to_string(),
             "cp",
-            "-S=+200B-800B",
+            "--min-size",
+            "200B",
+            "--max-size",
+            "800B",
             &branch.display().to_string(),
             dest_dir.to_str().unwrap(),
         ]);

@@ -4,7 +4,7 @@
 .SH NAME
 cp \- Copy files/directories (supports nofs context paths)
 .SH SYNOPSIS
-\fBcp\fR [\fB\-\-file\-over\-file\fR] [\fB\-\-file\-over\-folder\fR] [\fB\-\-folder\-over\-file\fR] [\fB\-n\fR|\fB\-\-dry\-run\fR] [\fB\-j\fR|\fB\-\-workers\fR] [\fB\-e\fR|\fB\-\-ext\fR] [\fB\-E\fR|\fB\-\-exclude\fR] [\fB\-I\fR|\fB\-\-include\fR] [\fB\-S\fR|\fB\-\-size\fR] [\fB\-l\fR|\fB\-\-limit\fR] [\fB\-\-size\-limit\fR] [\fB\-h\fR|\fB\-\-help\fR] <\fIPATHS\fR> 
+\fBcp\fR [\fB\-\-file\-over\-file\fR] [\fB\-\-file\-over\-folder\fR] [\fB\-\-folder\-over\-file\fR] [\fB\-n\fR|\fB\-\-dry\-run\fR] [\fB\-j\fR|\fB\-\-workers\fR] [\fB\-e\fR|\fB\-\-ext\fR] [\fB\-E\fR|\fB\-\-exclude\fR] [\fB\-I\fR|\fB\-\-include\fR] [\fB\-\-min\-size\fR] [\fB\-\-max\-size\fR] [\fB\-l\fR|\fB\-\-limit\fR] [\fB\-\-size\-limit\fR] [\fB\-h\fR|\fB\-\-help\fR] <\fIPATHS\fR> 
 .SH DESCRIPTION
 Copy files/directories (supports nofs context paths)
 .SH OPTIONS
@@ -48,8 +48,11 @@ Exclude files matching glob pattern
 \fB\-I\fR, \fB\-\-include\fR \fI<PATTERN>\fR
 Include only files matching glob pattern
 .TP
-\fB\-S\fR, \fB\-\-size\fR \fI<SIZE>\fR
-Filter by file size (e.g., +5M, \-10M)
+\fB\-\-min\-size\fR \fI<SIZE>\fR
+Minimum file size to include (e.g., 5M, 1G)
+.TP
+\fB\-\-max\-size\fR \fI<SIZE>\fR
+Maximum file size to include (e.g., 10M, 2G)
 .TP
 \fB\-l\fR, \fB\-\-limit\fR \fI<N>\fR
 Limit number of files transferred

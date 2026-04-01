@@ -17,45 +17,6 @@ pub mod utils;
 use clap::Parser;
 use error::{NofsError, Result};
 
-/// Parse size filter string (e.g., "+5M", "-10M", "+5M-10M")
-///
-/// Format:
-/// - `+SIZE` - minimum size (files must be at least this big)
-/// - `-SIZE` - maximum size (files must be at most this big)
-/// - `+MIN-MAX` - range (files must be between min and max)
-#[allow(clippy::arithmetic_side_effects)]
-fn parse_size_filter(s: &str) -> commands::cp::SizeFilter {
-    let input = s.trim();
-    let mut min = None;
-    let mut max = None;
-
-    // Check for range format: +MIN-MAX
-    if let Some(plus_idx) = input.find('+') {
-        if let Some(dash_idx) = input.rfind('-') {
-            if dash_idx > plus_idx {
-                // Range format
-                let min_str = &input[plus_idx + 1..dash_idx];
-                let max_str = &input[dash_idx + 1..];
-                min = policy::parse_size(min_str).ok();
-                max = policy::parse_size(max_str).ok();
-                return commands::cp::SizeFilter { min, max };
-            }
-        }
-    }
-
-    // Single value format: +SIZE or -SIZE
-    if let Some(stripped) = input.strip_prefix('+') {
-        min = policy::parse_size(stripped).ok();
-    } else if let Some(stripped) = input.strip_prefix('-') {
-        max = policy::parse_size(stripped).ok();
-    } else {
-        // No prefix, treat as maximum
-        max = policy::parse_size(input).ok();
-    }
-
-    commands::cp::SizeFilter { min, max }
-}
-
 /// Command-line interface for nofs
 #[derive(Parser, Debug)]
 #[command(name = "nofs")]
@@ -452,9 +413,13 @@ PERFORMANCE OPTIONS:
         #[arg(short = 'I', long, value_name = "PATTERN", help_heading = "Filtering")]
         include: Vec<String>,
 
-        /// Filter by file size (e.g., +5M, -10M)
-        #[arg(short = 'S', long, value_name = "SIZE", help_heading = "Filtering")]
-        size: Vec<String>,
+        /// Minimum file size to include (e.g., 5M, 1G)
+        #[arg(long, value_name = "SIZE", value_parser = policy::parse_size, help_heading = "Filtering")]
+        min_size: Option<u64>,
+
+        /// Maximum file size to include (e.g., 10M, 2G)
+        #[arg(long, value_name = "SIZE", value_parser = policy::parse_size, help_heading = "Filtering")]
+        max_size: Option<u64>,
 
         /// Limit number of files transferred
         #[arg(short = 'l', long, value_name = "N", help_heading = "Filtering")]
@@ -613,9 +578,13 @@ PERFORMANCE OPTIONS:
         #[arg(short = 'I', long, value_name = "PATTERN", help_heading = "Filtering")]
         include: Vec<String>,
 
-        /// Filter by file size (e.g., +5M, -10M)
-        #[arg(short = 'S', long, value_name = "SIZE", help_heading = "Filtering")]
-        size: Vec<String>,
+        /// Minimum file size to include (e.g., 5M, 1G)
+        #[arg(long, value_name = "SIZE", value_parser = policy::parse_size, help_heading = "Filtering")]
+        min_size: Option<u64>,
+
+        /// Maximum file size to include (e.g., 10M, 2G)
+        #[arg(long, value_name = "SIZE", value_parser = policy::parse_size, help_heading = "Filtering")]
+        max_size: Option<u64>,
 
         /// Limit number of files moved
         #[arg(short = 'l', long, value_name = "N", help_heading = "Filtering")]
@@ -962,7 +931,8 @@ fn main() -> Result<()> {
             ext,
             exclude,
             include,
-            size,
+            min_size,
+            max_size,
             limit,
             size_limit,
         } => {
@@ -976,8 +946,11 @@ fn main() -> Result<()> {
             // Parse size limit
             let parsed_size_limit = size_limit.as_ref().and_then(|s| parse_size(s).ok());
 
-            // Parse per-file size filter (use first value if provided)
-            let parsed_size = size.first().map(|s| parse_size_filter(s));
+            // Build SizeFilter if min or max size is provided
+            let parsed_size = (min_size.is_some() || max_size.is_some()).then_some(commands::cp::SizeFilter {
+                min: min_size,
+                max: max_size,
+            });
 
             // Get share for context-aware paths
             let share = extract_share_from_paths(&pool_mgr, sources, destination);
@@ -1013,7 +986,8 @@ fn main() -> Result<()> {
             ext,
             exclude,
             include,
-            size,
+            min_size,
+            max_size,
             limit,
             size_limit,
         } => {
@@ -1027,8 +1001,11 @@ fn main() -> Result<()> {
             // Parse size limit
             let parsed_size_limit = size_limit.as_ref().and_then(|s| parse_size(s).ok());
 
-            // Parse per-file size filter (use first value if provided)
-            let parsed_size = size.first().map(|s| parse_size_filter(s));
+            // Build SizeFilter if min or max size is provided
+            let parsed_size = (min_size.is_some() || max_size.is_some()).then_some(commands::cp::SizeFilter {
+                min: min_size,
+                max: max_size,
+            });
 
             // Get share for context-aware paths
             let share = extract_share_from_paths(&pool_mgr, sources, destination);
