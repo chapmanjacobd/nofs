@@ -361,7 +361,12 @@ impl Rule {
     /// Create new rule
     #[must_use]
     pub const fn new(action: RuleAction, attribute: Attribute, comparison: Comparison, target: Target) -> Self {
-        Self { action, attribute, comparison, target }
+        Self {
+            action,
+            attribute,
+            comparison,
+            target,
+        }
     }
 
     #[must_use]
