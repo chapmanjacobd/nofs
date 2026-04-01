@@ -15,6 +15,7 @@ clippy:
 
 test:
 	cargo test --all-targets --all-features --quiet
+	cargo test --doc
 
 build:
 	cargo build --all-targets --all-features

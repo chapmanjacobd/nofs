@@ -17,6 +17,14 @@ pub struct SpaceInfo {
     pub total: u64,
 }
 
+impl SpaceInfo {
+    /// Create new space information
+    #[must_use]
+    pub const fn new(available: u64, total: u64) -> Self {
+        Self { available, total }
+    }
+}
+
 /// Per-operation cache for branch metadata
 ///
 /// Thread-safe cache using `DashMap` for fine-grained per-key locking.
@@ -92,12 +100,12 @@ impl OperationCache {
     /// # Example
     ///
     /// ```
-    /// use nofs::cache::OperationCache;
+    /// use nofs::cache::{OperationCache, SpaceInfo};
     ///
     /// let cache = OperationCache::new();
     /// let info = cache.get_or_insert_space("/branch1", || {
     ///     // Expensive computation here
-    ///     SpaceInfo { available: 1000, total: 2000 }
+    ///     SpaceInfo::new(1000, 2000)
     /// });
     /// ```
     pub fn get_or_insert_space<P, F>(&self, branch_path: P, compute: F) -> SpaceInfo

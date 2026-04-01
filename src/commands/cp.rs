@@ -335,12 +335,14 @@ pub enum RuleAction {
 ///
 /// A rule that skips copying if file hashes match:
 /// ```
-/// Rule {
-///     action: RuleAction::Skip,
-///     attribute: Attribute::Hash,
-///     comparison: Comparison::Equal,
-///     target: Target::Dest,
-/// }
+/// use nofs::commands::cp::{Rule, RuleAction, Attribute, Comparison, Target};
+///
+/// Rule::new(
+///     RuleAction::Skip,
+///     Attribute::Hash,
+///     Comparison::Equal,
+///     Target::Dest,
+/// );
 /// ```
 #[non_exhaustive]
 #[derive(Debug, Clone)]
@@ -356,6 +358,12 @@ pub struct Rule {
 }
 
 impl Rule {
+    /// Create new rule
+    #[must_use]
+    pub const fn new(action: RuleAction, attribute: Attribute, comparison: Comparison, target: Target) -> Self {
+        Self { action, attribute, comparison, target }
+    }
+
     #[must_use]
     pub fn display(&self) -> String {
         match self.attribute {

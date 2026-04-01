@@ -62,6 +62,8 @@ impl ParsedPath<'_> {
 /// # Examples
 ///
 /// ```
+/// use nofs::utils::parse_path_with_context;
+///
 /// // Share path - check with matches_share()
 /// let parsed = parse_path_with_context("media:/photos/vacation.jpg");
 /// assert!(!parsed.has_no_colon);
@@ -70,12 +72,13 @@ impl ParsedPath<'_> {
 /// // Windows drive letter - looks_like_windows_drive() returns true
 /// let parsed = parse_path_with_context("C:\\Users\\file.txt");
 /// assert!(parsed.looks_like_windows_drive());
-/// assert!(!parsed.matches_share("C")); // "C" is not a real share
+/// assert!(parsed.matches_share("C")); // Prefix is "C"
+/// assert!(!parsed.matches_share("media")); // Not "media"
 ///
 /// // Ambiguous case - single letter share named "d"
 /// let parsed = parse_path_with_context("d:/pool/path");
 /// assert!(parsed.looks_like_windows_drive()); // looks like Windows drive
-/// assert!(parsed.matches_share("d")); // but also matches share "d"
+/// assert!(parsed.matches_share("d")); // matches share "d"
 /// ```
 #[must_use]
 #[allow(clippy::arithmetic_side_effects)]
