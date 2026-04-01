@@ -743,8 +743,12 @@ OUTPUT:
     },
 }
 
+/// Run the nofs command line application.
+///
+/// # Errors
+/// Returns an error if the command fails, invalid arguments are provided, or any file system operation fails.
 #[allow(clippy::too_many_lines)]
-fn main() -> Result<()> {
+pub fn run() -> Result<()> {
     let cli = Cli::parse();
 
     // Handle commands that don't require config initialization
