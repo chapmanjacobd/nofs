@@ -107,7 +107,6 @@ impl Policy {
     ///
     /// Ep* (existing path) policies fall back to these when the path doesn't exist.
     #[must_use]
-    #[allow(clippy::wildcard_enum_match_arm)]
     const fn to_non_ep_policy(self) -> Self {
         match self {
             Policy::EpMfs => Policy::Mfs,
@@ -173,7 +172,6 @@ impl<'ctx> CreatePolicy<'ctx> {
     /// # Errors
     ///
     /// Returns an error if no suitable branch is found.
-    #[allow(clippy::too_many_lines)]
     pub fn select(&self, policy: Policy, relative_path: Option<&Path>) -> Result<&'ctx Branch> {
         // Single pass: collect eligible branches with pre-fetched space info
         let eligible_with_space: Vec<(&'ctx Branch, u64)> = self
@@ -307,7 +305,6 @@ impl<'ctx> CreatePolicy<'ctx> {
     /// # Errors
     ///
     /// Returns an error if no suitable branch is found.
-    #[allow(clippy::wildcard_enum_match_arm)]
     fn apply_ep_policy(policy: Policy, with_path: &[(&'ctx Branch, u64)]) -> Result<&'ctx Branch> {
         match policy {
             Policy::EpMfs => with_path
@@ -347,7 +344,6 @@ impl<'ctx> CreatePolicy<'ctx> {
 
     /// Select branch based on percentage free random distribution
     /// Uses pre-fetched space values to avoid redundant statvfs calls
-    #[allow(clippy::arithmetic_side_effects)]
     fn select_pfrd_with_space(eligible: &[(&'ctx Branch, u64)]) -> Result<&'ctx Branch> {
         let total: u64 = eligible.iter().map(|(_, s)| s).sum();
 
@@ -387,7 +383,6 @@ impl<'ctx> CreatePolicy<'ctx> {
     }
 
     /// Select branch with least used percentage
-    #[allow(clippy::cast_possible_truncation, clippy::as_conversions)]
     fn select_lup(branches: &[&'ctx Branch]) -> Result<&'ctx Branch> {
         branches
             .iter()
@@ -429,7 +424,6 @@ impl<'ctx> SearchPolicy<'ctx> {
     /// # Panics
     ///
     /// Panics if internal consistency checks fail (should never happen in practice).
-    #[allow(clippy::too_many_lines)]
     pub fn select(&self, policy: Policy, relative_path: &Path) -> Result<&'ctx Branch> {
         // Helper to check existence with or without cache
         let exists = |b: &Branch| -> bool {
@@ -544,7 +538,6 @@ use crate::utils::{GB, KB, MB, PB, TB};
 /// # Errors
 ///
 /// Returns an error if the size string cannot be parsed.
-#[allow(clippy::cast_possible_truncation, clippy::as_conversions)]
 pub fn parse_size(s: &str) -> Result<u64> {
     let trimmed = s.trim();
 
@@ -569,14 +562,12 @@ pub fn parse_size(s: &str) -> Result<u64> {
         // We use a conservative check: if the result exceeds 2^54, it's definitely too large.
         // For values between 2^53 and 2^64, some precision loss may occur, but this is
         // acceptable for size parsing where exact byte precision at that scale is not critical.
-        #[allow(clippy::cast_precision_loss)]
         const MAX_SAFE: f64 = (u64::MAX >> 10) as f64; // Conservative threshold (2^54)
 
         let num: f64 = num_str
             .parse()
             .map_err(|e| NofsError::Parse(format!("Invalid size number {num_str} in {s}: {e}")))?;
 
-        #[allow(clippy::cast_precision_loss, clippy::as_conversions, clippy::cast_sign_loss)]
         let multiplier: f64 = match suffix.as_str() {
             "" | "B" => 1.0,
             "K" | "KB" => KB as f64,
@@ -593,9 +584,7 @@ pub fn parse_size(s: &str) -> Result<u64> {
         };
 
         // Check for potential overflow before casting
-        #[allow(clippy::float_arithmetic, clippy::cast_precision_loss)]
         let result = num * multiplier;
-        #[allow(clippy::cast_precision_loss, clippy::manual_range_contains)]
         if !(0.0..=MAX_SAFE).contains(&result) {
             return Err(NofsError::Parse(format!(
                 "Size {s} exceeds maximum value ({})",
@@ -603,7 +592,6 @@ pub fn parse_size(s: &str) -> Result<u64> {
             )));
         }
 
-        #[allow(clippy::cast_precision_loss, clippy::as_conversions, clippy::cast_sign_loss)]
         return Ok(result as u64);
     }
 
@@ -643,7 +631,6 @@ pub fn parse_size(s: &str) -> Result<u64> {
 }
 
 #[cfg(test)]
-#[allow(clippy::unwrap_used, clippy::expect_used, clippy::indexing_slicing)]
 mod tests {
     use super::*;
     use crate::branch::BranchMode;

@@ -17,7 +17,6 @@ use std::sync::Arc;
 /// # Errors
 ///
 /// Returns an error if parsing of conflict modes fails or if the copy operation fails.
-#[allow(clippy::too_many_arguments)]
 pub fn execute(
     sources: &[String],
     destination: &str,

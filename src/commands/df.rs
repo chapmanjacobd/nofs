@@ -34,7 +34,6 @@ pub struct DfEntry {
 /// # Errors
 ///
 /// Returns an error if there is an IO error during output.
-#[allow(clippy::fn_params_excessive_bools)]
 pub fn execute(
     pool_mgr: &PoolManager,
     context: Option<&str>,
@@ -55,7 +54,6 @@ pub fn execute(
             let branch_available = branch.available_space_cached(&cache).unwrap_or(0);
             let branch_used = branch_total.saturating_sub(branch_available);
             let use_percent = if branch_total > 0 {
-                #[allow(clippy::cast_precision_loss, clippy::as_conversions, clippy::float_arithmetic)]
                 {
                     Some((branch_used as f64 / branch_total as f64) * 100.0)
                 }
@@ -80,7 +78,6 @@ pub fn execute(
                 let branch_available = branch.available_space_cached(&cache).unwrap_or(0);
                 let branch_used = branch_total.saturating_sub(branch_available);
                 let use_percent = if branch_total > 0 {
-                    #[allow(clippy::cast_precision_loss, clippy::as_conversions, clippy::float_arithmetic)]
                     {
                         Some((branch_used as f64 / branch_total as f64) * 100.0)
                     }
@@ -106,7 +103,6 @@ pub fn execute(
         let total_used: u64 = entries.iter().map(|e| e.used).sum();
         let total_available: u64 = entries.iter().map(|e| e.available).sum();
         let total_percent = if total_blocks > 0 {
-            #[allow(clippy::cast_precision_loss, clippy::as_conversions, clippy::float_arithmetic)]
             {
                 Some((total_used as f64 / total_blocks as f64) * 100.0)
             }
@@ -135,7 +131,6 @@ pub fn execute(
 }
 
 /// Output in text format
-#[allow(clippy::integer_division)]
 fn output_text(entries: &[DfEntry], total: Option<DfEntry>, human: bool) -> Result<()> {
     let stdout = io::stdout();
     let mut handle = stdout.lock();
@@ -224,7 +219,6 @@ fn format_size(size: u64) -> String {
     const GB: u64 = MB * 1024;
     const TB: u64 = GB * 1024;
 
-    #[allow(clippy::float_arithmetic, clippy::cast_precision_loss, clippy::as_conversions)]
     if size >= TB {
         format!("{:.1}T", size as f64 / TB as f64)
     } else if size >= GB {
@@ -239,7 +233,6 @@ fn format_size(size: u64) -> String {
 }
 
 /// Truncate string to max length with ellipsis
-#[allow(clippy::arithmetic_side_effects)]
 fn truncate_str(s: &str, max_len: usize) -> String {
     if s.len() <= max_len {
         s.to_string()

@@ -174,7 +174,6 @@ impl Branch {
     /// # Errors
     ///
     /// Returns an error if statvfs fails.
-    #[allow(clippy::cast_precision_loss, clippy::as_conversions, clippy::float_arithmetic)]
     pub fn free_percentage(&self) -> Result<f64> {
         let total = self.total_space()?;
         if total == 0 {
@@ -189,7 +188,6 @@ impl Branch {
     /// # Errors
     ///
     /// Returns an error if statvfs fails.
-    #[allow(clippy::float_arithmetic)]
     pub fn used_percentage(&self) -> Result<f64> {
         Ok(100.0 - self.free_percentage()?)
     }
@@ -259,7 +257,6 @@ impl Branch {
 }
 
 #[cfg(test)]
-#[allow(clippy::unwrap_used, clippy::expect_used, clippy::indexing_slicing)]
 mod tests {
     use super::*;
     use std::fs;

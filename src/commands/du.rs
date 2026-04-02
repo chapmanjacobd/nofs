@@ -33,7 +33,6 @@ struct DuBranchData {
 /// # Errors
 ///
 /// Returns an error if there is an IO error during output or path traversal.
-#[allow(clippy::too_many_lines, clippy::fn_params_excessive_bools)]
 pub fn execute(
     pool: &Pool,
     pool_path: &str,

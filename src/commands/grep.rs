@@ -37,7 +37,6 @@ pub struct GrepMatch {
 /// # Errors
 ///
 /// Returns an error if there is an IO error during search or output.
-#[allow(clippy::too_many_arguments, clippy::fn_params_excessive_bools)]
 pub fn execute(
     pool: &Pool,
     path: &str,
@@ -127,7 +126,6 @@ pub fn execute(
 }
 
 /// Search a single file for pattern matches
-#[allow(clippy::arithmetic_side_effects)]
 fn search_file(
     file_path: &Path,
     branch_name: &str,
@@ -167,7 +165,6 @@ fn search_file(
 }
 
 /// Search a directory recursively for pattern matches
-#[allow(clippy::let_and_return, clippy::shadow_unrelated)]
 fn search_directory(
     dir_path: &Path,
     branch_name: &str,

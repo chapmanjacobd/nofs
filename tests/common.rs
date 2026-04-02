@@ -7,7 +7,6 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 /// Test context for managing temporary test directories.
-#[allow(clippy::exhaustive_structs)]
 pub struct TestContext {
     pub config_path: PathBuf,
     pub root: PathBuf,
@@ -71,7 +70,6 @@ impl TestContext {
     ///
     /// Panics if the command cannot be executed.
     #[must_use]
-    #[allow(clippy::unused_self)]
     pub fn run_nofs(&self, args: &[&str]) -> CommandOutput {
         let mut cmd = Command::new(env!("CARGO_BIN_EXE_nofs"));
         for arg in args {
@@ -89,7 +87,6 @@ impl TestContext {
 
     /// Get path within test root.
     #[must_use]
-    #[allow(dead_code)]
     pub fn path(&self, path: &str) -> PathBuf {
         self.root.join(path)
     }
@@ -102,7 +99,6 @@ impl Drop for TestContext {
 }
 
 /// Command output helper.
-#[allow(clippy::exhaustive_structs)]
 pub struct CommandOutput {
     pub stdout: String,
     pub stderr: String,
@@ -116,13 +112,11 @@ impl CommandOutput {
     }
 
     #[must_use]
-    #[allow(dead_code)]
     pub fn stdout_contains(&self, text: &str) -> bool {
         self.stdout.contains(text)
     }
 
     #[must_use]
-    #[allow(dead_code)]
     pub fn stderr_contains(&self, text: &str) -> bool {
         self.stderr.contains(text)
     }
@@ -133,7 +127,6 @@ impl CommandOutput {
 /// # Panics
 ///
 /// Panics if the temp file cannot be written.
-#[allow(dead_code)]
 #[must_use]
 pub fn temp_file(path: &Path, content: &str) -> PathBuf {
     let file_path = path.join("testfile.txt");

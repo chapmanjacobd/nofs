@@ -925,7 +925,6 @@ OUTPUT:
 ///
 /// # Errors
 /// Returns an error if the command fails, invalid arguments are provided, or any file system operation fails.
-#[allow(clippy::too_many_lines)]
 pub fn run() -> Result<()> {
     let cli = Cli::parse();
 

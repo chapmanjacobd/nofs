@@ -36,7 +36,6 @@ pub struct TreeNode {
     pub branches: Vec<String>,
 }
 
-#[allow(clippy::trivially_copy_pass_by_ref)]
 fn is_false(b: &bool) -> bool {
     !b
 }
@@ -46,7 +45,6 @@ fn is_false(b: &bool) -> bool {
 /// # Errors
 ///
 /// Returns an error if there is an IO error during traversal or output.
-#[allow(clippy::fn_params_excessive_bools, clippy::too_many_arguments, clippy::missing_docs_in_private_items, clippy::exhaustive_structs)]
 pub fn execute(
     pool: &Pool,
     path: &str,

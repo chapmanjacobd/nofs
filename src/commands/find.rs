@@ -14,7 +14,6 @@ use walkdir::WalkDir;
 /// # Errors
 ///
 /// Returns an error if there is an IO error during output or if the path is not found.
-#[allow(clippy::too_many_lines)]
 pub fn execute(
     pool: &Pool,
     path: &str,

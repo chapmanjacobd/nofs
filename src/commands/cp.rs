@@ -509,7 +509,6 @@ const fn make_created_rule(action: RuleAction, comparison: Comparison, target: T
 /// # Errors
 ///
 /// Returns an error if the token is not recognized.
-#[allow(clippy::too_many_lines)]
 fn parse_rule_token(token: &str) -> Result<Rule> {
     match token {
         // Skip rules
@@ -683,7 +682,6 @@ pub enum RuleResult {
 /// # Errors
 ///
 /// Returns an error if file operations fail during rule evaluation.
-#[allow(clippy::too_many_arguments)]
 fn evaluate_rules(
     strategy: &FileOverFileStrategy,
     hashes_match: bool,
@@ -802,7 +800,6 @@ impl Default for CopyConfig {
 /// # Panics
 ///
 /// May panic if mutex poisoning occurs during worker thread synchronization.
-#[allow(clippy::too_many_lines)]
 pub fn execute(
     sources: &[String],
     destination: &str,
@@ -988,7 +985,6 @@ fn destination_exists(destination: &str, share: Option<&Pool>, cache: &Operation
 /// # Errors
 ///
 /// Returns an error if path resolution fails.
-#[allow(clippy::too_many_arguments)]
 fn compute_final_dest(
     source_path: &Path,
     destination: &str,
@@ -1175,7 +1171,6 @@ fn handle_file_conflicts(source: &Path, dest: &Path, config: &CopyConfig, stats:
         handle_file_over_file(source, dest, config, stats)
     }
 }
-#[allow(clippy::too_many_lines)]
 /// Process a single file copy/move operation
 ///
 /// Handles size limits, simulate mode, and actual file transfer.
@@ -1590,7 +1585,6 @@ fn handle_file_over_folder(source: &Path, dest: &Path, config: &CopyConfig, stat
 /// # Errors
 ///
 /// Returns an error if file operations fail.
-#[allow(clippy::too_many_lines)]
 fn handle_folder_over_file(dest: &Path, source: &Path, config: &CopyConfig, stats: &Arc<CopyStats>) -> Result<()> {
     match config.folder_over_file {
         FolderConflictMode::Skip => {

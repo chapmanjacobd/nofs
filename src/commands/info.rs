@@ -11,7 +11,6 @@ use std::io::{self, Write};
 /// # Errors
 ///
 /// Returns an error if there is an IO error during output.
-#[allow(clippy::too_many_lines)]
 pub fn execute_single(pool: &Pool, verbose: bool, json: bool) -> Result<()> {
     let stdout = io::stdout();
     let mut handle = stdout.lock();

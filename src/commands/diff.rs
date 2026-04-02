@@ -38,7 +38,6 @@ pub struct DiffFileOutput {
 /// # Errors
 ///
 /// Returns an error if there is an IO error during output or file access.
-#[allow(clippy::too_many_arguments, clippy::fn_params_excessive_bools)]
 pub fn execute(pool: &Pool, path: &str, verbose: bool, hash: bool, json: bool) -> Result<()> {
     let pool_path = Path::new(path);
 
@@ -73,7 +72,6 @@ pub fn execute(pool: &Pool, path: &str, verbose: bool, hash: bool, json: bool) -
 }
 
 /// Diff a single file across branches
-#[allow(clippy::fn_params_excessive_bools)]
 fn diff_single_file(
     _pool: &Pool,
     branches: &[&Branch],
@@ -137,7 +135,6 @@ fn diff_single_file(
 }
 
 /// Diff a directory across branches
-#[allow(clippy::fn_params_excessive_bools)]
 fn diff_directory(
     _pool: &Pool,
     branches: &[&Branch],

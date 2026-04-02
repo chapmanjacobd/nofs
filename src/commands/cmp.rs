@@ -38,7 +38,6 @@ pub struct Difference {
 /// # Errors
 ///
 /// Returns an error if the files cannot be compared or if there are not enough files.
-#[allow(clippy::fn_params_excessive_bools)]
 pub fn execute(
     pool: &Pool,
     path: &str,
@@ -141,7 +140,6 @@ pub fn execute(
 }
 
 /// Result of file comparison
-#[allow(clippy::exhaustive_structs)]
 struct ComparisonResult {
     /// Whether the files are identical
     identical: bool,
@@ -150,7 +148,6 @@ struct ComparisonResult {
 }
 
 /// Information about a byte difference
-#[allow(clippy::exhaustive_structs)]
 struct ByteDifference {
     /// Byte offset where the difference occurs
     byte_offset: u64,
@@ -163,7 +160,6 @@ struct ByteDifference {
 }
 
 /// Compare two files byte-by-byte
-#[allow(clippy::indexing_slicing, clippy::arithmetic_side_effects, clippy::as_conversions)]
 fn compare_files(path1: &Path, path2: &Path) -> Result<ComparisonResult> {
     let mut file1 =
         fs::File::open(path1).map_err(|e| NofsError::Command(format!("cannot open '{}': {}", path1.display(), e)))?;
@@ -227,7 +223,6 @@ fn compare_files(path1: &Path, path2: &Path) -> Result<ComparisonResult> {
 }
 
 /// Format a byte for display
-#[allow(clippy::as_conversions, clippy::uninlined_format_args)]
 fn format_byte(b: u8) -> String {
     if b.is_ascii_graphic() || b == b' ' {
         format!("{}", b as char)

@@ -308,7 +308,6 @@ pub fn detect_single_file_conflict(
 }
 
 #[cfg(test)]
-#[allow(clippy::unwrap_used, clippy::expect_used, clippy::indexing_slicing)]
 mod tests {
     use super::*;
     use crate::branch::BranchMode;
@@ -370,7 +369,6 @@ mod tests {
         let file_path = temp_dir.path().join("large.txt");
 
         // Create a file larger than 1MB to trigger sampling
-        #[allow(clippy::cast_possible_truncation, clippy::as_conversions)]
         let content = "x".repeat(2 * MB as usize);
         fs::write(&file_path, &content).unwrap();
 
@@ -589,7 +587,6 @@ mod tests {
     }
 
     #[test]
-    #[allow(clippy::get_unwrap)]
     fn test_detect_conflicts_sorted_output() {
         let temp_dir = TempDir::new().expect("Failed to create temp dir");
 
@@ -669,7 +666,6 @@ mod tests {
         let file_path = temp_dir.path().join("threshold.txt");
 
         // Create a file exactly at the threshold
-        #[allow(clippy::cast_possible_truncation, clippy::as_conversions)]
         let content = "x".repeat(MB as usize);
         fs::write(&file_path, &content).unwrap();
 
@@ -684,7 +680,6 @@ mod tests {
         let file_path = temp_dir.path().join("above_threshold.txt");
 
         // Create a file just above the threshold
-        #[allow(clippy::cast_possible_truncation, clippy::as_conversions)]
         let content = "x".repeat((MB + 1) as usize);
         fs::write(&file_path, &content).unwrap();
 

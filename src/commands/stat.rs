@@ -12,7 +12,6 @@ use std::io::{self, Write};
 /// # Errors
 ///
 /// Returns an error if there is an IO error during output.
-#[allow(clippy::fn_params_excessive_bools, clippy::too_many_lines)]
 pub fn execute(pool: &Pool, human: bool, verbose: bool, json: bool) -> Result<()> {
     let stdout = io::stdout();
     let mut handle = stdout.lock();
@@ -39,7 +38,6 @@ pub fn execute(pool: &Pool, human: bool, verbose: bool, json: bool) -> Result<()
     }
 
     let use_percent = if total > 0 {
-        #[allow(clippy::cast_precision_loss, clippy::as_conversions, clippy::float_arithmetic)]
         {
             Some((used as f64 / total as f64) * 100.0)
         }
@@ -60,7 +58,6 @@ pub fn execute(pool: &Pool, human: bool, verbose: bool, json: bool) -> Result<()
             let branch_used = branch_total.saturating_sub(branch_available);
 
             let percent = if branch_total > 0 {
-                #[allow(clippy::cast_precision_loss, clippy::as_conversions, clippy::float_arithmetic)]
                 {
                     Some((branch_used as f64 / branch_total as f64) * 100.0)
                 }
@@ -133,7 +130,6 @@ pub fn execute(pool: &Pool, human: bool, verbose: bool, json: bool) -> Result<()
             let branch_used = branch_total.saturating_sub(branch_available);
 
             let percent = if branch_total > 0 {
-                #[allow(clippy::cast_precision_loss, clippy::as_conversions, clippy::float_arithmetic)]
                 {
                     (branch_used as f64 / branch_total as f64) * 100.0
                 }
@@ -172,7 +168,6 @@ pub fn execute(pool: &Pool, human: bool, verbose: bool, json: bool) -> Result<()
 }
 
 /// Truncate a path string to a maximum length
-#[allow(clippy::arithmetic_side_effects)]
 fn truncate_path(s: &str, max_len: usize) -> String {
     if s.len() <= max_len {
         s.to_string()
