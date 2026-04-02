@@ -33,19 +33,22 @@ pub struct Difference {
     pub file2_value: String,
 }
 
+/// Options for the cmp command
+#[derive(Debug, Clone)]
+#[non_exhaustive]
+pub struct CmpOptions {
+    pub branch1_name: Option<String>,
+    pub branch2_name: Option<String>,
+    pub verbose: bool,
+    pub json: bool,
+}
+
 /// Execute the cmp command to compare files across branches
 ///
 /// # Errors
 ///
 /// Returns an error if the files cannot be compared or if there are not enough files.
-pub fn execute(
-    pool: &Pool,
-    path: &str,
-    branch1_name: Option<&str>,
-    branch2_name: Option<&str>,
-    verbose: bool,
-    json: bool,
-) -> Result<()> {
+pub fn execute(pool: &Pool, path: &str, options: &CmpOptions) -> Result<()> {
     let pool_path = Path::new(path);
 
     // Create operation cache for this command execution
@@ -76,8 +79,18 @@ pub fn execute(
     // Get files from specified branches or first two branches
     let files_to_compare: Vec<(&Branch, std::path::PathBuf)> = branches
         .iter()
-        .filter(|b| branch1_name.is_none_or(|b1| b.path.to_string_lossy().contains(b1)))
-        .filter(|b| branch2_name.is_none_or(|b2| b.path.to_string_lossy().contains(b2)))
+        .filter(|b| {
+            options
+                .branch1_name
+                .as_deref()
+                .is_none_or(|b1| b.path.to_string_lossy().contains(b1))
+        })
+        .filter(|b| {
+            options
+                .branch2_name
+                .as_deref()
+                .is_none_or(|b2| b.path.to_string_lossy().contains(b2))
+        })
         .take(2)
         .map(|b| (*b, b.path.join(pool_path)))
         .collect();
@@ -99,9 +112,12 @@ pub fn execute(
     // Compare files
     let comparison = compare_files(path1, path2)?;
 
-    if json {
+    if options.json {
         let output = CmpOutput {
-            files: vec![path1.to_string_lossy().to_string(), path2.to_string_lossy().to_string()],
+            files: vec![
+                path1.to_string_lossy().to_string(),
+                path2.to_string_lossy().to_string(),
+            ],
             identical: comparison.identical,
             difference: comparison.difference.map(|d| Difference {
                 byte_offset: d.byte_offset,
@@ -112,10 +128,15 @@ pub fn execute(
         };
         println!("{}", serde_json::to_string_pretty(&output)?);
     } else if comparison.identical {
-        if verbose {
+        if options.verbose {
             let stdout = io::stdout();
             let mut handle = stdout.lock();
-            writeln!(handle, "{} and {} are identical", path1.display(), path2.display())?;
+            writeln!(
+                handle,
+                "{} and {} are identical",
+                path1.display(),
+                path2.display()
+            )?;
         }
         // Exit code 0 for identical files (success)
     } else if let Some(diff) = comparison.difference {
@@ -194,38 +215,38 @@ fn compare_files(path1: &Path, path2: &Path) -> Result<ComparisonResult> {
                 difference: Some(ByteDifference {
                     byte_offset: total_offset,
                     line_number,
-                    file1_byte: if n1 > 0 { buf1[0] } else { 0 },
-                    file2_byte: if n2 > 0 { buf2[0] } else { 0 },
+                    file1_byte: *buf1.first().unwrap_or(&0),
+                    file2_byte: *buf2.first().unwrap_or(&0),
                 }),
             });
         }
 
         // Compare buffers
-        for i in 0..n1 {
-            if buf1[i] != buf2[i] {
+        for (i, (&b1, &b2)) in buf1.iter().zip(buf2.iter()).enumerate().take(n1) {
+            if b1 != b2 {
                 return Ok(ComparisonResult {
                     identical: false,
                     difference: Some(ByteDifference {
-                        byte_offset: total_offset + i as u64,
+                        byte_offset: total_offset.saturating_add(u64::try_from(i).unwrap_or(0)),
                         line_number,
-                        file1_byte: buf1[i],
-                        file2_byte: buf2[i],
+                        file1_byte: b1,
+                        file2_byte: b2,
                     }),
                 });
             }
-            if buf1[i] == b'\n' {
-                line_number += 1;
+            if b1 == b'\n' {
+                line_number = line_number.saturating_add(1);
             }
         }
 
-        total_offset += n1 as u64;
+        total_offset = total_offset.saturating_add(u64::try_from(n1).unwrap_or(0));
     }
 }
 
 /// Format a byte for display
 fn format_byte(b: u8) -> String {
     if b.is_ascii_graphic() || b == b' ' {
-        format!("{}", b as char)
+        format!("{}", char::from(b))
     } else {
         format!("0x{b:02X}")
     }

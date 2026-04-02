@@ -1039,7 +1039,18 @@ pub fn run() -> Result<()> {
         } => {
             for path in &ls_paths {
                 let (pool, pool_path) = pool_mgr.resolve_context_path(path)?;
-                commands::ls::execute(pool, pool_path, long, all, cli.verbose, conflicts, hash, cli.json)?;
+                commands::ls::execute(
+                    pool,
+                    pool_path,
+                    &commands::ls::LsOptions {
+                        long,
+                        all,
+                        verbose: cli.verbose,
+                        conflicts,
+                        hash,
+                        json: cli.json,
+                    },
+                )?;
             }
         }
         Commands::Find {
@@ -1117,10 +1128,28 @@ pub fn run() -> Result<()> {
         }
         Commands::Cmp { cmp_path, verbose } => {
             let (pool, pool_path) = pool_mgr.resolve_context_path(&cmp_path)?;
-            commands::cmp::execute(pool, pool_path, None, None, verbose, cli.json)?;
+            commands::cmp::execute(
+                pool,
+                pool_path,
+                &commands::cmp::CmpOptions {
+                    branch1_name: None,
+                    branch2_name: None,
+                    verbose,
+                    json: cli.json,
+                },
+            )?;
         }
         Commands::Df { context, human, total } => {
-            commands::df::execute(&pool_mgr, context.as_deref(), human, total, cli.verbose, cli.json)?;
+            commands::df::execute(
+                &pool_mgr,
+                context.as_deref(),
+                &commands::df::DfOptions {
+                    human,
+                    total,
+                    verbose: cli.verbose,
+                    json: cli.json,
+                },
+            )?;
         }
         Commands::Grep {
             pattern,
@@ -1137,13 +1166,15 @@ pub fn run() -> Result<()> {
                     pool,
                     pool_path,
                     &pattern,
-                    ignore_case,
-                    invert_match,
-                    line_number,
-                    files_with_matches,
-                    recursive,
-                    cli.verbose,
-                    cli.json,
+                    &commands::grep::GrepOptions {
+                        ignore_case,
+                        invert_match,
+                        line_numbers: line_number,
+                        files_with_matches,
+                        recursive,
+                        verbose: cli.verbose,
+                        json: cli.json,
+                    },
                 )?;
             }
         }

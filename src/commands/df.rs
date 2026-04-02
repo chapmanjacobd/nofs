@@ -29,19 +29,21 @@ pub struct DfEntry {
     pub mounted_on: String,
 }
 
+/// Options for the df command
+#[derive(Default)]
+pub struct DfOptions {
+    pub human: bool,
+    pub total: bool,
+    pub verbose: bool,
+    pub json: bool,
+}
+
 /// Execute the df command
 ///
 /// # Errors
 ///
 /// Returns an error if there is an IO error during output.
-pub fn execute(
-    pool_mgr: &PoolManager,
-    context: Option<&str>,
-    human: bool,
-    total: bool,
-    _verbose: bool,
-    json: bool,
-) -> Result<()> {
+pub fn execute(pool_mgr: &PoolManager, context: Option<&str>, options: &DfOptions) -> Result<()> {
     let mut entries = Vec::new();
     let cache = OperationCache::new();
 
@@ -53,10 +55,9 @@ pub fn execute(
             let branch_total = branch.total_space_cached(&cache).unwrap_or(0);
             let branch_available = branch.available_space_cached(&cache).unwrap_or(0);
             let branch_used = branch_total.saturating_sub(branch_available);
+            #[allow(clippy::float_arithmetic, clippy::cast_precision_loss, clippy::as_conversions)]
             let use_percent = if branch_total > 0 {
-                {
-                    Some((branch_used as f64 / branch_total as f64) * 100.0)
-                }
+                Some((branch_used as f64 / branch_total as f64) * 100.0)
             } else {
                 None
             };
@@ -77,10 +78,9 @@ pub fn execute(
                 let branch_total = branch.total_space_cached(&cache).unwrap_or(0);
                 let branch_available = branch.available_space_cached(&cache).unwrap_or(0);
                 let branch_used = branch_total.saturating_sub(branch_available);
+                #[allow(clippy::float_arithmetic, clippy::cast_precision_loss, clippy::as_conversions)]
                 let use_percent = if branch_total > 0 {
-                    {
-                        Some((branch_used as f64 / branch_total as f64) * 100.0)
-                    }
+                    Some((branch_used as f64 / branch_total as f64) * 100.0)
                 } else {
                     None
                 };
@@ -98,14 +98,13 @@ pub fn execute(
     }
 
     // Calculate total if requested
-    let total_entry = (total && entries.len() > 1).then(|| {
+    let total_entry = (options.total && entries.len() > 1).then(|| {
         let total_blocks: u64 = entries.iter().map(|e| e.blocks).sum();
         let total_used: u64 = entries.iter().map(|e| e.used).sum();
         let total_available: u64 = entries.iter().map(|e| e.available).sum();
+        #[allow(clippy::float_arithmetic, clippy::cast_precision_loss, clippy::as_conversions)]
         let total_percent = if total_blocks > 0 {
-            {
-                Some((total_used as f64 / total_blocks as f64) * 100.0)
-            }
+            Some((total_used as f64 / total_blocks as f64) * 100.0)
         } else {
             None
         };
@@ -120,11 +119,11 @@ pub fn execute(
         }
     });
 
-    if json {
+    if options.json {
         let output = DfOutput { filesystems: entries };
         println!("{}", serde_json::to_string_pretty(&output)?);
     } else {
-        output_text(&entries, total_entry, human)?;
+        output_text(&entries, total_entry, options.human)?;
     }
 
     Ok(())
@@ -168,7 +167,8 @@ fn output_text(entries: &[DfEntry], total: Option<DfEntry>, human: bool) -> Resu
             format!("{}", entry.available / 1024)
         };
         let percent_str = entry
-            .use_percent.map_or_else(|| "-".to_string(), |p| format!("{p:.0}%"));
+            .use_percent
+            .map_or_else(|| "-".to_string(), |p| format!("{p:.0}%"));
 
         writeln!(
             handle,
@@ -200,7 +200,8 @@ fn output_text(entries: &[DfEntry], total: Option<DfEntry>, human: bool) -> Resu
             format!("{}", total_entry.available / 1024)
         };
         let percent_str = total_entry
-            .use_percent.map_or_else(|| "-".to_string(), |p| format!("{p:.0}%"));
+            .use_percent
+            .map_or_else(|| "-".to_string(), |p| format!("{p:.0}%"));
 
         writeln!(
             handle,
@@ -213,6 +214,7 @@ fn output_text(entries: &[DfEntry], total: Option<DfEntry>, human: bool) -> Resu
 }
 
 /// Format size in human-readable format
+#[allow(clippy::float_arithmetic, clippy::cast_precision_loss, clippy::as_conversions)]
 fn format_size(size: u64) -> String {
     const KB: u64 = 1024;
     const MB: u64 = KB * 1024;
@@ -234,9 +236,14 @@ fn format_size(size: u64) -> String {
 
 /// Truncate string to max length with ellipsis
 fn truncate_str(s: &str, max_len: usize) -> String {
-    if s.len() <= max_len {
+    if s.chars().count() <= max_len {
         s.to_string()
     } else {
-        format!("...{}", &s[s.len() - (max_len - 3)..])
+        // Use chars to handle multi-byte characters safely
+        let chars: Vec<char> = s.chars().collect();
+        let suffix_len = max_len.saturating_sub(3);
+        let start_idx = chars.len().saturating_sub(suffix_len);
+        let truncated: String = chars[start_idx..].iter().collect();
+        format!("...{truncated}")
     }
 }

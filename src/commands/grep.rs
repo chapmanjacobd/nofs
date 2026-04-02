@@ -32,6 +32,20 @@ pub struct GrepMatch {
     pub line: String,
 }
 
+/// Options for the grep command
+#[derive(Debug, Clone, Copy)]
+#[non_exhaustive]
+#[allow(clippy::struct_excessive_bools)]
+pub struct GrepOptions {
+    pub ignore_case: bool,
+    pub invert_match: bool,
+    pub line_numbers: bool,
+    pub files_with_matches: bool,
+    pub recursive: bool,
+    pub verbose: bool,
+    pub json: bool,
+}
+
 /// Execute the grep command
 ///
 /// # Errors
@@ -41,13 +55,7 @@ pub fn execute(
     pool: &Pool,
     path: &str,
     pattern: &str,
-    ignore_case: bool,
-    invert_match: bool,
-    line_numbers: bool,
-    files_with_matches: bool,
-    recursive: bool,
-    verbose: bool,
-    json: bool,
+    options: &GrepOptions,
 ) -> Result<()> {
     let pool_path = Path::new(path);
 
@@ -64,7 +72,7 @@ pub fn execute(
     }
 
     // Compile regex
-    let re_pattern = if ignore_case {
+    let re_pattern = if options.ignore_case {
         format!("(?i){pattern}")
     } else {
         pattern.to_string()
@@ -89,21 +97,21 @@ pub fn execute(
                 &branch_path,
                 &branch.path.to_string_lossy(),
                 &re,
-                invert_match,
+                options.invert_match,
                 &mut all_matches,
                 &mut files_matched,
-                verbose,
+                options.verbose,
             )?;
-        } else if recursive {
+        } else if options.recursive {
             // Directory search (recursive)
             search_directory(
                 &branch_path,
                 &branch.path.to_string_lossy(),
                 &re,
-                invert_match,
+                options.invert_match,
                 &mut all_matches,
                 &mut files_matched,
-                verbose,
+                options.verbose,
             )?;
         } else {
             // Directory without recursive - skip
@@ -111,7 +119,7 @@ pub fn execute(
     }
 
     // Output results
-    if json {
+    if options.json {
         let output = GrepOutput {
             pattern: pattern.to_string(),
             path: path.to_string(),
@@ -119,7 +127,7 @@ pub fn execute(
         };
         println!("{}", serde_json::to_string_pretty(&output)?);
     } else {
-        output_text(&all_matches, files_with_matches, line_numbers)?;
+        output_text(&all_matches, options.files_with_matches, options.line_numbers)?;
     }
 
     Ok(())
@@ -143,8 +151,10 @@ fn search_file(
     })?;
 
     let reader = io::BufReader::new(file);
-    let file_name = file_path
-        .file_name().map_or_else(|| file_path.to_string_lossy().to_string(), |n| n.to_string_lossy().to_string());
+    let file_name = file_path.file_name().map_or_else(
+        || file_path.to_string_lossy().to_string(),
+        |n| n.to_string_lossy().to_string(),
+    );
 
     for (line_num, line_result) in reader.lines().enumerate() {
         let line = line_result.unwrap_or_default();
@@ -155,7 +165,7 @@ fn search_file(
             all_matches.push(GrepMatch {
                 file: file_name.clone(),
                 branch: branch_name.to_string(),
-                line_number: line_num + 1,
+                line_number: line_num.saturating_add(1),
                 line: line.clone(),
             });
         }

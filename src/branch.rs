@@ -180,6 +180,7 @@ impl Branch {
             return Ok(0.0);
         }
         let available = self.available_space()?;
+        #[allow(clippy::float_arithmetic, clippy::cast_precision_loss, clippy::as_conversions)]
         Ok((available as f64 / total as f64) * 100.0)
     }
 
@@ -189,6 +190,7 @@ impl Branch {
     ///
     /// Returns an error if statvfs fails.
     pub fn used_percentage(&self) -> Result<f64> {
+        #[allow(clippy::float_arithmetic)]
         Ok(100.0 - self.free_percentage()?)
     }
 

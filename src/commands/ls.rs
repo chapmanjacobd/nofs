@@ -11,21 +11,25 @@ use std::fs;
 use std::io::{self, Write};
 use std::path::Path;
 
+/// Options for the ls command
+#[derive(Debug, Clone, Copy)]
+#[non_exhaustive]
+#[allow(clippy::struct_excessive_bools)]
+pub struct LsOptions {
+    pub long: bool,
+    pub all: bool,
+    pub verbose: bool,
+    pub conflicts: bool,
+    pub hash: bool,
+    pub json: bool,
+}
+
 /// Execute the ls command
 ///
 /// # Errors
 ///
 /// Returns an error if there is an IO error during output.
-pub fn execute(
-    pool: &Pool,
-    path: &str,
-    long: bool,
-    all: bool,
-    verbose: bool,
-    conflicts: bool,
-    hash: bool,
-    json: bool,
-) -> Result<()> {
+pub fn execute(pool: &Pool, path: &str, options: &LsOptions) -> Result<()> {
     let pool_path = Path::new(path);
 
     // Create operation cache for this command execution
@@ -40,7 +44,7 @@ pub fn execute(
         )));
     }
 
-    if verbose {
+    if options.verbose {
         let stderr = io::stderr();
         let mut h = stderr.lock();
         writeln!(h, "found in:")?;
@@ -50,19 +54,20 @@ pub fn execute(
     }
 
     // Detect conflicts if requested
-    let conflict_list = if conflicts {
-        detect_conflicts(&branches, pool_path, hash)?
+    let conflict_list = if options.conflicts {
+        detect_conflicts(&branches, pool_path, options.hash)?
     } else {
         Vec::new()
     };
 
     // Report conflicts
-    if conflicts && !conflict_list.is_empty() {
-        report_conflicts(&conflict_list, verbose)?;
+    if options.conflicts && !conflict_list.is_empty() {
+        report_conflicts(&conflict_list, options.verbose)?;
     }
 
     // Collect all entries from all branches
-    let mut entries: Vec<(std::path::PathBuf, String)> = collect_directory_entries(&branches, pool_path, all, verbose);
+    let mut entries: Vec<(std::path::PathBuf, String)> =
+        collect_directory_entries(&branches, pool_path, options.all, options.verbose);
 
     // Sort entry names alphabetically
     entries.sort_by(|a, b| a.1.cmp(&b.1));
@@ -75,12 +80,19 @@ pub fn execute(
         .collect();
 
     // Build a set of conflicting file names for quick lookup
-    let conflict_names: std::collections::HashSet<&str> = conflict_list.iter().map(|c| c.name.as_str()).collect();
+    let conflict_names: std::collections::HashSet<&str> =
+        conflict_list.iter().map(|c| c.name.as_str()).collect();
 
-    if json {
-        output_json(path, &unique_entries, &conflict_list, long, &conflict_names)?;
+    if options.json {
+        output_json(
+            path,
+            &unique_entries,
+            &conflict_list,
+            options.long,
+            &conflict_names,
+        )?;
     } else {
-        output_text(&unique_entries, long, &conflict_names)?;
+        output_text(&unique_entries, options.long, &conflict_names)?;
     }
 
     Ok(())
@@ -254,47 +266,8 @@ fn collect_directory_entries(
         let mut handles = Vec::new();
 
         for branch in branches {
-            let handle = s.spawn(|| {
-                let mut entries = Vec::new();
-                let branch_path = branch.path.join(pool_path);
-
-                match fs::read_dir(&branch_path) {
-                    Ok(read_dir) => {
-                        for entry_result in read_dir {
-                            match entry_result {
-                                Ok(entry) => {
-                                    let file_name = entry.file_name();
-                                    let file_name_str = file_name.to_string_lossy().to_string();
-
-                                    // Skip hidden files unless --all
-                                    if !all && file_name_str.starts_with('.') {
-                                        continue;
-                                    }
-
-                                    entries.push((entry.path(), file_name_str));
-                                }
-                                Err(e) if verbose => {
-                                    eprintln!(
-                                        "nofs: warning: failed to read entry in '{}': {}",
-                                        branch_path.display(),
-                                        e
-                                    );
-                                }
-                                Err(_) => {}
-                            }
-                        }
-                    }
-                    Err(e) if verbose => {
-                        eprintln!(
-                            "nofs: warning: cannot read directory '{}': {}",
-                            branch_path.display(),
-                            e
-                        );
-                    }
-                    Err(_) => {}
-                }
-                entries
-            });
+            let branch_path = branch.path.join(pool_path);
+            let handle = s.spawn(move || collect_branch_entries(&branch_path, all, verbose));
             handles.push(handle);
         }
 
@@ -318,6 +291,52 @@ fn collect_directory_entries(
 
         all_entries
     })
+}
+
+/// Collect entries from a single branch
+fn collect_branch_entries(
+    branch_path: &Path,
+    all: bool,
+    verbose: bool,
+) -> Vec<(std::path::PathBuf, String)> {
+    let mut entries = Vec::new();
+
+    match fs::read_dir(branch_path) {
+        Ok(read_dir) => {
+            for entry_result in read_dir {
+                match entry_result {
+                    Ok(entry) => {
+                        let file_name = entry.file_name();
+                        let file_name_str = file_name.to_string_lossy().to_string();
+
+                        // Skip hidden files unless --all
+                        if !all && file_name_str.starts_with('.') {
+                            continue;
+                        }
+
+                        entries.push((entry.path(), file_name_str));
+                    }
+                    Err(e) if verbose => {
+                        eprintln!(
+                            "nofs: warning: failed to read entry in '{}': {}",
+                            branch_path.display(),
+                            e
+                        );
+                    }
+                    Err(_) => {}
+                }
+            }
+        }
+        Err(e) if verbose => {
+            eprintln!(
+                "nofs: warning: cannot read directory '{}': {}",
+                branch_path.display(),
+                e
+            );
+        }
+        Err(_) => {}
+    }
+    entries
 }
 
 /// Returns the file mode (permission bits) from metadata.
