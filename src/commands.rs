@@ -6,6 +6,7 @@ mod cp_tests;
 pub mod cat;
 pub mod cp;
 pub mod create;
+pub mod diff;
 pub mod du;
 pub mod exists;
 pub mod find;

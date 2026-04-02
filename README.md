@@ -244,6 +244,25 @@ nofs cat [context:]path
 Reads file content from first found branch.
 ```
 
+### `diff` - Show Differences Between Branches
+
+```bash
+nofs [OPTIONS] diff [context:]path
+
+Shows files that exist in multiple branches with different content.
+
+OPTIONS:
+    -H, --hash       Use hash comparison (more accurate but slower)
+    -v, --verbose    Show detailed information (timestamps, hashes)
+    --json           Output in JSON format
+
+EXAMPLES:
+    nofs diff media:/                    # Show all conflicting files
+    nofs diff media:/config.toml         # Check specific file for conflicts
+    nofs diff -H media:/                 # Use hash comparison
+    nofs diff --json media:/             # JSON output
+```
+
 ### `cp` - Copy Files/Directories
 
 ```bash

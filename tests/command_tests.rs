@@ -2223,4 +2223,210 @@ paths = ['{0}/disk1']
         // Unicode filenames should be displayed
         assert!(output.stdout.contains(".txt"));
     }
+
+    #[test]
+    fn diff_directory_no_conflicts() {
+        let ctx = TestContext::new("diff_no_conflicts");
+
+        // Create identical files in both branches
+        let _ = ctx.create_branch("disk1/dir", &["file.txt"]);
+        let _ = ctx.create_branch("disk2/dir", &["file.txt"]);
+
+        // Write same content
+        fs::write(ctx.root.join("disk1/dir/file.txt"), "same content").unwrap();
+        fs::write(ctx.root.join("disk2/dir/file.txt"), "same content").unwrap();
+
+        let config = format!(
+            r"
+[share.test]
+paths = ['{0}/disk1', '{0}/disk2']
+",
+            ctx.root.display()
+        );
+
+        ctx.write_config(&config);
+
+        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "diff", "test:dir"]);
+
+        assert!(output.success(), "Command failed: {}", output.stderr);
+        assert!(output.stdout.contains("no conflicts"));
+    }
+
+    #[test]
+    fn diff_directory_with_conflicts() {
+        let ctx = TestContext::new("diff_with_conflicts");
+
+        // Create different content in each branch
+        let _ = ctx.create_branch("disk1", &["file.txt"]);
+        let _ = ctx.create_branch("disk2", &["file.txt"]);
+
+        // Write different content
+        fs::write(ctx.root.join("disk1/file.txt"), "content A").unwrap();
+        fs::write(ctx.root.join("disk2/file.txt"), "content BB").unwrap();
+
+        let config = format!(
+            r"
+[share.test]
+paths = ['{0}/disk1', '{0}/disk2']
+",
+            ctx.root.display()
+        );
+
+        ctx.write_config(&config);
+
+        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "diff", "test:"]);
+
+        assert!(output.success(), "Command failed: {}", output.stderr);
+        assert!(output.stdout.contains("conflict"));
+    }
+
+    #[test]
+    fn diff_single_file_no_conflict() {
+        let ctx = TestContext::new("diff_single_no_conflict");
+
+        // Create identical files
+        let _ = ctx.create_branch("disk1", &["same.txt"]);
+        let _ = ctx.create_branch("disk2", &["same.txt"]);
+
+        let config = format!(
+            r"
+[share.test]
+paths = ['{0}/disk1', '{0}/disk2']
+",
+            ctx.root.display()
+        );
+
+        ctx.write_config(&config);
+
+        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "diff", "test:same.txt"]);
+
+        assert!(output.success(), "Command failed: {}", output.stderr);
+        assert!(output.stdout.contains("no conflicts"));
+    }
+
+    #[test]
+    fn diff_single_file_with_conflict() {
+        let ctx = TestContext::new("diff_single_conflict");
+
+        // Create different files
+        let _ = ctx.create_branch("disk1", &["diff.txt"]);
+        let _ = ctx.create_branch("disk2", &["diff.txt"]);
+
+        let config = format!(
+            r"
+[share.test]
+paths = ['{0}/disk1', '{0}/disk2']
+",
+            ctx.root.display()
+        );
+
+        ctx.write_config(&config);
+
+        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "diff", "test:diff.txt"]);
+
+        assert!(output.success(), "Command failed: {}", output.stderr);
+        assert!(output.stdout.contains("conflict"));
+    }
+
+    #[test]
+    fn diff_json_output() {
+        let ctx = TestContext::new("diff_json");
+
+        // Create conflicting files
+        let _ = ctx.create_branch("disk1", &["test.txt"]);
+        let _ = ctx.create_branch("disk2", &["test.txt"]);
+
+        // Write different content to create a conflict
+        fs::write(ctx.root.join("disk1/test.txt"), "content A").unwrap();
+        fs::write(ctx.root.join("disk2/test.txt"), "content BB").unwrap();
+
+        let config = format!(
+            r"
+[share.test]
+paths = ['{0}/disk1', '{0}/disk2']
+",
+            ctx.root.display()
+        );
+
+        ctx.write_config(&config);
+
+        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "diff", "--json", "test:"]);
+
+        assert!(output.success(), "Command failed: {}", output.stderr);
+        // JSON output should contain conflict_count
+        assert!(output.stdout.contains("conflict_count"));
+        assert!(output.stdout.contains("conflict_count\": 1"));
+    }
+
+    #[test]
+    fn diff_verbose_output() {
+        let ctx = TestContext::new("diff_verbose");
+
+        // Create conflicting files
+        let _ = ctx.create_branch("disk1", &["verbose.txt"]);
+        let _ = ctx.create_branch("disk2", &["verbose.txt"]);
+
+        // Write different content to create a conflict
+        fs::write(ctx.root.join("disk1/verbose.txt"), "content 123").unwrap();
+        fs::write(ctx.root.join("disk2/verbose.txt"), "content 4567").unwrap();
+
+        let config = format!(
+            r"
+[share.test]
+paths = ['{0}/disk1', '{0}/disk2']
+",
+            ctx.root.display()
+        );
+
+        ctx.write_config(&config);
+
+        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "diff", "-v", "test:"]);
+
+        assert!(output.success(), "Command failed: {}", output.stderr);
+        assert!(output.stdout.contains("bytes"));
+    }
+
+    #[test]
+    fn diff_hash_mode() {
+        let ctx = TestContext::new("diff_hash");
+
+        // Create files with same size but different content
+        let _ = ctx.create_branch("disk1", &["hash.txt"]);
+        let _ = ctx.create_branch("disk2", &["hash.txt"]);
+
+        let config = format!(
+            r"
+[share.test]
+paths = ['{0}/disk1', '{0}/disk2']
+",
+            ctx.root.display()
+        );
+
+        ctx.write_config(&config);
+
+        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "diff", "-H", "test:"]);
+
+        assert!(output.success(), "Command failed: {}", output.stderr);
+        assert!(output.stdout.contains("conflict"));
+    }
+
+    #[test]
+    fn diff_nonexistent_path() {
+        let ctx = TestContext::new("diff_nonexistent");
+
+        let config = format!(
+            r"
+[share.test]
+paths = ['{0}/disk1', '{0}/disk2']
+",
+            ctx.root.display()
+        );
+
+        ctx.write_config(&config);
+
+        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "diff", "test:nonexistent"]);
+
+        // Should return error
+        assert!(!output.success());
+    }
 }

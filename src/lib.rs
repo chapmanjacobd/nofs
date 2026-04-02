@@ -265,6 +265,44 @@ NOTES:
         cat_paths: Vec<String>,
     },
 
+    /// Show differences between branches.
+    #[command(after_help = "\
+EXAMPLES:
+    nofs diff media:/                    # Show all conflicting files
+    nofs diff media:/config.toml         # Check specific file for conflicts
+    nofs diff -H media:/                 # Use hash comparison (more accurate)
+    nofs diff --json media:/             # Output in JSON format
+    nofs diff -v media:/                 # Verbose output with timestamps
+
+OUTPUT:
+    Shows files that exist in multiple branches with different content.
+    For directories, lists all conflicting files.
+    For single files, shows detailed comparison across branches.
+
+OPTIONS:
+    -H, --hash
+        Use full file hash comparison instead of size/mtime.
+        More accurate but slower on large files.
+
+    --json
+        Output in JSON format for scripting/automation.
+
+    -v, --verbose
+        Show detailed information including timestamps and hashes.")]
+    Diff {
+        /// Path within the share (format: [context:]path).
+        #[arg(required = true, value_name = "PATH")]
+        diff_path: String,
+
+        /// Use hash comparison for conflict detection (slower but more accurate).
+        #[arg(short = 'H', long)]
+        hash: bool,
+
+        /// Verbose output (show timestamps and hashes).
+        #[arg(short, long)]
+        verbose: bool,
+    },
+
     /// Copy files/directories (supports nofs context paths).
     #[command(after_help = "\
 CONFLICT RESOLUTION OPTIONS:
@@ -827,6 +865,7 @@ pub fn run() -> Result<()> {
         | Commands::Info { .. }
         | Commands::Exists { .. }
         | Commands::Cat { .. }
+        | Commands::Diff { .. }
         | Commands::Cp { .. }
         | Commands::Mv { .. }
         | Commands::Rm { .. }
@@ -924,6 +963,14 @@ pub fn run() -> Result<()> {
                 let (pool, pool_path) = pool_mgr.resolve_context_path(path)?;
                 commands::cat::execute(pool, pool_path, cli.verbose)?;
             }
+        }
+        Commands::Diff {
+            diff_path,
+            hash,
+            verbose,
+        } => {
+            let (pool, pool_path) = pool_mgr.resolve_context_path(&diff_path)?;
+            commands::diff::execute(pool, pool_path, verbose, hash, cli.json)?;
         }
         Commands::Cp {
             cp_paths,
