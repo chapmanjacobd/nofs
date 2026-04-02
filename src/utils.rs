@@ -189,7 +189,6 @@ impl HashConfig {
 /// # Errors
 ///
 /// Returns an error if the file cannot be read.
-#[allow(clippy::integer_division, clippy::cast_possible_truncation, clippy::as_conversions)]
 pub fn compute_file_hash_with_config(path: &Path, config: &HashConfig) -> Result<String> {
     let mut file =
         File::open(path).map_err(|e| NofsError::Conflict(format!("Failed to open file {}: {}", path.display(), e)))?;
@@ -211,7 +210,7 @@ pub fn compute_file_hash_with_config(path: &Path, config: &HashConfig) -> Result
 
     // For larger files, use sampling
     let mut hasher = DefaultHasher::new();
-    let chunk_size = config.sample_chunk_size as usize;
+    let chunk_size = usize::try_from(config.sample_chunk_size).unwrap_or(usize::MAX);
     let mut buf = vec![0_u8; chunk_size];
 
     if config.num_samples == 0 {
@@ -225,7 +224,7 @@ pub fn compute_file_hash_with_config(path: &Path, config: &HashConfig) -> Result
         }
 
         // Sample middle
-        let middle_pos = file_size / 2;
+        let middle_pos = file_size.checked_div(2).unwrap_or(0);
         file.seek(SeekFrom::Start(middle_pos))
             .map_err(|e| NofsError::Conflict(format!("Failed to seek in file {}: {}", path.display(), e)))?;
         let bytes_read_middle = file
@@ -247,9 +246,8 @@ pub fn compute_file_hash_with_config(path: &Path, config: &HashConfig) -> Result
         }
     } else {
         // Multi-sample: evenly distributed samples
-        #[allow(clippy::arithmetic_side_effects)]
         for i in 0..config.num_samples {
-            let pos = file_size.saturating_mul(i) / config.num_samples;
+            let pos = file_size.saturating_mul(i).checked_div(config.num_samples).unwrap_or(0);
             file.seek(SeekFrom::Start(pos))
                 .map_err(|e| NofsError::Conflict(format!("Failed to seek in file {}: {}", path.display(), e)))?;
             let bytes_read = file
