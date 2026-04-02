@@ -12,6 +12,18 @@ use serde::Serialize;
 use std::io::{self, Write};
 use std::path::Path;
 
+/// Configuration for diff command output
+#[non_exhaustive]
+#[derive(Clone, Copy)]
+pub struct DiffOptions {
+    /// Enable verbose output
+    pub verbose: bool,
+    /// Use hash comparison for conflict detection
+    pub hash: bool,
+    /// Output in JSON format
+    pub json: bool,
+}
+
 /// Output from the `diff` command for directory comparison
 #[derive(Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -38,7 +50,7 @@ pub struct DiffFileOutput {
 /// # Errors
 ///
 /// Returns an error if there is an IO error during output or file access.
-pub fn execute(pool: &Pool, path: &str, verbose: bool, hash: bool, json: bool) -> Result<()> {
+pub fn execute(pool: &Pool, path: &str, options: DiffOptions) -> Result<()> {
     let pool_path = Path::new(path);
 
     // Create operation cache for this command execution
@@ -64,10 +76,10 @@ pub fn execute(pool: &Pool, path: &str, verbose: bool, hash: bool, json: bool) -
 
     if is_file {
         // Single file diff
-        diff_single_file(pool, &branches, pool_path, path, verbose, hash, json)
+        diff_single_file(pool, &branches, pool_path, path, options)
     } else {
         // Directory diff
-        diff_directory(pool, &branches, pool_path, path, verbose, hash, json)
+        diff_directory(pool, &branches, pool_path, path, options)
     }
 }
 
@@ -77,13 +89,11 @@ fn diff_single_file(
     branches: &[&Branch],
     pool_path: &Path,
     path: &str,
-    verbose: bool,
-    hash: bool,
-    json: bool,
+    options: DiffOptions,
 ) -> Result<()> {
-    let conflict_opt = detect_single_file_conflict(branches, pool_path, hash)?;
+    let conflict_opt = detect_single_file_conflict(branches, pool_path, options.hash)?;
 
-    if json {
+    if options.json {
         let output = DiffFileOutput {
             path: path.to_string(),
             has_conflict: conflict_opt.is_some(),
@@ -120,7 +130,7 @@ fn diff_single_file(
                 if let Some(file_hash) = &branch.hash {
                     writeln!(handle, "    hash: {file_hash}")?;
                 }
-                if verbose {
+                if options.verbose {
                     if let Some(ctime) = branch.ctime {
                         writeln!(handle, "    ctime: {}", format_timestamp(ctime))?;
                     }
@@ -140,13 +150,11 @@ fn diff_directory(
     branches: &[&Branch],
     pool_path: &Path,
     path: &str,
-    verbose: bool,
-    hash: bool,
-    json: bool,
+    options: DiffOptions,
 ) -> Result<()> {
-    let conflicts = detect_conflicts(branches, pool_path, hash)?;
+    let conflicts = detect_conflicts(branches, pool_path, options.hash)?;
 
-    if json {
+    if options.json {
         let output = DiffOutput {
             path: path.to_string(),
             conflict_count: conflicts.len(),
@@ -182,7 +190,7 @@ fn diff_directory(
                 writeln!(handle, "{}:", conflict.name)?;
                 for branch in &conflict.branches {
                     writeln!(handle, "  {} ({} bytes)", branch.path, branch.size)?;
-                    if verbose {
+                    if options.verbose {
                         if let Some(mtime) = branch.mtime {
                             writeln!(handle, "    mtime: {}", format_timestamp(mtime))?;
                         }

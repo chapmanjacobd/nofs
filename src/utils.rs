@@ -94,7 +94,7 @@ pub fn parse_path_with_context(input: &str) -> ParsedPath<'_> {
     };
 
     let prefix = &input[..colon_idx];
-    let path_after_colon = &input[colon_idx + 1..];
+    let path_after_colon = &input[colon_idx.checked_add(1).unwrap_or_else(|| colon_idx.saturating_add(1))..];
 
     // Check if prefix contains path separators (UNC path like \\server\share)
     let is_unc = prefix.contains('/') || prefix.contains('\\');

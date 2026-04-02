@@ -14,7 +14,6 @@ use std::path::Path;
 /// Options for the ls command
 #[derive(Debug, Clone, Copy)]
 #[non_exhaustive]
-#[allow(clippy::struct_excessive_bools)]
 pub struct LsOptions {
     pub long: bool,
     pub all: bool,

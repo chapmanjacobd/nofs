@@ -25,6 +25,7 @@ pub mod utils;
 
 use clap::Parser;
 use error::{NofsError, Result};
+use std::path::Path;
 
 /// Command-line interface for nofs
 #[derive(Parser, Debug)]
@@ -66,7 +67,7 @@ struct Cli {
 }
 
 /// Available subcommands for nofs
-#[derive(clap::Subcommand, Debug)]
+#[derive(clap::Subcommand, Debug, Clone)]
 enum Commands {
     /// List directory contents (like ls).
     #[command(after_help = "\
@@ -929,93 +930,8 @@ pub fn run() -> Result<()> {
     let cli = Cli::parse();
 
     // Handle commands that don't require config initialization
-    match cli.command {
-        Commands::Completions { shell } => {
-            use clap::CommandFactory;
-            clap_complete::generate(shell, &mut Cli::command(), "nofs", &mut std::io::stdout());
-            return Ok(());
-        }
-        Commands::Manpage { subcommand, outdir } => {
-            use clap::CommandFactory;
-            use std::fs;
-            use std::path::Path;
-
-            // Create output directory if it doesn't exist
-            let outdir_path = Path::new(&outdir);
-            fs::create_dir_all(outdir_path)
-                .map_err(|e| NofsError::Command(format!("Failed to create output directory {outdir}: {e}")))?;
-
-            if let Some(subcmd_name) = subcommand {
-                // Generate man page for a specific subcommand
-                let cmd = Cli::command();
-                let subcmd = cmd
-                    .get_subcommands()
-                    .find(|c| c.get_name() == subcmd_name)
-                    .ok_or_else(|| NofsError::Command(format!("Unknown subcommand: {subcmd_name}")))?;
-                let man = clap_mangen::Man::new(subcmd.clone());
-                let filename = format!("nofs-{subcmd_name}.1");
-                let filepath = outdir_path.join(&filename);
-                let mut file = fs::File::create(&filepath)
-                    .map_err(|e| NofsError::Command(format!("Failed to create {filename}: {e}")))?;
-                man.render(&mut file)
-                    .map_err(|e| NofsError::Command(format!("Failed to render man page for {subcmd_name}: {e}")))?;
-                eprintln!("Generated: {filename}");
-            } else {
-                // Generate all man pages
-                let cmd = Cli::command();
-
-                // Generate main page
-                let main_man = clap_mangen::Man::new(cmd.clone());
-                let main_filename = "nofs.1";
-                let main_filepath = outdir_path.join(main_filename);
-                let mut main_file = fs::File::create(&main_filepath)
-                    .map_err(|e| NofsError::Command(format!("Failed to create {main_filename}: {e}")))?;
-                main_man
-                    .render(&mut main_file)
-                    .map_err(|e| NofsError::Command(format!("Failed to render main man page: {e}")))?;
-                eprintln!("Generated: {main_filename}");
-
-                // Generate subcommand pages
-                for subcmd in cmd.get_subcommands() {
-                    let subcmd_name = subcmd.get_name();
-
-                    // Skip certain internal subcommands
-                    if subcmd_name == "help" || subcmd_name == "completions" || subcmd_name == "manpage" {
-                        continue;
-                    }
-
-                    let man = clap_mangen::Man::new(subcmd.clone());
-                    let filename = format!("nofs-{subcmd_name}.1");
-                    let filepath = outdir_path.join(&filename);
-                    let mut file = fs::File::create(&filepath)
-                        .map_err(|e| NofsError::Command(format!("Failed to create {filename}: {e}")))?;
-                    man.render(&mut file)
-                        .map_err(|e| NofsError::Command(format!("Failed to render man page for {subcmd_name}: {e}")))?;
-                    eprintln!("Generated: {filename}");
-                }
-            }
-            return Ok(());
-        }
-        Commands::Ls { .. }
-        | Commands::Find { .. }
-        | Commands::Which { .. }
-        | Commands::Create { .. }
-        | Commands::Stat { .. }
-        | Commands::Info { .. }
-        | Commands::Exists { .. }
-        | Commands::Cat { .. }
-        | Commands::Cmp { .. }
-        | Commands::Df { .. }
-        | Commands::Diff { .. }
-        | Commands::Grep { .. }
-        | Commands::Tree { .. }
-        | Commands::Cp { .. }
-        | Commands::Mv { .. }
-        | Commands::Rm { .. }
-        | Commands::Mkdir { .. }
-        | Commands::Rmdir { .. }
-        | Commands::Touch { .. }
-        | Commands::Du { .. } => {}
+    if handle_early_commands(&cli)? {
+        return Ok(());
     }
 
     // Initialize the share manager based on config or ad-hoc paths
@@ -1028,8 +944,134 @@ pub fn run() -> Result<()> {
         pool::PoolManager::from_default_config()?
     };
 
-    // Execute the command
-    match cli.command {
+    // Execute the main commands
+    run_main_commands(&cli, &pool_mgr)
+}
+
+/// Handle early commands (completions, manpage) that don't need config
+/// Returns true if command was handled and should return early
+fn handle_early_commands(cli: &Cli) -> Result<bool> {
+    match &cli.command {
+        Commands::Completions { shell } => {
+            use clap::CommandFactory;
+            clap_complete::generate(*shell, &mut Cli::command(), "nofs", &mut std::io::stdout());
+            Ok(true)
+        }
+        Commands::Manpage { subcommand, outdir } => {
+            handle_manpage_command(subcommand.as_ref(), outdir)?;
+            Ok(true)
+        }
+        Commands::Ls { .. } | Commands::Find { .. } | Commands::Which { .. } | Commands::Create { .. } |
+        Commands::Stat { .. } | Commands::Info { .. } | Commands::Exists { .. } | Commands::Cat { .. } |
+        Commands::Diff { .. } | Commands::Cmp { .. } | Commands::Df { .. } | Commands::Grep { .. } |
+        Commands::Tree { .. } | Commands::Cp { .. } | Commands::Mv { .. } | Commands::Rm { .. } |
+        Commands::Mkdir { .. } | Commands::Rmdir { .. } | Commands::Touch { .. } | Commands::Du { .. } => Ok(false),
+    }
+}
+
+/// Handle manpage generation command
+fn handle_manpage_command(subcommand: Option<&String>, outdir: &str) -> Result<()> {
+    use std::fs;
+    use std::path::Path;
+
+    // Create output directory if it doesn't exist
+    let outdir_path = Path::new(outdir);
+    fs::create_dir_all(outdir_path)
+        .map_err(|e| NofsError::Command(format!("Failed to create output directory {outdir}: {e}")))?;
+
+    if let Some(subcmd_name) = subcommand {
+        generate_single_man_page(subcmd_name, outdir_path)?;
+    } else {
+        generate_all_man_pages(outdir_path)?;
+    }
+    Ok(())
+}
+
+/// Generate man page for a single subcommand
+fn generate_single_man_page(subcmd_name: &str, outdir_path: &Path) -> Result<()> {
+    use clap::CommandFactory;
+    use std::fs;
+
+    let cmd = Cli::command();
+    let subcmd = cmd
+        .get_subcommands()
+        .find(|c| c.get_name() == subcmd_name)
+        .ok_or_else(|| NofsError::Command(format!("Unknown subcommand: {subcmd_name}")))?;
+    let man = clap_mangen::Man::new(subcmd.clone());
+    let filename = format!("nofs-{subcmd_name}.1");
+    let filepath = outdir_path.join(&filename);
+    let mut file = fs::File::create(&filepath)
+        .map_err(|e| NofsError::Command(format!("Failed to create {filename}: {e}")))?;
+    man.render(&mut file)
+        .map_err(|e| NofsError::Command(format!("Failed to render man page for {subcmd_name}: {e}")))?;
+    eprintln!("Generated: {filename}");
+    Ok(())
+}
+
+/// Generate man pages for all subcommands
+fn generate_all_man_pages(outdir_path: &Path) -> Result<()> {
+    use clap::CommandFactory;
+    use std::fs;
+
+    let cmd = Cli::command();
+
+    // Generate main page
+    let main_man = clap_mangen::Man::new(cmd.clone());
+    let main_filename = "nofs.1";
+    let main_filepath = outdir_path.join(main_filename);
+    let mut main_file = fs::File::create(&main_filepath)
+        .map_err(|e| NofsError::Command(format!("Failed to create {main_filename}: {e}")))?;
+    main_man
+        .render(&mut main_file)
+        .map_err(|e| NofsError::Command(format!("Failed to render main man page: {e}")))?;
+    eprintln!("Generated: {main_filename}");
+
+    // Generate subcommand pages
+    for subcmd in cmd.get_subcommands() {
+        let subcmd_name = subcmd.get_name();
+
+        // Skip certain internal subcommands
+        if subcmd_name == "help" || subcmd_name == "completions" || subcmd_name == "manpage" {
+            continue;
+        }
+
+        generate_single_man_page(subcmd_name, outdir_path)?;
+    }
+    Ok(())
+}
+
+/// Run main commands that require config initialization
+fn run_main_commands(cli: &Cli, pool_mgr: &pool::PoolManager) -> Result<()> {
+    let command = cli.command.clone();
+    match command {
+        Commands::Ls { .. } | Commands::Find { .. } | Commands::Which { .. } => {
+            run_query_commands(cli, pool_mgr)
+        }
+        Commands::Create { .. } | Commands::Exists { .. } | Commands::Cat { .. } => {
+            run_simple_path_commands(cli, pool_mgr)
+        }
+        Commands::Stat { .. } => run_stat_command(cli, pool_mgr),
+        Commands::Info { .. } => run_info_command(cli, pool_mgr),
+        Commands::Diff { .. } | Commands::Cmp { .. } => run_diff_commands(cli, pool_mgr),
+        Commands::Df { .. } => run_df_command(cli, pool_mgr),
+        Commands::Grep { .. } => run_grep_command(cli, pool_mgr),
+        Commands::Tree { .. } => run_tree_command(cli, pool_mgr),
+        Commands::Cp { .. } => run_copy_command(cli, pool_mgr),
+        Commands::Mv { .. } => run_move_command(cli, pool_mgr),
+        Commands::Rm { .. } => run_remove_command(cli, pool_mgr),
+        Commands::Mkdir { .. } => run_mkdir_command(cli, pool_mgr),
+        Commands::Rmdir { .. } => run_rmdir_command(cli, pool_mgr),
+        Commands::Touch { .. } => run_touch_command(cli, pool_mgr),
+        Commands::Du { .. } => run_du_command(cli, pool_mgr),
+        Commands::Completions { .. } | Commands::Manpage { .. } => unreachable!(),
+    }
+}
+
+/// Run query commands (ls, find, which)
+#[allow(clippy::wildcard_enum_match_arm)]
+fn run_query_commands(cli: &Cli, pool_mgr: &pool::PoolManager) -> Result<()> {
+    let command = cli.command.clone();
+    match command {
         Commands::Ls {
             ls_paths,
             long,
@@ -1080,30 +1122,24 @@ pub fn run() -> Result<()> {
         } => {
             for path in &which_paths {
                 let (pool, pool_path) = pool_mgr.resolve_context_path(path)?;
-                commands::which::execute(pool, pool_path, all, cli.verbose, conflicts, hash, cli.json)?;
+                commands::which::execute(pool, pool_path, commands::which::WhichOptions { all, verbose: cli.verbose, conflicts, hash, json: cli.json })?;
             }
         }
+        #[allow(clippy::wildcard_enum_match_arm)]
+        _ => {}
+    }
+    Ok(())
+}
+
+/// Run simple path commands (create, exists, cat)
+#[allow(clippy::wildcard_enum_match_arm)]
+fn run_simple_path_commands(cli: &Cli, pool_mgr: &pool::PoolManager) -> Result<()> {
+    let command = cli.command.clone();
+    match command {
         Commands::Create { create_paths } => {
             for path in &create_paths {
                 let (pool, pool_path) = pool_mgr.resolve_context_path(path)?;
                 commands::create::execute(pool, pool_path, cli.verbose, cli.json)?;
-            }
-        }
-        Commands::Stat { path, human } => {
-            let pool = if let Some(p) = &path {
-                let (pool, _) = pool_mgr.resolve_context_path(p)?;
-                pool
-            } else {
-                pool_mgr.default_pool()?
-            };
-            commands::stat::execute(pool, human, cli.verbose, cli.json)?;
-        }
-        Commands::Info { context } => {
-            if let Some(ctx) = &context {
-                let pool = pool_mgr.get_pool(ctx)?;
-                commands::info::execute_single(pool, cli.verbose, cli.json)?;
-            } else {
-                commands::info::execute_all(&pool_mgr, cli.verbose, cli.json)?;
             }
         }
         Commands::Exists { exists_paths } => {
@@ -1118,13 +1154,49 @@ pub fn run() -> Result<()> {
                 commands::cat::execute(pool, pool_path, cli.verbose)?;
             }
         }
+        #[allow(clippy::wildcard_enum_match_arm)]
+        _ => {}
+    }
+    Ok(())
+}
+
+/// Run stat command
+fn run_stat_command(cli: &Cli, pool_mgr: &pool::PoolManager) -> Result<()> {
+    let Commands::Stat { path, human } = cli.command.clone() else { return Ok(()) };
+    let pool = if let Some(p) = &path {
+        let (pool, _) = pool_mgr.resolve_context_path(p)?;
+        pool
+    } else {
+        pool_mgr.default_pool()?
+    };
+    commands::stat::execute(pool, commands::stat::StatOptions { human, verbose: cli.verbose, json: cli.json })?;
+    Ok(())
+}
+
+/// Run info command
+fn run_info_command(cli: &Cli, pool_mgr: &pool::PoolManager) -> Result<()> {
+    let Commands::Info { context } = cli.command.clone() else { return Ok(()) };
+    if let Some(ctx) = &context {
+        let pool = pool_mgr.get_pool(ctx)?;
+        commands::info::execute_single(pool, cli.verbose, cli.json)?;
+    } else {
+        commands::info::execute_all(pool_mgr, cli.verbose, cli.json)?;
+    }
+    Ok(())
+}
+
+/// Run diff commands (diff, cmp)
+#[allow(clippy::wildcard_enum_match_arm)]
+fn run_diff_commands(cli: &Cli, pool_mgr: &pool::PoolManager) -> Result<()> {
+    let command = cli.command.clone();
+    match command {
         Commands::Diff {
             diff_path,
             hash,
             verbose,
         } => {
             let (pool, pool_path) = pool_mgr.resolve_context_path(&diff_path)?;
-            commands::diff::execute(pool, pool_path, verbose, hash, cli.json)?;
+            commands::diff::execute(pool, pool_path, commands::diff::DiffOptions { verbose, hash, json: cli.json })?;
         }
         Commands::Cmp { cmp_path, verbose } => {
             let (pool, pool_path) = pool_mgr.resolve_context_path(&cmp_path)?;
@@ -1139,231 +1211,295 @@ pub fn run() -> Result<()> {
                 },
             )?;
         }
-        Commands::Df { context, human, total } => {
-            commands::df::execute(
-                &pool_mgr,
-                context.as_deref(),
-                &commands::df::DfOptions {
-                    human,
-                    total,
-                    verbose: cli.verbose,
-                    json: cli.json,
-                },
-            )?;
-        }
-        Commands::Grep {
-            pattern,
-            grep_paths,
-            ignore_case,
-            invert_match,
-            line_number,
-            files_with_matches,
-            recursive,
-        } => {
-            for path in &grep_paths {
-                let (pool, pool_path) = pool_mgr.resolve_context_path(path)?;
-                commands::grep::execute(
-                    pool,
-                    pool_path,
-                    &pattern,
-                    &commands::grep::GrepOptions {
-                        ignore_case,
-                        invert_match,
-                        line_numbers: line_number,
-                        files_with_matches,
-                        recursive,
-                        verbose: cli.verbose,
-                        json: cli.json,
-                    },
-                )?;
-            }
-        }
-        Commands::Tree {
-            tree_path,
+        #[allow(clippy::wildcard_enum_match_arm)]
+        _ => {}
+    }
+    Ok(())
+}
+
+/// Run df command
+fn run_df_command(cli: &Cli, pool_mgr: &pool::PoolManager) -> Result<()> {
+    let Commands::Df { context, human, total } = cli.command.clone() else { return Ok(()) };
+    commands::df::execute(
+        pool_mgr,
+        context.as_deref(),
+        &commands::df::DfOptions {
+            human,
+            total,
+            verbose: cli.verbose,
+            json: cli.json,
+        },
+    )?;
+    Ok(())
+}
+
+/// Run grep command
+fn run_grep_command(cli: &Cli, pool_mgr: &pool::PoolManager) -> Result<()> {
+    let Commands::Grep {
+        pattern,
+        grep_paths,
+        ignore_case,
+        invert_match,
+        line_number,
+        files_with_matches,
+        recursive,
+    } = cli.command.clone()
+    else {
+        return Ok(());
+    };
+    for path in &grep_paths {
+        let (pool, pool_path) = pool_mgr.resolve_context_path(path)?;
+        commands::grep::execute(
+            pool,
+            pool_path,
+            &pattern,
+            &commands::grep::GrepOptions {
+                ignore_case,
+                invert_match,
+                line_numbers: line_number,
+                files_with_matches,
+                recursive,
+                verbose: cli.verbose,
+                json: cli.json,
+            },
+        )?;
+    }
+    Ok(())
+}
+
+/// Run tree command
+fn run_tree_command(cli: &Cli, pool_mgr: &pool::PoolManager) -> Result<()> {
+    let Commands::Tree {
+        tree_path,
+        all_branches,
+        max_depth,
+        directories,
+        files,
+        human,
+    } = cli.command.clone()
+    else {
+        return Ok(());
+    };
+    let (pool, pool_path) = pool_mgr.resolve_context_path(&tree_path)?;
+    commands::tree::execute(
+        pool,
+        pool_path,
+        commands::tree::TreeOptions {
             all_branches,
             max_depth,
-            directories,
-            files,
-            human,
-        } => {
-            let (pool, pool_path) = pool_mgr.resolve_context_path(&tree_path)?;
-            commands::tree::execute(
-                pool,
-                pool_path,
-                all_branches,
-                max_depth,
-                directories,
-                files,
-                human,
-                cli.verbose,
-                cli.json,
-            )?;
-        }
-        Commands::Cp {
-            cp_paths,
-            file_over_file,
-            file_over_folder,
-            folder_over_file,
-            dry_run,
-            workers,
-            ext,
-            exclude,
-            include,
-            min_size,
-            max_size,
-            limit,
-            size_limit,
-        } => {
-            // Parse sources and destination
-            let Some((destination, sources)) = cp_paths.split_last() else {
-                return Err(NofsError::Config(
-                    "At least one source and one destination are required".to_string(),
-                ));
-            };
+            directories_only: directories,
+            files_only: files,
+            human_size: human,
+            verbose: cli.verbose,
+            json: cli.json,
+        },
+    )?;
+    Ok(())
+}
 
-            // Parse size limit
-            let parsed_size_limit = size_limit.as_ref().and_then(|s| parse_size(s).ok());
+/// Run copy command
+fn run_copy_command(cli: &Cli, pool_mgr: &pool::PoolManager) -> Result<()> {
+    let Commands::Cp {
+        cp_paths,
+        file_over_file,
+        file_over_folder,
+        folder_over_file,
+        dry_run,
+        workers,
+        ext,
+        exclude,
+        include,
+        min_size,
+        max_size,
+        limit,
+        size_limit,
+    } = cli.command.clone()
+    else {
+        return Ok(());
+    };
+    // Parse sources and destination
+    let Some((destination, sources)) = cp_paths.split_last() else {
+        return Err(NofsError::Config(
+            "At least one source and one destination are required".to_string(),
+        ));
+    };
 
-            // Build SizeFilter if min or max size is provided
-            let parsed_size = (min_size.is_some() || max_size.is_some()).then_some(commands::cp::SizeFilter {
-                min: min_size,
-                max: max_size,
-            });
+    // Parse size limit
+    let parsed_size_limit = size_limit.as_ref().and_then(|s| parse_size(s).ok());
 
-            // Get share for context-aware paths
-            let share = extract_share_from_paths(&pool_mgr, sources, destination);
+    // Build SizeFilter if min or max size is provided
+    let parsed_size = (min_size.is_some() || max_size.is_some()).then_some(commands::cp::SizeFilter {
+        min: min_size,
+        max: max_size,
+    });
 
-            let config = commands::cp::CopyConfig {
-                is_copy: true,
-                dry_run,
-                workers,
-                verbose: cli.verbose,
-                file_over_file: commands::cp::parse_file_over_file(&file_over_file)?,
-                file_over_folder: commands::cp::parse_folder_conflict_mode(&file_over_folder)?,
-                folder_over_file: commands::cp::parse_folder_conflict_mode(&folder_over_file)?,
-                extensions: ext,
-                exclude,
-                include,
-                limit,
-                size_limit: parsed_size_limit,
-                size: parsed_size,
-            };
+    // Get share for context-aware paths
+    let share = extract_share_from_paths(pool_mgr, sources, destination);
 
-            let stats = commands::cp::execute(sources, destination, &config, share)?;
-            if stats.errors.load(std::sync::atomic::Ordering::Relaxed) > 0 {
-                return Err(NofsError::Command("Some copy operations failed".to_string()));
-            }
-        }
-        Commands::Mv {
-            mv_paths,
-            file_over_file,
-            file_over_folder,
-            folder_over_file,
-            dry_run,
-            workers,
-            ext,
-            exclude,
-            include,
-            min_size,
-            max_size,
-            limit,
-            size_limit,
-        } => {
-            // Parse sources and destination
-            let Some((destination, sources)) = mv_paths.split_last() else {
-                return Err(NofsError::CopyMove(
-                    "At least one source and one destination are required".to_string(),
-                ));
-            };
+    let config = commands::cp::CopyConfig {
+        is_copy: true,
+        dry_run,
+        workers,
+        verbose: cli.verbose,
+        file_over_file: commands::cp::parse_file_over_file(&file_over_file)?,
+        file_over_folder: commands::cp::parse_folder_conflict_mode(&file_over_folder)?,
+        folder_over_file: commands::cp::parse_folder_conflict_mode(&folder_over_file)?,
+        extensions: ext,
+        exclude,
+        include,
+        limit,
+        size_limit: parsed_size_limit,
+        size: parsed_size,
+    };
 
-            // Parse size limit
-            let parsed_size_limit = size_limit.as_ref().and_then(|s| parse_size(s).ok());
-
-            // Build SizeFilter if min or max size is provided
-            let parsed_size = (min_size.is_some() || max_size.is_some()).then_some(commands::cp::SizeFilter {
-                min: min_size,
-                max: max_size,
-            });
-
-            // Get share for context-aware paths
-            let share = extract_share_from_paths(&pool_mgr, sources, destination);
-
-            let stats = commands::mv::execute(
-                sources,
-                destination,
-                &file_over_file,
-                &file_over_folder,
-                &folder_over_file,
-                dry_run,
-                workers,
-                cli.verbose,
-                ext,
-                exclude,
-                include,
-                limit,
-                parsed_size_limit,
-                parsed_size,
-                share,
-            )?;
-
-            if stats.errors.load(std::sync::atomic::Ordering::Relaxed) > 0 {
-                return Err(NofsError::Command("Some move operations failed".to_string()));
-            }
-        }
-        Commands::Rm {
-            rm_paths,
-            recursive,
-            verbose,
-        } => {
-            let mut any_failed = false;
-            for path in &rm_paths {
-                let (pool, pool_path) = pool_mgr.resolve_context_path(path)?;
-                if let Err(e) = commands::rm::execute(pool, pool_path, recursive, verbose || cli.verbose) {
-                    eprintln!("nofs: {e}");
-                    any_failed = true;
-                }
-            }
-            if any_failed {
-                return Err(NofsError::Command("Some removal operations failed".to_string()));
-            }
-        }
-        Commands::Mkdir {
-            mkdir_paths,
-            parents,
-            verbose,
-        } => {
-            for path in &mkdir_paths {
-                let (pool, pool_path) = pool_mgr.resolve_context_path(path)?;
-                commands::mkdir::execute(pool, pool_path, parents, verbose || cli.verbose)?;
-            }
-        }
-        Commands::Rmdir { rmdir_paths, verbose } => {
-            for path in &rmdir_paths {
-                let (pool, pool_path) = pool_mgr.resolve_context_path(path)?;
-                commands::rmdir::execute(pool, pool_path, verbose || cli.verbose)?;
-            }
-        }
-        Commands::Touch { touch_paths, verbose } => {
-            for path in &touch_paths {
-                let (pool, pool_path) = pool_mgr.resolve_context_path(path)?;
-                commands::touch::execute(pool, pool_path, verbose || cli.verbose)?;
-            }
-        }
-        Commands::Du {
-            du_paths,
-            human,
-            all,
-            maxdepth,
-        } => {
-            for path in &du_paths {
-                let (pool, pool_path) = pool_mgr.resolve_context_path(path)?;
-                commands::du::execute(pool, pool_path, human, maxdepth, all, cli.json, cli.verbose)?;
-            }
-        }
-        // These commands are handled earlier and don't reach here
-        Commands::Completions { .. } | Commands::Manpage { .. } => unreachable!(),
+    let stats = commands::cp::execute(sources, destination, &config, share)?;
+    if stats.errors.load(std::sync::atomic::Ordering::Relaxed) > 0 {
+        return Err(NofsError::Command("Some copy operations failed".to_string()));
     }
+    Ok(())
+}
 
+/// Run move command
+fn run_move_command(cli: &Cli, pool_mgr: &pool::PoolManager) -> Result<()> {
+    let Commands::Mv {
+        mv_paths,
+        file_over_file,
+        file_over_folder,
+        folder_over_file,
+        dry_run,
+        workers,
+        ext,
+        exclude,
+        include,
+        min_size,
+        max_size,
+        limit,
+        size_limit,
+    } = cli.command.clone()
+    else {
+        return Ok(());
+    };
+    // Parse sources and destination
+    let Some((destination, sources)) = mv_paths.split_last() else {
+        return Err(NofsError::CopyMove(
+            "At least one source and one destination are required".to_string(),
+        ));
+    };
+
+    // Parse size limit
+    let parsed_size_limit = size_limit.as_ref().and_then(|s| parse_size(s).ok());
+
+    // Build SizeFilter if min or max size is provided
+    let parsed_size = (min_size.is_some() || max_size.is_some()).then_some(commands::cp::SizeFilter {
+        min: min_size,
+        max: max_size,
+    });
+
+    // Get share for context-aware paths
+    let share = extract_share_from_paths(pool_mgr, sources, destination);
+
+    let config = commands::mv::MoveConfig {
+        sources,
+        destination,
+        file_over_file: &file_over_file,
+        file_over_folder: &file_over_folder,
+        folder_over_file: &folder_over_file,
+        simulate: dry_run,
+        workers,
+        verbose: cli.verbose,
+        extensions: ext,
+        exclude,
+        include,
+        limit,
+        size_limit: parsed_size_limit,
+        size: parsed_size,
+        share,
+    };
+
+    let stats = commands::mv::execute(&config)?;
+
+    if stats.errors.load(std::sync::atomic::Ordering::Relaxed) > 0 {
+        return Err(NofsError::Command("Some move operations failed".to_string()));
+    }
+    Ok(())
+}
+
+/// Run remove command
+fn run_remove_command(cli: &Cli, pool_mgr: &pool::PoolManager) -> Result<()> {
+    let Commands::Rm {
+        rm_paths,
+        recursive,
+        verbose,
+    } = cli.command.clone()
+    else {
+        return Ok(());
+    };
+    let mut any_failed = false;
+    for path in &rm_paths {
+        let (pool, pool_path) = pool_mgr.resolve_context_path(path)?;
+        if let Err(e) = commands::rm::execute(pool, pool_path, recursive, verbose || cli.verbose) {
+            eprintln!("nofs: {e}");
+            any_failed = true;
+        }
+    }
+    if any_failed {
+        return Err(NofsError::Command("Some removal operations failed".to_string()));
+    }
+    Ok(())
+}
+
+/// Run mkdir command
+fn run_mkdir_command(cli: &Cli, pool_mgr: &pool::PoolManager) -> Result<()> {
+    let Commands::Mkdir {
+        mkdir_paths,
+        parents,
+        verbose,
+    } = cli.command.clone()
+    else {
+        return Ok(());
+    };
+    for path in &mkdir_paths {
+        let (pool, pool_path) = pool_mgr.resolve_context_path(path)?;
+        commands::mkdir::execute(pool, pool_path, parents, verbose || cli.verbose)?;
+    }
+    Ok(())
+}
+
+/// Run rmdir command
+fn run_rmdir_command(cli: &Cli, pool_mgr: &pool::PoolManager) -> Result<()> {
+    let Commands::Rmdir { rmdir_paths, verbose } = cli.command.clone() else { return Ok(()) };
+    for path in &rmdir_paths {
+        let (pool, pool_path) = pool_mgr.resolve_context_path(path)?;
+        commands::rmdir::execute(pool, pool_path, verbose || cli.verbose)?;
+    }
+    Ok(())
+}
+
+/// Run touch command
+fn run_touch_command(cli: &Cli, pool_mgr: &pool::PoolManager) -> Result<()> {
+    let Commands::Touch { touch_paths, verbose } = cli.command.clone() else { return Ok(()) };
+    for path in &touch_paths {
+        let (pool, pool_path) = pool_mgr.resolve_context_path(path)?;
+        commands::touch::execute(pool, pool_path, verbose || cli.verbose)?;
+    }
+    Ok(())
+}
+
+/// Run du command
+fn run_du_command(cli: &Cli, pool_mgr: &pool::PoolManager) -> Result<()> {
+    let Commands::Du {
+        du_paths,
+        human,
+        all,
+        maxdepth,
+    } = cli.command.clone()
+    else {
+        return Ok(());
+    };
+    for path in &du_paths {
+        let (pool, pool_path) = pool_mgr.resolve_context_path(path)?;
+        commands::du::execute(pool, pool_path, commands::du::DuOptions { human, all, json: cli.json, verbose: cli.verbose }, maxdepth)?;
+    }
     Ok(())
 }
 

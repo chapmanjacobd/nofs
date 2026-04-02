@@ -153,6 +153,7 @@ zero_sized_map_values = "deny"
 unreachable = "allow"
 use_self = "allow"
 collapsible_else_if = "allow"
+struct_excessive_bools = "allow"
 
 # Identification of unused allows
 useless_attribute = "warn"
@@ -220,6 +221,3 @@ panic_in_result_fn = "deny"
 todo = "deny"
 unimplemented = "deny"
 items_after_statements = "deny"
-
-# Note: Test code may use unwrap/expect for clarity.
-# Individual test modules use #[allow(...)] attributes as needed.

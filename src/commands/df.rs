@@ -32,7 +32,6 @@ pub struct DfEntry {
 /// Options for the df command
 #[derive(Default, Clone, Copy)]
 #[non_exhaustive]
-#[allow(clippy::struct_excessive_bools)]
 pub struct DfOptions {
     pub human: bool,
     pub total: bool,
@@ -147,20 +146,17 @@ fn output_text(entries: &[DfEntry], total: Option<DfEntry>, human: bool) -> Resu
         let blocks_str = if human {
             format_size(entry.blocks)
         } else {
-            #[allow(clippy::integer_division)]
-            format!("{}", entry.blocks / 1024)
+            format!("{}", entry.blocks.div_euclid(1024))
         };
-        #[allow(clippy::integer_division)]
         let used_str = if human {
             format_size(entry.used)
         } else {
-            format!("{}", entry.used / 1024)
+            format!("{}", entry.used.div_euclid(1024))
         };
-        #[allow(clippy::integer_division)]
         let avail_str = if human {
             format_size(entry.available)
         } else {
-            format!("{}", entry.available / 1024)
+            format!("{}", entry.available.div_euclid(1024))
         };
         let percent_str = entry
             .use_percent
@@ -180,23 +176,20 @@ fn output_text(entries: &[DfEntry], total: Option<DfEntry>, human: bool) -> Resu
 
     // Print total
     if let Some(total_entry) = total {
-        #[allow(clippy::integer_division)]
         let blocks_str = if human {
             format_size(total_entry.blocks)
         } else {
-            format!("{}", total_entry.blocks / 1024)
+            format!("{}", total_entry.blocks.div_euclid(1024))
         };
-        #[allow(clippy::integer_division)]
         let used_str = if human {
             format_size(total_entry.used)
         } else {
-            format!("{}", total_entry.used / 1024)
+            format!("{}", total_entry.used.div_euclid(1024))
         };
-        #[allow(clippy::integer_division)]
         let avail_str = if human {
             format_size(total_entry.available)
         } else {
-            format!("{}", total_entry.available / 1024)
+            format!("{}", total_entry.available.div_euclid(1024))
         };
         let percent_str = total_entry
             .use_percent

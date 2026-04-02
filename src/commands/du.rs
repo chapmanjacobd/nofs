@@ -8,6 +8,20 @@ use std::collections::BTreeMap;
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 
+/// Configuration for du command output
+#[non_exhaustive]
+#[derive(Clone, Copy)]
+pub struct DuOptions {
+    /// Show human-readable sizes
+    pub human: bool,
+    /// Show all subdirectory sizes
+    pub all: bool,
+    /// Output in JSON format
+    pub json: bool,
+    /// Enable verbose output
+    pub verbose: bool,
+}
+
 /// Output structure for JSON format
 #[derive(Debug, Serialize)]
 struct DuEntry {
@@ -36,11 +50,8 @@ struct DuBranchData {
 pub fn execute(
     pool: &Pool,
     pool_path: &str,
-    human: bool,
+    options: DuOptions,
     max_depth: Option<usize>,
-    all: bool,
-    json: bool,
-    verbose: bool,
 ) -> Result<()> {
     let stdout = io::stdout();
     let mut handle = stdout.lock();
@@ -49,7 +60,7 @@ pub fn execute(
     let normalized_path = normalize_pool_path(pool_path);
     let pool_path_obj = Path::new(&normalized_path);
 
-    if verbose {
+    if options.verbose {
         writeln!(handle, "Resolving path: {pool_path} (normalized: {normalized_path})")?;
     }
 
@@ -59,7 +70,7 @@ pub fn execute(
     // Resolve the path across all branches (cached)
     let resolved_paths = pool.resolve_path_cached(pool_path_obj, &cache).unwrap_or_default();
 
-    if verbose {
+    if options.verbose {
         writeln!(handle, "Found {} branch(es) containing this path", resolved_paths.len())?;
     }
 
@@ -80,13 +91,14 @@ pub fn execute(
             continue;
         }
 
-        if verbose {
+        if options.verbose {
             let _ = writeln!(handle, "  Analyzing branch: {}", branch_path.display());
         }
 
         let branch_path_clone = branch_path.clone();
+        let options_clone = options;
         let thread_handle = std::thread::spawn(move || {
-            let data = calculate_directory_usage(&branch_path_clone, max_depth, all);
+            let data = calculate_directory_usage(&branch_path_clone, max_depth, options_clone.all);
             (branch_path_clone, data)
         });
         thread_handles.push(thread_handle);
@@ -98,10 +110,10 @@ pub fn execute(
         }
     }
 
-    if json {
+    if options.json {
         let mut entries: Vec<DuEntry> = Vec::new();
         for (path, data) in &branch_usage {
-            let size_human = human.then(|| crate::utils::format_size(data.total_size));
+            let size_human = options.human.then(|| crate::utils::format_size(data.total_size));
             entries.push(DuEntry {
                 path: path.display().to_string(),
                 size: data.total_size,
@@ -109,9 +121,9 @@ pub fn execute(
             });
 
             // Add subdirectories if showing all
-            if all {
+            if options.all {
                 for (subpath, size) in &data.subdirs {
-                    let subdir_size_human = human.then(|| crate::utils::format_size(*size));
+                    let subdir_size_human = options.human.then(|| crate::utils::format_size(*size));
                     entries.push(DuEntry {
                         path: subpath.display().to_string(),
                         size: *size,
@@ -124,7 +136,7 @@ pub fn execute(
     } else {
         // Human-readable output format (similar to du command)
         for (path, data) in &branch_usage {
-            let size_str = if human {
+            let size_str = if options.human {
                 crate::utils::format_size(data.total_size)
             } else {
                 data.total_size.to_string()
@@ -132,11 +144,11 @@ pub fn execute(
             writeln!(handle, "{:<12} {}", size_str, path.display())?;
 
             // Show subdirectories if requested
-            if all {
+            if options.all {
                 let mut sorted_subdirs: Vec<_> = data.subdirs.iter().collect();
                 sorted_subdirs.sort_by(|a, b| a.0.cmp(b.0));
                 for (subpath, size) in sorted_subdirs {
-                    let subdir_size_str = if human {
+                    let subdir_size_str = if options.human {
                         crate::utils::format_size(*size)
                     } else {
                         size.to_string()

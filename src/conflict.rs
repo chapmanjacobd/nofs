@@ -369,7 +369,7 @@ mod tests {
         let file_path = temp_dir.path().join("large.txt");
 
         // Create a file larger than 1MB to trigger sampling
-        let content = "x".repeat(2 * MB as usize);
+        let content = "x".repeat(2 * usize::try_from(MB).unwrap());
         fs::write(&file_path, &content).unwrap();
 
         let hash = compute_file_hash(&file_path).unwrap();
@@ -619,7 +619,7 @@ mod tests {
         // Should be sorted alphabetically
         assert_eq!(conflicts.len(), 2);
         assert_eq!(conflicts.first().unwrap().name, "apple.txt");
-        assert_eq!(conflicts.get(1).unwrap().name, "zebra.txt");
+        assert_eq!(conflicts.get(1).expect("missing second conflict").name, "zebra.txt");
     }
 
     #[test]
@@ -666,7 +666,7 @@ mod tests {
         let file_path = temp_dir.path().join("threshold.txt");
 
         // Create a file exactly at the threshold
-        let content = "x".repeat(MB as usize);
+        let content = "x".repeat(usize::try_from(MB).unwrap());
         fs::write(&file_path, &content).unwrap();
 
         let hash = compute_file_hash(&file_path).unwrap();
@@ -680,7 +680,7 @@ mod tests {
         let file_path = temp_dir.path().join("above_threshold.txt");
 
         // Create a file just above the threshold
-        let content = "x".repeat((MB + 1) as usize);
+        let content = "x".repeat(usize::try_from(MB + 1).unwrap());
         fs::write(&file_path, &content).unwrap();
 
         let hash = compute_file_hash(&file_path).unwrap();

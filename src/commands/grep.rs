@@ -35,7 +35,6 @@ pub struct GrepMatch {
 /// Options for the grep command
 #[derive(Debug, Clone, Copy)]
 #[non_exhaustive]
-#[allow(clippy::struct_excessive_bools)]
 pub struct GrepOptions {
     pub ignore_case: bool,
     pub invert_match: bool,

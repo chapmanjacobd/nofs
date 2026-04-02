@@ -92,23 +92,24 @@ fn test_simple_move() {
     let src_file = src.join("file.txt");
     create_file(&src_file, "hello world");
 
-    let result = mv_execute(
-        &[src.to_string_lossy().to_string()],
-        &dest.to_string_lossy(),
-        "delete-dest",
-        "merge",
-        "merge",
-        false,
-        1,
-        false,
-        vec![],
-        vec![],
-        vec![],
-        None,
-        None,
-        None,
-        None,
-    );
+    let config = crate::commands::mv::MoveConfig {
+        sources: &[src.to_string_lossy().to_string()],
+        destination: &dest.to_string_lossy(),
+        file_over_file: "delete-dest",
+        file_over_folder: "merge",
+        folder_over_file: "merge",
+        simulate: false,
+        workers: 1,
+        verbose: false,
+        extensions: vec![],
+        exclude: vec![],
+        include: vec![],
+        limit: None,
+        size_limit: None,
+        size: None,
+        share: None,
+    };
+    let result = mv_execute(&config);
 
     assert_ok(result, "test_simple_move");
 

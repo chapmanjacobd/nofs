@@ -36,8 +36,30 @@ pub struct TreeNode {
     pub branches: Vec<String>,
 }
 
-fn is_false(b: &bool) -> bool {
-    !b
+/// Check if a boolean is false (for serde `skip_serializing_if`)
+#[allow(clippy::trivially_copy_pass_by_ref)]
+const fn is_false(b: &bool) -> bool {
+    !*b
+}
+
+/// Configuration for tree command output
+#[non_exhaustive]
+#[derive(Clone, Copy)]
+pub struct TreeOptions {
+    /// Show all branches for each file
+    pub all_branches: bool,
+    /// Maximum depth to display
+    pub max_depth: Option<usize>,
+    /// Show directories only
+    pub directories_only: bool,
+    /// Show files only
+    pub files_only: bool,
+    /// Show human-readable file sizes
+    pub human_size: bool,
+    /// Enable verbose output
+    pub verbose: bool,
+    /// Output in JSON format
+    pub json: bool,
 }
 
 /// Execute the tree command
@@ -45,17 +67,7 @@ fn is_false(b: &bool) -> bool {
 /// # Errors
 ///
 /// Returns an error if there is an IO error during traversal or output.
-pub fn execute(
-    pool: &Pool,
-    path: &str,
-    all_branches: bool,
-    max_depth: Option<usize>,
-    directories_only: bool,
-    files_only: bool,
-    human_size: bool,
-    verbose: bool,
-    json: bool,
-) -> Result<()> {
+pub fn execute(pool: &Pool, path: &str, options: TreeOptions) -> Result<()> {
     let pool_path = Path::new(path);
 
     // Create operation cache for this command execution
@@ -85,26 +97,23 @@ pub fn execute(
             &branch_path,
             &branch_name,
             &mut tree,
-            all_branches,
-            directories_only,
-            files_only,
-            max_depth,
+            options,
             0,
-            verbose,
         )?;
     }
 
     // Convert to TreeNode structure
-    let root = build_tree_node(".", &tree, all_branches);
+    let root = build_tree_node(".", &tree, options.all_branches);
 
-    if json {
+    if options.json {
         let output = TreeOutput {
             path: path.to_string(),
             root,
         };
         println!("{}", serde_json::to_string_pretty(&output)?);
     } else {
-        output_tree(&root, "", true, all_branches, human_size)?;
+        let output_options = TreeOutputOptions { all_branches: options.all_branches, human_size: options.human_size };
+        output_tree(&root, "", true, &output_options)?;
     }
 
     Ok(())
@@ -113,13 +122,18 @@ pub fn execute(
 /// Tree entry for building the structure
 #[derive(Debug)]
 struct TreeEntry {
+    /// True if this entry represents a file
     is_file: bool,
+    /// List of branch paths containing this entry
     branches: Vec<String>,
+    /// Size of the file (None for directories)
     size: Option<u64>,
+    /// Child entries (for directories)
     children: BTreeMap<String, TreeEntry>,
 }
 
 impl TreeEntry {
+    /// Create a new `TreeEntry`
     fn new(is_file: bool, branch: String, size: Option<u64>) -> Self {
         Self {
             is_file,
@@ -135,27 +149,23 @@ fn build_tree_from_dir(
     dir_path: &Path,
     branch_name: &str,
     tree: &mut BTreeMap<String, TreeEntry>,
-    all_branches: bool,
-    directories_only: bool,
-    files_only: bool,
-    max_depth: Option<usize>,
+    options: TreeOptions,
     current_depth: usize,
-    verbose: bool,
 ) -> Result<()> {
     // Check max depth
-    if let Some(max) = max_depth {
+    if let Some(max) = options.max_depth {
         if current_depth > max {
             return Ok(());
         }
     }
 
-    for entry in fs::read_dir(dir_path).map_err(|e| {
-        if verbose {
+    for entry_result in fs::read_dir(dir_path).map_err(|e| {
+        if options.verbose {
             eprintln!("nofs: warning: cannot read '{}': {}", dir_path.display(), e);
         }
         NofsError::Command(format!("cannot read '{}': {}", dir_path.display(), e))
     })? {
-        let Ok(entry) = entry else {
+        let Ok(entry) = entry_result else {
             continue;
         };
 
@@ -166,22 +176,21 @@ fn build_tree_from_dir(
             .unwrap_or_default();
 
         // Skip hidden files unless verbose
-        if name.starts_with('.') && !verbose {
+        if name.starts_with('.') && !options.verbose {
             continue;
         }
 
-        let metadata = match entry_path.metadata() {
-            Ok(m) => m,
-            Err(_) => continue,
+        let Ok(metadata) = entry_path.metadata() else {
+            continue;
         };
 
         let is_file = metadata.is_file();
 
         // Filter by type
-        if directories_only && is_file {
+        if options.directories_only && is_file {
             continue;
         }
-        if files_only && !is_file {
+        if options.files_only && !is_file {
             continue;
         }
 
@@ -190,7 +199,7 @@ fn build_tree_from_dir(
         if is_file {
             // Add file entry
             if let Some(existing) = tree.get_mut(&name) {
-                if all_branches {
+                if options.all_branches {
                     let branch_str = branch_name.to_string();
                     if !existing.branches.contains(&branch_str) {
                         existing.branches.push(branch_str);
@@ -203,7 +212,7 @@ fn build_tree_from_dir(
         } else {
             // Directory entry
             if let Some(existing) = tree.get_mut(&name) {
-                if all_branches {
+                if options.all_branches {
                     let branch_str = branch_name.to_string();
                     if !existing.branches.contains(&branch_str) {
                         existing.branches.push(branch_str);
@@ -214,12 +223,8 @@ fn build_tree_from_dir(
                     &entry_path,
                     branch_name,
                     &mut existing.children,
-                    all_branches,
-                    directories_only,
-                    files_only,
-                    max_depth,
-                    current_depth + 1,
-                    verbose,
+                    options,
+                    current_depth.saturating_add(1),
                 )?;
             } else {
                 let mut new_entry = TreeEntry::new(false, branch_name.to_string(), None);
@@ -227,12 +232,8 @@ fn build_tree_from_dir(
                     &entry_path,
                     branch_name,
                     &mut new_entry.children,
-                    all_branches,
-                    directories_only,
-                    files_only,
-                    max_depth,
-                    current_depth + 1,
-                    verbose,
+                    options,
+                    current_depth.saturating_add(1),
                 )?;
                 tree.insert(name.clone(), new_entry);
             }
@@ -303,8 +304,17 @@ fn build_tree_node_map(entries: &BTreeMap<String, TreeEntry>, all_branches: bool
     children
 }
 
+/// Output options for tree display
+struct TreeOutputOptions {
+    /// Show all branches for each file
+    all_branches: bool,
+    /// Show human-readable file sizes
+    human_size: bool,
+}
+
 /// Output tree in text format
-fn output_tree(node: &TreeNode, prefix: &str, is_last: bool, all_branches: bool, human_size: bool) -> Result<()> {
+#[allow(clippy::format_push_string)]
+fn output_tree(node: &TreeNode, prefix: &str, is_last: bool, options: &TreeOutputOptions) -> Result<()> {
     let stdout = io::stdout();
     let mut handle = stdout.lock();
 
@@ -314,7 +324,7 @@ fn output_tree(node: &TreeNode, prefix: &str, is_last: bool, all_branches: bool,
 
     if node.is_file {
         if let Some(size) = node.size {
-            if human_size {
+            if options.human_size {
                 line.push_str(&format!(" ({})", format_size(size)));
             } else {
                 line.push_str(&format!(" ({size} bytes)"));
@@ -324,7 +334,7 @@ fn output_tree(node: &TreeNode, prefix: &str, is_last: bool, all_branches: bool,
         line.push('/');
     }
 
-    if all_branches && !node.branches.is_empty() {
+    if options.all_branches && !node.branches.is_empty() {
         line.push_str(&format!(" [{} branch(es)]", node.branches.len()));
     }
 
@@ -334,13 +344,14 @@ fn output_tree(node: &TreeNode, prefix: &str, is_last: bool, all_branches: bool,
     let child_prefix = format!("{prefix}{}", if is_last { "    " } else { "│   " });
     let child_count = node.children.len();
     for (i, child) in node.children.iter().enumerate() {
-        output_tree(child, &child_prefix, i == child_count - 1, all_branches, human_size)?;
+        output_tree(child, &child_prefix, i == child_count.saturating_sub(1), options)?;
     }
 
     Ok(())
 }
 
 /// Format size in human-readable format
+#[allow(clippy::as_conversions, clippy::cast_precision_loss, clippy::float_arithmetic)]
 fn format_size(size: u64) -> String {
     const KB: u64 = 1024;
     const MB: u64 = KB * 1024;

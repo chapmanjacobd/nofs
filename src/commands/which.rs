@@ -9,31 +9,39 @@ use serde_json;
 use std::io::{self, Write};
 use std::path::Path;
 
+/// Configuration for which command output
+#[non_exhaustive]
+#[derive(Clone, Copy)]
+pub struct WhichOptions {
+    /// Show all branches containing the file
+    pub all: bool,
+    /// Enable verbose output
+    pub verbose: bool,
+    /// Detect and report conflicts
+    pub conflicts: bool,
+    /// Use hash comparison for conflict detection
+    pub hash: bool,
+    /// Output in JSON format
+    pub json: bool,
+}
+
 /// Execute the which command for a single path
 ///
 /// # Errors
 ///
 /// Returns an error if there is an IO error during output.
-pub fn execute(
-    pool: &Pool,
-    path: &str,
-    all: bool,
-    verbose: bool,
-    conflicts: bool,
-    hash: bool,
-    json: bool,
-) -> Result<()> {
+pub fn execute(pool: &Pool, path: &str, options: WhichOptions) -> Result<()> {
     let pool_path = Path::new(path);
 
     // Create operation cache for this command execution
     let cache = OperationCache::new();
 
-    if all {
+    if options.all {
         // Show all branches containing the file (cached)
         let branches = pool.find_all_branches_cached(pool_path, &cache);
 
         if branches.is_empty() {
-            if json {
+            if options.json {
                 let output = WhichOutput {
                     path: path.to_string(),
                     locations: vec![],
@@ -47,22 +55,22 @@ pub fn execute(
         }
 
         // Detect conflicts if requested
-        let conflict = if conflicts {
-            detect_single_file_conflict(&branches, pool_path, hash)?
+        let conflict = if options.conflicts {
+            detect_single_file_conflict(&branches, pool_path, options.hash)?
         } else {
             None
         };
 
         // Report conflict to stderr
         if let Some(ref c) = conflict {
-            report_conflict(c, verbose)?;
-        } else if conflicts && verbose {
+            report_conflict(c, options.verbose)?;
+        } else if options.conflicts && options.verbose {
             eprintln!("no conflict: file content is identical across branches");
         } else {
             // No conflict or not reporting conflict status
         }
 
-        if verbose {
+        if options.verbose {
             let stderr = io::stderr();
             let mut h = stderr.lock();
             writeln!(h, "found in:")?;
@@ -90,7 +98,7 @@ pub fn execute(
                 .collect(),
         });
 
-        if json {
+        if options.json {
             let output = WhichOutput {
                 path: path.to_string(),
                 locations,
@@ -109,12 +117,12 @@ pub fn execute(
     else {
         match pool.resolve_path_first_cached(pool_path, &cache) {
             Ok(Some(full_path)) => {
-                if verbose {
+                if options.verbose {
                     eprintln!("selected:");
                     eprintln!("  {} (first-found policy)", full_path.display());
                 }
 
-                if json {
+                if options.json {
                     let output = WhichOutput {
                         path: path.to_string(),
                         locations: vec![full_path.display().to_string()],
@@ -126,7 +134,7 @@ pub fn execute(
                 }
             }
             Ok(None) | Err(_) => {
-                if !json {
+                if !options.json {
                     eprintln!("nofs: '{path}' not found in share");
                 }
             }

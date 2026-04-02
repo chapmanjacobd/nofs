@@ -113,7 +113,7 @@ impl Policy {
             Policy::EpFf => Policy::Ff,
             Policy::EpRand => Policy::Rand,
             Policy::EpAll => Policy::All,
-            other => other,
+            Policy::Pfrd | Policy::Mfs | Policy::Ff | Policy::Rand | Policy::Lfs | Policy::Lus | Policy::Lup | Policy::All => self,
         }
     }
 }
@@ -315,7 +315,9 @@ impl<'ctx> CreatePolicy<'ctx> {
             Policy::EpFf | Policy::EpAll => with_path.first().map(|(b, _)| *b).ok_or(NofsError::NoSuitableBranch),
             Policy::EpRand => Self::select_rand_with_space(with_path),
             // These cases shouldn't happen, but handle them gracefully
-            _ => with_path.first().map(|(b, _)| *b).ok_or(NofsError::NoSuitableBranch),
+            Policy::Pfrd | Policy::Mfs | Policy::Ff | Policy::Rand | Policy::Lfs | Policy::Lus | Policy::Lup | Policy::All => {
+                with_path.first().map(|(b, _)| *b).ok_or(NofsError::NoSuitableBranch)
+            }
         }
     }
 
@@ -357,7 +359,7 @@ impl<'ctx> CreatePolicy<'ctx> {
 
         let mut cumulative = 0_u64;
         for (branch, available) in eligible {
-            cumulative += available;
+            cumulative = cumulative.saturating_add(*available);
             if pick < cumulative {
                 return Ok(branch);
             }
@@ -386,7 +388,8 @@ impl<'ctx> CreatePolicy<'ctx> {
     fn select_lup(branches: &[&'ctx Branch]) -> Result<&'ctx Branch> {
         branches
             .iter()
-            .min_by_key(|b| b.used_percentage().map(|p| p as i64).unwrap_or(i64::MAX))
+            // SAFETY: to_int_unchecked is safe here because used_percentage returns a value between 0-100
+            .min_by_key(|b| b.used_percentage().map(|p| unsafe { p.to_int_unchecked::<i64>() }).unwrap_or(i64::MAX))
             .copied()
             .ok_or(NofsError::NoSuitableBranch)
     }
@@ -449,7 +452,7 @@ impl<'ctx> SearchPolicy<'ctx> {
             }
             Policy::Mfs => {
                 // Single pass: collect matching branches with space info
-                let matching_with_space: Vec<(&Branch, u64)> = self
+                self
                     .branches
                     .iter()
                     .filter_map(|b| {
@@ -463,16 +466,12 @@ impl<'ctx> SearchPolicy<'ctx> {
                         };
                         Some((b, space))
                     })
-                    .collect();
-
-                matching_with_space
-                    .into_iter()
                     .max_by_key(|(_, space)| *space)
                     .map(|(b, _)| b)
                     .ok_or_else(|| NofsError::PathNotFound(relative_path.display().to_string()))
             }
             Policy::Lfs => {
-                let matching_with_space: Vec<(&Branch, u64)> = self
+                self
                     .branches
                     .iter()
                     .filter_map(|b| {
@@ -486,10 +485,6 @@ impl<'ctx> SearchPolicy<'ctx> {
                         };
                         Some((b, space))
                     })
-                    .collect();
-
-                matching_with_space
-                    .into_iter()
                     .min_by_key(|(_, space)| *space)
                     .map(|(b, _)| b)
                     .ok_or_else(|| NofsError::PathNotFound(relative_path.display().to_string()))
@@ -503,11 +498,9 @@ impl<'ctx> SearchPolicy<'ctx> {
             // - Ep* (EpMfs/EpFf/EpRand): Path-preserving policies don't apply to search
             //   (the path is already known, so we just return the first matching branch)
             Policy::Pfrd | Policy::Rand | Policy::Lus | Policy::Lup | Policy::EpMfs | Policy::EpFf | Policy::EpRand => {
-                let matching: Vec<&Branch> = self.branches.iter().filter(|b| exists(b)).collect();
-
-                matching
-                    .into_iter()
-                    .next()
+                self.branches
+                    .iter()
+                    .find(|b| exists(b))
                     .ok_or_else(|| NofsError::PathNotFound(relative_path.display().to_string()))
             }
         }
@@ -538,6 +531,7 @@ use crate::utils::{GB, KB, MB, PB, TB};
 /// # Errors
 ///
 /// Returns an error if the size string cannot be parsed.
+#[allow(clippy::as_conversions, clippy::cast_precision_loss, clippy::cast_possible_truncation, clippy::cast_sign_loss, clippy::float_arithmetic)]
 pub fn parse_size(s: &str) -> Result<u64> {
     let trimmed = s.trim();
 
@@ -1044,6 +1038,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::cognitive_complexity)]
     fn test_parse_size_edge_cases() {
         // Zero values
         assert_eq!(parse_size("0").unwrap(), 0);

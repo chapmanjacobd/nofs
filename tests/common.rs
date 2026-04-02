@@ -7,6 +7,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 /// Test context for managing temporary test directories.
+#[non_exhaustive]
 pub struct TestContext {
     pub config_path: PathBuf,
     pub root: PathBuf,
@@ -70,6 +71,7 @@ impl TestContext {
     ///
     /// Panics if the command cannot be executed.
     #[must_use]
+    #[allow(clippy::unused_self)]
     pub fn run_nofs(&self, args: &[&str]) -> CommandOutput {
         let mut cmd = Command::new(env!("CARGO_BIN_EXE_nofs"));
         for arg in args {
@@ -99,6 +101,7 @@ impl Drop for TestContext {
 }
 
 /// Command output helper.
+#[non_exhaustive]
 pub struct CommandOutput {
     pub stdout: String,
     pub stderr: String,

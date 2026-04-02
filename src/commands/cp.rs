@@ -684,29 +684,14 @@ pub enum RuleResult {
 /// Returns an error if file operations fail during rule evaluation.
 fn evaluate_rules(
     strategy: &FileOverFileStrategy,
-    hashes_match: bool,
-    source_size: u64,
-    dest_size: u64,
-    source_modified: Option<u64>,
-    dest_modified: Option<u64>,
-    source_created: Option<u64>,
-    dest_created: Option<u64>,
+    cmp: &FileComparison,
     config: &CopyConfig,
     source: &Path,
     dest: &Path,
     stats: &Arc<CopyStats>,
 ) -> Result<RuleResult> {
-    let cmp = FileComparison {
-        hashes_match,
-        source_size,
-        dest_size,
-        source_modified,
-        dest_modified,
-        source_created,
-        dest_created,
-    };
     for rule in &strategy.rules {
-        if evaluate_rule(rule, &cmp) {
+        if evaluate_rule(rule, cmp) {
             let reason = rule.display();
             match rule.action {
                 RuleAction::Skip => {
@@ -957,16 +942,16 @@ fn dispatch_work_items(
             continue;
         }
 
-        let final_dest = compute_final_dest(
-            &source_path,
-            destination,
-            share,
-            source_branch_index,
-            cache,
-            sources.len(),
-            dest_exists,
-            dest_is_dir,
-        )?;
+        let final_dest = if sources.len() > 1 || (dest_exists && dest_is_dir) {
+            let source_name = source_path
+                .file_name()
+                .unwrap_or(source_path.as_os_str())
+                .to_os_string();
+            let dest_base = resolve_dest_path(destination, share, source_branch_index, cache)?;
+            dest_base.join(source_name)
+        } else {
+            resolve_dest_path(destination, share, source_branch_index, cache)?
+        };
 
         tx.send((source_path, final_dest))
             .map_err(|e| NofsError::CopyMove(format!("Failed to send work item: {e}")))?;
@@ -978,33 +963,6 @@ fn dispatch_work_items(
 /// Check if destination exists
 fn destination_exists(destination: &str, share: Option<&Pool>, cache: &OperationCache) -> Result<bool> {
     Ok(resolve_path(destination, share, true, cache)?.path.exists())
-}
-
-/// Compute final destination path for a source
-///
-/// # Errors
-///
-/// Returns an error if path resolution fails.
-fn compute_final_dest(
-    source_path: &Path,
-    destination: &str,
-    share: Option<&Pool>,
-    source_branch_index: Option<usize>,
-    cache: &OperationCache,
-    sources_len: usize,
-    dest_exists: bool,
-    dest_is_dir: bool,
-) -> Result<PathBuf> {
-    if sources_len > 1 || (dest_exists && dest_is_dir) {
-        let source_name = source_path
-            .file_name()
-            .unwrap_or(source_path.as_os_str())
-            .to_os_string();
-        let dest_base = resolve_dest_path(destination, share, source_branch_index, cache)?;
-        Ok(dest_base.join(source_name))
-    } else {
-        resolve_dest_path(destination, share, source_branch_index, cache)
-    }
 }
 
 #[allow(
@@ -1402,8 +1360,7 @@ fn handle_file_over_file(source: &Path, dest: &Path, config: &CopyConfig, stats:
     };
 
     // Evaluate all rules
-    match evaluate_rules(
-        strategy,
+    let cmp = FileComparison {
         hashes_match,
         source_size,
         dest_size,
@@ -1411,6 +1368,10 @@ fn handle_file_over_file(source: &Path, dest: &Path, config: &CopyConfig, stats:
         dest_modified,
         source_created,
         dest_created,
+    };
+    match evaluate_rules(
+        strategy,
+        &cmp,
         config,
         source,
         dest,
