@@ -30,7 +30,9 @@ pub struct DfEntry {
 }
 
 /// Options for the df command
-#[derive(Default)]
+#[derive(Default, Clone, Copy)]
+#[non_exhaustive]
+#[allow(clippy::struct_excessive_bools)]
 pub struct DfOptions {
     pub human: bool,
     pub total: bool,
@@ -56,11 +58,8 @@ pub fn execute(pool_mgr: &PoolManager, context: Option<&str>, options: &DfOption
             let branch_available = branch.available_space_cached(&cache).unwrap_or(0);
             let branch_used = branch_total.saturating_sub(branch_available);
             #[allow(clippy::float_arithmetic, clippy::cast_precision_loss, clippy::as_conversions)]
-            let use_percent = if branch_total > 0 {
-                Some((branch_used as f64 / branch_total as f64) * 100.0)
-            } else {
-                None
-            };
+            let use_percent = (branch_total > 0)
+                .then(|| (branch_used as f64 / branch_total as f64) * 100.0);
 
             entries.push(DfEntry {
                 filesystem: branch.path.to_string_lossy().to_string(),
@@ -79,11 +78,8 @@ pub fn execute(pool_mgr: &PoolManager, context: Option<&str>, options: &DfOption
                 let branch_available = branch.available_space_cached(&cache).unwrap_or(0);
                 let branch_used = branch_total.saturating_sub(branch_available);
                 #[allow(clippy::float_arithmetic, clippy::cast_precision_loss, clippy::as_conversions)]
-                let use_percent = if branch_total > 0 {
-                    Some((branch_used as f64 / branch_total as f64) * 100.0)
-                } else {
-                    None
-                };
+                let use_percent = (branch_total > 0)
+                    .then(|| (branch_used as f64 / branch_total as f64) * 100.0);
 
                 entries.push(DfEntry {
                     filesystem: branch.path.to_string_lossy().to_string(),
@@ -103,11 +99,8 @@ pub fn execute(pool_mgr: &PoolManager, context: Option<&str>, options: &DfOption
         let total_used: u64 = entries.iter().map(|e| e.used).sum();
         let total_available: u64 = entries.iter().map(|e| e.available).sum();
         #[allow(clippy::float_arithmetic, clippy::cast_precision_loss, clippy::as_conversions)]
-        let total_percent = if total_blocks > 0 {
-            Some((total_used as f64 / total_blocks as f64) * 100.0)
-        } else {
-            None
-        };
+        let total_percent = (total_blocks > 0)
+            .then(|| (total_used as f64 / total_blocks as f64) * 100.0);
 
         DfEntry {
             filesystem: "total".to_string(),
@@ -154,13 +147,16 @@ fn output_text(entries: &[DfEntry], total: Option<DfEntry>, human: bool) -> Resu
         let blocks_str = if human {
             format_size(entry.blocks)
         } else {
+            #[allow(clippy::integer_division)]
             format!("{}", entry.blocks / 1024)
         };
+        #[allow(clippy::integer_division)]
         let used_str = if human {
             format_size(entry.used)
         } else {
             format!("{}", entry.used / 1024)
         };
+        #[allow(clippy::integer_division)]
         let avail_str = if human {
             format_size(entry.available)
         } else {
@@ -184,16 +180,19 @@ fn output_text(entries: &[DfEntry], total: Option<DfEntry>, human: bool) -> Resu
 
     // Print total
     if let Some(total_entry) = total {
+        #[allow(clippy::integer_division)]
         let blocks_str = if human {
             format_size(total_entry.blocks)
         } else {
             format!("{}", total_entry.blocks / 1024)
         };
+        #[allow(clippy::integer_division)]
         let used_str = if human {
             format_size(total_entry.used)
         } else {
             format!("{}", total_entry.used / 1024)
         };
+        #[allow(clippy::integer_division)]
         let avail_str = if human {
             format_size(total_entry.available)
         } else {
@@ -243,7 +242,9 @@ fn truncate_str(s: &str, max_len: usize) -> String {
         let chars: Vec<char> = s.chars().collect();
         let suffix_len = max_len.saturating_sub(3);
         let start_idx = chars.len().saturating_sub(suffix_len);
-        let truncated: String = chars[start_idx..].iter().collect();
+        let truncated: String = chars
+            .get(start_idx..)
+            .map_or_else(String::new, |c| c.iter().collect());
         format!("...{truncated}")
     }
 }

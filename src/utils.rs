@@ -117,6 +117,7 @@ pub const PB: u64 = TB * 1000;
 /// Format size in human-readable format (SI units)
 #[must_use]
 pub fn format_size(size: u64) -> String {
+    #[allow(clippy::float_arithmetic, clippy::cast_precision_loss, clippy::as_conversions)]
     if size >= PB {
         format!("{:.1}PB", size as f64 / PB as f64)
     } else if size >= TB {
