@@ -114,10 +114,7 @@ pub fn execute(pool: &Pool, path: &str, options: &CmpOptions) -> Result<()> {
 
     if options.json {
         let output = CmpOutput {
-            files: vec![
-                path1.to_string_lossy().to_string(),
-                path2.to_string_lossy().to_string(),
-            ],
+            files: vec![path1.to_string_lossy().to_string(), path2.to_string_lossy().to_string()],
             identical: comparison.identical,
             difference: comparison.difference.map(|d| Difference {
                 byte_offset: d.byte_offset,
@@ -131,12 +128,7 @@ pub fn execute(pool: &Pool, path: &str, options: &CmpOptions) -> Result<()> {
         if options.verbose {
             let stdout = io::stdout();
             let mut handle = stdout.lock();
-            writeln!(
-                handle,
-                "{} and {} are identical",
-                path1.display(),
-                path2.display()
-            )?;
+            writeln!(handle, "{} and {} are identical", path1.display(), path2.display())?;
         }
         // Exit code 0 for identical files (success)
     } else if let Some(diff) = comparison.difference {

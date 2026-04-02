@@ -19,6 +19,9 @@ _nofs() {
             nofs,cat)
                 cmd="nofs__cat"
                 ;;
+            nofs,cmp)
+                cmd="nofs__cmp"
+                ;;
             nofs,completions)
                 cmd="nofs__completions"
                 ;;
@@ -28,6 +31,12 @@ _nofs() {
             nofs,create)
                 cmd="nofs__create"
                 ;;
+            nofs,df)
+                cmd="nofs__df"
+                ;;
+            nofs,diff)
+                cmd="nofs__diff"
+                ;;
             nofs,du)
                 cmd="nofs__du"
                 ;;
@@ -36,6 +45,9 @@ _nofs() {
                 ;;
             nofs,find)
                 cmd="nofs__find"
+                ;;
+            nofs,grep)
+                cmd="nofs__grep"
                 ;;
             nofs,help)
                 cmd="nofs__help"
@@ -67,11 +79,17 @@ _nofs() {
             nofs,touch)
                 cmd="nofs__touch"
                 ;;
+            nofs,tree)
+                cmd="nofs__tree"
+                ;;
             nofs,which)
                 cmd="nofs__which"
                 ;;
             nofs__help,cat)
                 cmd="nofs__help__cat"
+                ;;
+            nofs__help,cmp)
+                cmd="nofs__help__cmp"
                 ;;
             nofs__help,completions)
                 cmd="nofs__help__completions"
@@ -82,6 +100,12 @@ _nofs() {
             nofs__help,create)
                 cmd="nofs__help__create"
                 ;;
+            nofs__help,df)
+                cmd="nofs__help__df"
+                ;;
+            nofs__help,diff)
+                cmd="nofs__help__diff"
+                ;;
             nofs__help,du)
                 cmd="nofs__help__du"
                 ;;
@@ -90,6 +114,9 @@ _nofs() {
                 ;;
             nofs__help,find)
                 cmd="nofs__help__find"
+                ;;
+            nofs__help,grep)
+                cmd="nofs__help__grep"
                 ;;
             nofs__help,help)
                 cmd="nofs__help__help"
@@ -121,6 +148,9 @@ _nofs() {
             nofs__help,touch)
                 cmd="nofs__help__touch"
                 ;;
+            nofs__help,tree)
+                cmd="nofs__help__tree"
+                ;;
             nofs__help,which)
                 cmd="nofs__help__which"
                 ;;
@@ -131,7 +161,7 @@ _nofs() {
 
     case "${cmd}" in
         nofs)
-            opts="-c -v -h -V --config --paths --policy --minfreespace --verbose --json --help --version ls find which create stat info exists cat cp mv rm mkdir rmdir touch du completions manpage help"
+            opts="-c -v -h -V --config --paths --policy --minfreespace --verbose --json --help --version ls find which create stat info exists cat diff cmp df grep tree cp mv rm mkdir rmdir touch du completions manpage help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 1 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -166,6 +196,40 @@ _nofs() {
             ;;
         nofs__cat)
             opts="-c -v -h -V --config --paths --policy --minfreespace --verbose --json --help --version <PATHS>..."
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                --config)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                -c)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --paths)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --policy)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --minfreespace)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        nofs__cmp)
+            opts="-v -c -h -V --verbose --config --paths --policy --minfreespace --json --help --version <PATH>"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -364,6 +428,74 @@ _nofs() {
             COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
             return 0
             ;;
+        nofs__df)
+            opts="-H -T -c -v -h -V --human --total --config --paths --policy --minfreespace --verbose --json --help --version [CONTEXT]"
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                --config)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                -c)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --paths)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --policy)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --minfreespace)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        nofs__diff)
+            opts="-H -v -c -h -V --hash --verbose --config --paths --policy --minfreespace --json --help --version <PATH>"
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                --config)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                -c)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --paths)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --policy)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --minfreespace)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
         nofs__du)
             opts="-H -a -c -v -h -V --human --all --maxdepth --config --paths --policy --minfreespace --verbose --json --help --version <PATHS>..."
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
@@ -482,8 +614,42 @@ _nofs() {
             COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
             return 0
             ;;
+        nofs__grep)
+            opts="-i -n -l -r -c -v -h -V --ignore-case --invert-match --line-number --files-with-matches --recursive --config --paths --policy --minfreespace --verbose --json --help --version <PATTERN> <PATHS>..."
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                --config)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                -c)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --paths)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --policy)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --minfreespace)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
         nofs__help)
-            opts="ls find which create stat info exists cat cp mv rm mkdir rmdir touch du completions manpage help"
+            opts="ls find which create stat info exists cat diff cmp df grep tree cp mv rm mkdir rmdir touch du completions manpage help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -497,6 +663,20 @@ _nofs() {
             return 0
             ;;
         nofs__help__cat)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        nofs__help__cmp)
             opts=""
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
@@ -552,6 +732,34 @@ _nofs() {
             COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
             return 0
             ;;
+        nofs__help__df)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        nofs__help__diff)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
         nofs__help__du)
             opts=""
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
@@ -581,6 +789,20 @@ _nofs() {
             return 0
             ;;
         nofs__help__find)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        nofs__help__grep)
             opts=""
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
@@ -721,6 +943,20 @@ _nofs() {
             return 0
             ;;
         nofs__help__touch)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        nofs__help__tree)
             opts=""
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
@@ -1103,6 +1339,44 @@ _nofs() {
                 return 0
             fi
             case "${prev}" in
+                --config)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                -c)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --paths)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --policy)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --minfreespace)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        nofs__tree)
+            opts="-a -d -f -H -c -v -h -V --all-branches --max-depth --directories --files --human --config --paths --policy --minfreespace --verbose --json --help --version <PATH>"
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                --max-depth)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
                 --config)
                     COMPREPLY=($(compgen -f "${cur}"))
                     return 0

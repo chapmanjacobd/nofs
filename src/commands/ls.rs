@@ -79,17 +79,10 @@ pub fn execute(pool: &Pool, path: &str, options: &LsOptions) -> Result<()> {
         .collect();
 
     // Build a set of conflicting file names for quick lookup
-    let conflict_names: std::collections::HashSet<&str> =
-        conflict_list.iter().map(|c| c.name.as_str()).collect();
+    let conflict_names: std::collections::HashSet<&str> = conflict_list.iter().map(|c| c.name.as_str()).collect();
 
     if options.json {
-        output_json(
-            path,
-            &unique_entries,
-            &conflict_list,
-            options.long,
-            &conflict_names,
-        )?;
+        output_json(path, &unique_entries, &conflict_list, options.long, &conflict_names)?;
     } else {
         output_text(&unique_entries, options.long, &conflict_names)?;
     }
@@ -293,11 +286,7 @@ fn collect_directory_entries(
 }
 
 /// Collect entries from a single branch
-fn collect_branch_entries(
-    branch_path: &Path,
-    all: bool,
-    verbose: bool,
-) -> Vec<(std::path::PathBuf, String)> {
+fn collect_branch_entries(branch_path: &Path, all: bool, verbose: bool) -> Vec<(std::path::PathBuf, String)> {
     let mut entries = Vec::new();
 
     match fs::read_dir(branch_path) {

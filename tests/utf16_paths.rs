@@ -63,7 +63,7 @@ mod tests {
         if let Ok(file_path) = result {
             assert!(file_path.exists(), "Surrogate file should exist if created");
 
-            let output = ctx.run_nofs(&["--paths", &branch_path.display().to_string(), "ls", "/"]);
+            let output = TestContext::run_nofs(&["--paths", &branch_path.display().to_string(), "ls", "/"]);
             // Should handle gracefully even if it can't display the name properly
             assert!(output.success() || !output.success());
         }
@@ -94,7 +94,7 @@ mod tests {
         if let Ok(file_path) = result {
             assert!(file_path.exists());
 
-            let output = ctx.run_nofs(&["--paths", &branch_path.display().to_string(), "ls", "/"]);
+            let output = TestContext::run_nofs(&["--paths", &branch_path.display().to_string(), "ls", "/"]);
             assert!(output.success() || !output.success());
         }
     }
@@ -123,7 +123,7 @@ mod tests {
         if let Ok(file_path) = result {
             assert!(file_path.exists());
 
-            let output = ctx.run_nofs(&["--paths", &branch_path.display().to_string(), "ls", "/"]);
+            let output = TestContext::run_nofs(&["--paths", &branch_path.display().to_string(), "ls", "/"]);
             assert!(output.success() || !output.success());
         }
     }
@@ -157,7 +157,7 @@ mod tests {
         assert!(nfc_file.exists());
         assert!(nfd_file.exists());
 
-        let output = ctx.run_nofs(&["--paths", &branch_path.display().to_string(), "ls", "/"]);
+        let output = TestContext::run_nofs(&["--paths", &branch_path.display().to_string(), "ls", "/"]);
 
         // Should handle both normalization forms
         assert!(output.success() || !output.success());

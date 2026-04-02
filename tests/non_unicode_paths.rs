@@ -48,7 +48,7 @@ mod tests {
         let non_utf8_file = create_non_utf8_file(&branch_path, b"file_\x80\x81.txt");
 
         // Test ad-hoc mode with ls
-        let output = ctx.run_nofs(&["--paths", &branch_path.display().to_string(), "ls", "/"]);
+        let output = TestContext::run_nofs(&["--paths", &branch_path.display().to_string(), "ls", "/"]);
 
         // Should list the file (may show replacement character or hex)
         assert!(
@@ -74,7 +74,7 @@ mod tests {
         fs::write(&normal_file, "inside non-utf8 dir").unwrap();
 
         // Test ls - just verify the command handles the directory structure
-        let output = ctx.run_nofs(&["--paths", &branch_path.display().to_string(), "ls", "/"]);
+        let output = TestContext::run_nofs(&["--paths", &branch_path.display().to_string(), "ls", "/"]);
 
         // May succeed or fail depending on how the path is handled
         assert!(output.success() || !output.success());
@@ -94,7 +94,7 @@ mod tests {
         let non_utf8_file = create_non_utf8_file(&branch_path, b"weird_\xFF\xFE.txt");
 
         // Test ls - should handle mixed content
-        let output = ctx.run_nofs(&["--paths", &branch_path.display().to_string(), "ls", "/"]);
+        let output = TestContext::run_nofs(&["--paths", &branch_path.display().to_string(), "ls", "/"]);
 
         // Should succeed and show at least the normal file
         assert!(output.success(), "ls should succeed: {}", output.stderr);
@@ -120,7 +120,7 @@ mod tests {
 
         // Test with ad-hoc mode - need to pass the path as bytes
         // This tests if nofs can handle non-UTF8 branch paths
-        let output = ctx.run_nofs(&["--paths", branch_path.to_string_lossy().as_ref(), "ls", "/"]);
+        let output = TestContext::run_nofs(&["--paths", branch_path.to_string_lossy().as_ref(), "ls", "/"]);
 
         // May succeed or fail depending on implementation
         assert!(output.success() || !output.success());
@@ -145,7 +145,7 @@ mod tests {
         let _non_utf8_txt = create_non_utf8_file(&branch_path, b"data_\xC0\xAF.txt");
 
         // Test find command
-        let output = ctx.run_nofs(&[
+        let output = TestContext::run_nofs(&[
             "--paths",
             &branch_path.display().to_string(),
             "find",
@@ -170,7 +170,7 @@ mod tests {
         let non_utf8_src = create_non_utf8_file(&branch_path, b"source_\x80\x81.txt");
 
         // Try to copy using the non-UTF8 path
-        let output = ctx.run_nofs(&[
+        let output = TestContext::run_nofs(&[
             "--paths",
             &branch_path.display().to_string(),
             "cp",
@@ -192,7 +192,7 @@ mod tests {
         let non_utf8_file = create_non_utf8_file(&branch_path, b"check_\x80\x81.txt");
 
         // Test exists command with the non-UTF8 file
-        let output = ctx.run_nofs(&[
+        let output = TestContext::run_nofs(&[
             "--paths",
             &branch_path.display().to_string(),
             "exists",
@@ -219,7 +219,7 @@ mod tests {
         let _file4 = create_non_utf8_file(&branch_path, b"file_\x80\x81\x82.txt");
 
         // Test ls
-        let output = ctx.run_nofs(&["--paths", &branch_path.display().to_string(), "ls", "/"]);
+        let output = TestContext::run_nofs(&["--paths", &branch_path.display().to_string(), "ls", "/"]);
 
         // Should handle the directory with multiple non-UTF8 files
         assert!(output.success() || !output.success());
@@ -250,7 +250,7 @@ paths = ['{}']
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "ls", "test:/"]);
+        let output = TestContext::run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "ls", "test:/"]);
 
         // Should handle the lossy-converted path
         assert!(output.success() || !output.success());
@@ -267,7 +267,7 @@ paths = ['{}']
         fs::write(branch_path.join("file.txt"), "content").unwrap();
 
         // Use lossy display for the path
-        let output = ctx.run_nofs(&["--paths", branch_path.to_string_lossy().as_ref(), "ls", "/"]);
+        let output = TestContext::run_nofs(&["--paths", branch_path.to_string_lossy().as_ref(), "ls", "/"]);
 
         // Should handle the path
         assert!(output.success() || !output.success());
@@ -287,7 +287,7 @@ paths = ['{}']
         if result.is_ok() {
             fs::write(branch_path.join("file.txt"), "content").unwrap();
 
-            let output = ctx.run_nofs(&["--paths", branch_path.to_string_lossy().as_ref(), "ls", "/"]);
+            let output = TestContext::run_nofs(&["--paths", branch_path.to_string_lossy().as_ref(), "ls", "/"]);
 
             assert!(output.success() || !output.success());
         }
@@ -319,7 +319,7 @@ paths = ['{}', '{}']
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "info", "test"]);
+        let output = TestContext::run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "info", "test"]);
 
         // Should handle non-UTF8 branch paths in info command
         assert!(output.success() || !output.success());
@@ -343,7 +343,7 @@ paths = ['{}', '{}']
         let long_file = create_non_utf8_file(&branch_path, &long_name);
 
         // Test ls
-        let output = ctx.run_nofs(&["--paths", &branch_path.display().to_string(), "ls", "/"]);
+        let output = TestContext::run_nofs(&["--paths", &branch_path.display().to_string(), "ls", "/"]);
 
         // Should handle long filenames
         assert!(output.success() || !output.success());
@@ -368,7 +368,7 @@ paths = ['{}', '{}']
         fs::write(&deep_file, "deep content").unwrap();
 
         // Test ls on the branch root - verify it handles nested non-UTF8 dirs
-        let output = ctx.run_nofs(&["--paths", &branch_path.display().to_string(), "ls", "/"]);
+        let output = TestContext::run_nofs(&["--paths", &branch_path.display().to_string(), "ls", "/"]);
 
         // May succeed or fail depending on implementation
         assert!(output.success() || !output.success());
@@ -387,7 +387,7 @@ paths = ['{}', '{}']
         let branch_path = ctx.create_branch("disk1", &["file.txt"]);
 
         // Test with path that might have empty components after normalization
-        let output = ctx.run_nofs(&["--paths", &branch_path.display().to_string(), "ls", "//"]);
+        let output = TestContext::run_nofs(&["--paths", &branch_path.display().to_string(), "ls", "//"]);
 
         // Should handle double slashes gracefully
         assert!(output.success() || !output.success());

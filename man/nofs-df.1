@@ -1,0 +1,31 @@
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.TH df 1  "df " 
+.SH NAME
+df \- Show disk free space (df\-like output)
+.SH SYNOPSIS
+\fBdf\fR [\fB\-H\fR|\fB\-\-human\fR] [\fB\-T\fR|\fB\-\-total\fR] [\fB\-h\fR|\fB\-\-help\fR] [\fICONTEXT\fR] 
+.SH DESCRIPTION
+Show disk free space (df\-like output)
+.SH OPTIONS
+.TP
+\fB\-H\fR, \fB\-\-human\fR
+Show human\-readable sizes (K, M, G)
+.TP
+\fB\-T\fR, \fB\-\-total\fR
+Show total for all branches
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print help
+.TP
+[\fICONTEXT\fR]
+Context/share name (optional, shows all if not specified)
+.SH EXTRA
+EXAMPLES:
+    nofs df                                # Show all branches
+    nofs df media                          # Show branches for media share
+    nofs df \-H                             # Human\-readable sizes
+    nofs df \-T                             # Include total
+
+OUTPUT:
+    Shows disk space usage for each branch in a standard df\-like format.

@@ -208,27 +208,26 @@ fn diff_directory(
 }
 
 /// Format a Unix timestamp as a human-readable date
-#[allow(
-    clippy::integer_division,
-    clippy::arithmetic_side_effects,
-    clippy::as_conversions,
-    clippy::unnecessary_cast
-)]
+#[allow(clippy::as_conversions)]
 fn format_timestamp(secs: u64) -> String {
     // Calculate approximate date (this is a rough calculation)
     let secs_since_epoch = secs;
-    let days = secs_since_epoch / 86400;
-    let remaining_secs = secs_since_epoch % 86400;
-    let hours = remaining_secs / 3600;
-    let minutes = (remaining_secs % 3600) / 60;
-    let seconds = remaining_secs % 60;
+    #[allow(clippy::integer_division, clippy::arithmetic_side_effects)]
+    {
+        let days = secs_since_epoch / 86400;
+        let remaining_secs = secs_since_epoch % 86400;
+        let hours = remaining_secs / 3600;
+        let minutes = (remaining_secs % 3600) / 60;
+        let seconds = remaining_secs % 60;
 
-    // Calculate approximate year
-    let year = 1970 + (days / 365) as u64;
-    let day_of_year = days % 365;
+        // Calculate approximate year
+        #[allow(clippy::unnecessary_cast)]
+        let year = 1970 + (days / 365) as u64;
+        let day_of_year = days % 365;
 
-    format!(
-        "{:04}-{:02}-{:02} {:02}:{:02}:{:02} UTC",
-        year, 1, day_of_year as u32, hours, minutes, seconds
-    )
+        format!(
+            "{:04}-{:02}-{:02} {:02}:{:02}:{:02} UTC",
+            year, 1, day_of_year as u32, hours, minutes, seconds
+        )
+    }
 }

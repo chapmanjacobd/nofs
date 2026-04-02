@@ -25,7 +25,7 @@ create_policy = "pfrd"
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&[
+        let output = TestContext::run_nofs(&[
             "--config",
             ctx.config_path.to_str().unwrap(),
             "create",
@@ -54,7 +54,7 @@ create_policy = "mfs"
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&[
+        let output = TestContext::run_nofs(&[
             "--config",
             ctx.config_path.to_str().unwrap(),
             "create",
@@ -86,7 +86,7 @@ create_policy = "rand"
 
         // Run multiple times to verify randomness doesn't crash
         for _ in 0..5 {
-            let output = ctx.run_nofs(&[
+            let output = TestContext::run_nofs(&[
                 "--config",
                 ctx.config_path.to_str().unwrap(),
                 "create",
@@ -116,7 +116,7 @@ search_policy = "ff"
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&[
+        let output = TestContext::run_nofs(&[
             "--config",
             ctx.config_path.to_str().unwrap(),
             "-v",
@@ -147,7 +147,7 @@ create_policy = "mfs"
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&[
+        let output = TestContext::run_nofs(&[
             "--config",
             ctx.config_path.to_str().unwrap(),
             "create",
@@ -179,7 +179,7 @@ create_policy = "mfs"
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&[
+        let output = TestContext::run_nofs(&[
             "--config",
             ctx.config_path.to_str().unwrap(),
             "create",
@@ -210,7 +210,7 @@ create_policy = "pfrd"
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&[
+        let output = TestContext::run_nofs(&[
             "--config",
             ctx.config_path.to_str().unwrap(),
             "-v",

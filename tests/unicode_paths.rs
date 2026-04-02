@@ -34,7 +34,7 @@ mod tests {
         let emoji_file = branch_path.join("file_🎉.txt");
         fs::write(&emoji_file, "emoji content").unwrap();
 
-        let output = ctx.run_nofs(&["--paths", &branch_path.display().to_string(), "ls", "/"]);
+        let output = TestContext::run_nofs(&["--paths", &branch_path.display().to_string(), "ls", "/"]);
 
         assert!(output.success(), "ls should succeed with emoji filenames");
         assert!(emoji_file.exists());
@@ -55,7 +55,7 @@ mod tests {
         fs::write(&japanese_file, "japanese content").unwrap();
         fs::write(&korean_file, "korean content").unwrap();
 
-        let output = ctx.run_nofs(&["--paths", &branch_path.display().to_string(), "ls", "/"]);
+        let output = TestContext::run_nofs(&["--paths", &branch_path.display().to_string(), "ls", "/"]);
 
         assert!(output.success());
         assert!(chinese_file.exists());
@@ -72,7 +72,7 @@ mod tests {
         let cyrillic_file = branch_path.join("файл.txt");
         fs::write(&cyrillic_file, "cyrillic content").unwrap();
 
-        let output = ctx.run_nofs(&["--paths", &branch_path.display().to_string(), "ls", "/"]);
+        let output = TestContext::run_nofs(&["--paths", &branch_path.display().to_string(), "ls", "/"]);
 
         assert!(output.success());
         assert!(cyrillic_file.exists());
@@ -87,7 +87,7 @@ mod tests {
         let arabic_file = branch_path.join("ملف.txt");
         fs::write(&arabic_file, "arabic content").unwrap();
 
-        let output = ctx.run_nofs(&["--paths", &branch_path.display().to_string(), "ls", "/"]);
+        let output = TestContext::run_nofs(&["--paths", &branch_path.display().to_string(), "ls", "/"]);
 
         assert!(output.success());
         assert!(arabic_file.exists());
@@ -103,7 +103,7 @@ mod tests {
         let mixed_file = branch_path.join("混合🎉файل_مختلط.txt");
         fs::write(&mixed_file, "mixed content").unwrap();
 
-        let output = ctx.run_nofs(&["--paths", &branch_path.display().to_string(), "ls", "/"]);
+        let output = TestContext::run_nofs(&["--paths", &branch_path.display().to_string(), "ls", "/"]);
 
         assert!(output.success());
         assert!(mixed_file.exists());
@@ -126,7 +126,7 @@ mod tests {
         fs::write(&emoji_file1, "emoji 1").unwrap();
         fs::write(&emoji_file2, "emoji 2").unwrap();
 
-        let output = ctx.run_nofs(&["--paths", &branch_path.display().to_string(), "ls", "/"]);
+        let output = TestContext::run_nofs(&["--paths", &branch_path.display().to_string(), "ls", "/"]);
 
         assert!(output.success());
         assert!(emoji_file1.exists());
@@ -143,7 +143,7 @@ mod tests {
         let family_file = branch_path.join("family_👨‍👩‍👧.txt");
         fs::write(&family_file, "family emoji").unwrap();
 
-        let output = ctx.run_nofs(&["--paths", &branch_path.display().to_string(), "ls", "/"]);
+        let output = TestContext::run_nofs(&["--paths", &branch_path.display().to_string(), "ls", "/"]);
 
         assert!(output.success());
         assert!(family_file.exists());
@@ -162,7 +162,7 @@ mod tests {
         fs::write(&us_flag_file, "US flag").unwrap();
         fs::write(&japan_flag_file, "Japan flag").unwrap();
 
-        let output = ctx.run_nofs(&["--paths", &branch_path.display().to_string(), "ls", "/"]);
+        let output = TestContext::run_nofs(&["--paths", &branch_path.display().to_string(), "ls", "/"]);
 
         assert!(output.success());
         assert!(us_flag_file.exists());
@@ -180,7 +180,7 @@ mod tests {
         let emoji_skin_file = branch_path.join("wave_👋🏽.txt");
         fs::write(&emoji_skin_file, "skin tone emoji").unwrap();
 
-        let output = ctx.run_nofs(&["--paths", &branch_path.display().to_string(), "ls", "/"]);
+        let output = TestContext::run_nofs(&["--paths", &branch_path.display().to_string(), "ls", "/"]);
 
         assert!(output.success());
         assert!(emoji_skin_file.exists());
@@ -210,7 +210,7 @@ mod tests {
         fs::write(chinese_dir.join("file.txt"), "in chinese dir").unwrap();
         fs::write(cyrillic_dir.join("file.txt"), "in cyrillic dir").unwrap();
 
-        let output = ctx.run_nofs(&["--paths", &branch_path.display().to_string(), "ls", "/"]);
+        let output = TestContext::run_nofs(&["--paths", &branch_path.display().to_string(), "ls", "/"]);
 
         assert!(output.success());
         assert!(emoji_dir.exists());
@@ -234,7 +234,7 @@ mod tests {
         let deep_file = level3.join("file.txt");
         fs::write(&deep_file, "deep content").unwrap();
 
-        let output = ctx.run_nofs(&["--paths", &branch_path.display().to_string(), "ls", "/"]);
+        let output = TestContext::run_nofs(&["--paths", &branch_path.display().to_string(), "ls", "/"]);
 
         assert!(output.success());
         assert!(level1.exists());
@@ -269,7 +269,7 @@ mod tests {
         assert!(composed_file.exists());
         assert!(decomposed_file.exists());
 
-        let output = ctx.run_nofs(&["--paths", &branch_path.display().to_string(), "ls", "/"]);
+        let output = TestContext::run_nofs(&["--paths", &branch_path.display().to_string(), "ls", "/"]);
 
         // Should handle both normalization forms
         // On macOS, both may appear as the same file due to NFD normalization
@@ -290,7 +290,7 @@ mod tests {
         let combining_file = branch_path.join(combining_name);
         fs::write(&combining_file, "combining marks content").unwrap();
 
-        let output = ctx.run_nofs(&["--paths", &branch_path.display().to_string(), "ls", "/"]);
+        let output = TestContext::run_nofs(&["--paths", &branch_path.display().to_string(), "ls", "/"]);
 
         assert!(output.success());
         assert!(combining_file.exists());
@@ -313,7 +313,7 @@ mod tests {
         fs::write(&arabic_file, "arabic rtl content").unwrap();
         fs::write(&hebrew_file, "hebrew rtl content").unwrap();
 
-        let output = ctx.run_nofs(&["--paths", &branch_path.display().to_string(), "ls", "/"]);
+        let output = TestContext::run_nofs(&["--paths", &branch_path.display().to_string(), "ls", "/"]);
 
         assert!(output.success());
         assert!(arabic_file.exists());
@@ -337,7 +337,7 @@ mod tests {
         let long_file = branch_path.join(&long_name);
         fs::write(&long_file, "long unicode content").unwrap();
 
-        let output = ctx.run_nofs(&["--paths", &branch_path.display().to_string(), "ls", "/"]);
+        let output = TestContext::run_nofs(&["--paths", &branch_path.display().to_string(), "ls", "/"]);
 
         assert!(output.success());
         assert!(long_file.exists());
@@ -353,7 +353,7 @@ mod tests {
         let variation_file = branch_path.join("heart_❤️.txt");
         fs::write(&variation_file, "variation selector content").unwrap();
 
-        let output = ctx.run_nofs(&["--paths", &branch_path.display().to_string(), "ls", "/"]);
+        let output = TestContext::run_nofs(&["--paths", &branch_path.display().to_string(), "ls", "/"]);
 
         assert!(output.success());
         assert!(variation_file.exists());
@@ -367,7 +367,7 @@ mod tests {
         let branch_name = "branch_🎉_测试";
         let branch_path = ctx.create_branch(branch_name, &["file.txt"]);
 
-        let output = ctx.run_nofs(&["--paths", &branch_path.display().to_string(), "ls", "/"]);
+        let output = TestContext::run_nofs(&["--paths", &branch_path.display().to_string(), "ls", "/"]);
 
         assert!(output.success());
         assert!(branch_path.exists());
@@ -391,7 +391,7 @@ paths = ['{}']
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "ls", "test:/"]);
+        let output = TestContext::run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "ls", "test:/"]);
 
         assert!(output.success() || !output.success());
     }
@@ -403,7 +403,7 @@ paths = ['{}']
         // Windows test with Unicode branch name
         let branch_path = ctx.create_branch("disk_🎉", &["file.txt"]);
 
-        let output = ctx.run_nofs(&["--paths", &branch_path.display().to_string(), "ls", "/"]);
+        let output = TestContext::run_nofs(&["--paths", &branch_path.display().to_string(), "ls", "/"]);
 
         assert!(output.success() || !output.success());
     }
@@ -416,7 +416,7 @@ paths = ['{}']
         let branch_name = "branch_🎉_测试_файл";
         let branch_path = ctx.create_branch(branch_name, &["file.txt"]);
 
-        let output = ctx.run_nofs(&["--paths", &branch_path.display().to_string(), "ls", "/"]);
+        let output = TestContext::run_nofs(&["--paths", &branch_path.display().to_string(), "ls", "/"]);
 
         assert!(output.success() || !output.success());
     }
@@ -441,7 +441,7 @@ paths = ['{}', '{}']
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "info", "test"]);
+        let output = TestContext::run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "info", "test"]);
 
         assert!(output.success() || !output.success());
     }

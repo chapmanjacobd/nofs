@@ -1,0 +1,28 @@
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.TH cmp 1  "cmp " 
+.SH NAME
+cmp \- Compare files byte\-by\-byte
+.SH SYNOPSIS
+\fBcmp\fR [\fB\-v\fR|\fB\-\-verbose\fR] [\fB\-h\fR|\fB\-\-help\fR] <\fIPATH\fR> 
+.SH DESCRIPTION
+Compare files byte\-by\-byte
+.SH OPTIONS
+.TP
+\fB\-v\fR, \fB\-\-verbose\fR
+Verbose output (print message if files are identical)
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print help
+.TP
+<\fIPATH\fR>
+Path within the share (format: [context:]path)
+.SH EXTRA
+EXAMPLES:
+    nofs cmp media:/config.toml            # Compare file across first two branches
+    nofs cmp \-v media:/data.bin            # Verbose output if identical
+
+OUTPUT:
+    Compares the same file across two branches.
+    By default, compares first two branches containing the file.
+    Exit code 0 if files are identical, 1 if they differ.

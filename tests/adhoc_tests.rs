@@ -14,7 +14,7 @@ mod tests {
 
         let branch_path = ctx.create_branch("disk1", &["file.txt"]);
 
-        let output = ctx.run_nofs(&["--paths", &branch_path.display().to_string(), "ls", "/"]);
+        let output = TestContext::run_nofs(&["--paths", &branch_path.display().to_string(), "ls", "/"]);
 
         assert!(output.success(), "Command failed: {}", output.stderr);
         assert!(output.stdout.contains("file.txt"));
@@ -27,7 +27,7 @@ mod tests {
         let branch1 = ctx.create_branch("disk1", &["file1.txt"]);
         let branch2 = ctx.create_branch("disk2", &["file2.txt"]);
 
-        let output = ctx.run_nofs(&[
+        let output = TestContext::run_nofs(&[
             "--paths",
             &format!("{},{}", branch1.display(), branch2.display()),
             "ls",
@@ -46,7 +46,7 @@ mod tests {
         let branch1 = ctx.create_branch("rw", &["file1.txt"]);
         let branch2 = ctx.create_branch("ro", &["file2.txt"]);
 
-        let output = ctx.run_nofs(&[
+        let output = TestContext::run_nofs(&[
             "--paths",
             &format!("{}=RW,{}=RO", branch1.display(), branch2.display()),
             "info",
@@ -64,7 +64,7 @@ mod tests {
         let branch1 = ctx.create_branch("disk1", &[]);
         let branch2 = ctx.create_branch("disk2", &[]);
 
-        let output = ctx.run_nofs(&[
+        let output = TestContext::run_nofs(&[
             "--paths",
             &format!("{},{}", branch1.display(), branch2.display()),
             "--policy",
@@ -79,9 +79,9 @@ mod tests {
 
     #[test]
     fn adhoc_with_nonexistent_path() {
-        let ctx = TestContext::new("adhoc_nonexistent");
+        let _ctx = TestContext::new("adhoc_nonexistent");
 
-        let output = ctx.run_nofs(&["--paths", "/nonexistent/path", "ls", "/"]);
+        let output = TestContext::run_nofs(&["--paths", "/nonexistent/path", "ls", "/"]);
 
         // Should fail gracefully
         assert!(!output.success() || output.success());
@@ -94,7 +94,7 @@ mod tests {
         let branch = ctx.create_branch("disk1", &["file.txt"]);
 
         // Only use existing path - non-existent will cause error during parsing
-        let output = ctx.run_nofs(&["--paths", &branch.display().to_string(), "ls", "/"]);
+        let output = TestContext::run_nofs(&["--paths", &branch.display().to_string(), "ls", "/"]);
 
         // Should work with the existing path
         assert!(output.success(), "Command failed: {}", output.stderr);
@@ -108,7 +108,7 @@ mod tests {
         let branch1 = ctx.create_branch("disk1", &[]);
         let branch2 = ctx.create_branch("disk2", &[]);
 
-        let output = ctx.run_nofs(&[
+        let output = TestContext::run_nofs(&[
             "--paths",
             &format!("{},{}", branch1.display(), branch2.display()),
             "--policy",
@@ -132,7 +132,7 @@ mod tests {
 
         let branch = ctx.create_branch("disk1", &[]);
 
-        let output = ctx.run_nofs(&[
+        let output = TestContext::run_nofs(&[
             "--paths",
             &branch.display().to_string(),
             "--policy",
@@ -151,7 +151,7 @@ mod tests {
 
         let branch = ctx.create_branch("disk1", &["file1.txt", "file2.log", "subdir/file3.log"]);
 
-        let output = ctx.run_nofs(&["--paths", &branch.display().to_string(), "find", "/", "--name", "*.log"]);
+        let output = TestContext::run_nofs(&["--paths", &branch.display().to_string(), "find", "/", "--name", "*.log"]);
 
         assert!(output.success(), "Command failed: {}", output.stderr);
         assert!(output.stdout.contains("file2.log"));
@@ -164,7 +164,7 @@ mod tests {
 
         let branch = ctx.create_branch("disk1", &[]);
 
-        let output = ctx.run_nofs(&["--paths", &branch.display().to_string(), "stat", "-H"]);
+        let output = TestContext::run_nofs(&["--paths", &branch.display().to_string(), "stat", "-H"]);
 
         assert!(output.success(), "Command failed: {}", output.stderr);
         assert!(output.stdout.contains("Total:"));
@@ -178,7 +178,7 @@ mod tests {
         let branch2 = ctx.create_branch("disk2", &[]);
 
         // Format: /path=mode,minfree,/path2=mode,minfree
-        let output = ctx.run_nofs(&[
+        let output = TestContext::run_nofs(&[
             "--paths",
             &format!("{},{}", branch1.display(), branch2.display()),
             "info",
@@ -197,7 +197,7 @@ mod tests {
 
         // Test cp from branch to external destination using full paths
         let src_path = branch.join("file.txt");
-        let output = ctx.run_nofs(&[
+        let output = TestContext::run_nofs(&[
             "--paths",
             &branch.display().to_string(),
             "cp",
@@ -216,7 +216,7 @@ mod tests {
         let branch = ctx.create_branch("disk1", &[]);
 
         // Test mkdir - just verify command runs
-        let output = ctx.run_nofs(&[
+        let output = TestContext::run_nofs(&[
             "--paths",
             &branch.display().to_string(),
             "mkdir",
@@ -236,7 +236,7 @@ mod tests {
         let file_path = branch.join("file.txt");
 
         // Test rm - just verify command runs
-        let output = ctx.run_nofs(&[
+        let output = TestContext::run_nofs(&[
             "--paths",
             &branch.display().to_string(),
             "rm",
@@ -255,7 +255,7 @@ mod tests {
         let branch2 = ctx.create_branch("disk2", &["file2.txt"]);
 
         // Test using --paths with comma-separated values (if supported)
-        let output = ctx.run_nofs(&[
+        let output = TestContext::run_nofs(&[
             "--paths",
             &format!("{},{}", branch1.display(), branch2.display()),
             "ls",
@@ -272,7 +272,7 @@ mod tests {
 
         let branch = ctx.create_branch("disk1/dir", &["file1.txt", "file2.txt"]);
 
-        let output = ctx.run_nofs(&[
+        let output = TestContext::run_nofs(&[
             "--paths",
             &branch.parent().unwrap().display().to_string(),
             "du",
@@ -299,12 +299,12 @@ mod tests {
         let branch = ctx.create_branch("disk1", &["file.txt"]);
 
         // File exists
-        let output = ctx.run_nofs(&["--paths", &branch.display().to_string(), "exists", "/file.txt"]);
+        let output = TestContext::run_nofs(&["--paths", &branch.display().to_string(), "exists", "/file.txt"]);
 
         assert!(output.success(), "Should exist");
 
         // File doesn't exist
-        let output2 = ctx.run_nofs(&["--paths", &branch.display().to_string(), "exists", "/nonexistent.txt"]);
+        let output2 = TestContext::run_nofs(&["--paths", &branch.display().to_string(), "exists", "/nonexistent.txt"]);
 
         assert!(!output2.success(), "Should not exist");
     }
@@ -315,7 +315,7 @@ mod tests {
 
         let branch = ctx.create_branch("disk1/dir", &["file.txt"]);
 
-        let output = ctx.run_nofs(&[
+        let output = TestContext::run_nofs(&[
             "--paths",
             &branch.parent().unwrap().display().to_string(),
             "which",
@@ -332,7 +332,7 @@ mod tests {
 
         let branch = ctx.create_branch("disk1", &["file.txt"]);
 
-        let output = ctx.run_nofs(&["--paths", &branch.display().to_string(), "cat", "/file.txt"]);
+        let output = TestContext::run_nofs(&["--paths", &branch.display().to_string(), "cat", "/file.txt"]);
 
         assert!(output.success(), "Command failed: {}", output.stderr);
         assert!(output.stdout.contains("content of file.txt"));
@@ -345,7 +345,7 @@ mod tests {
         let branch1 = ctx.create_branch("rw", &[]);
         let branch2 = ctx.create_branch("nc", &[]);
 
-        let output = ctx.run_nofs(&[
+        let output = TestContext::run_nofs(&[
             "--paths",
             &format!("{}=RW,{}=NC", branch1.display(), branch2.display()),
             "create",
@@ -364,10 +364,10 @@ mod tests {
 
     #[test]
     fn adhoc_empty_paths_list() {
-        let ctx = TestContext::new("adhoc_empty");
+        let _ctx = TestContext::new("adhoc_empty");
 
         // No --paths provided
-        let output = ctx.run_nofs(&["ls", "/"]);
+        let output = TestContext::run_nofs(&["ls", "/"]);
 
         // Should fail gracefully (no paths configured)
         assert!(!output.success() || output.success());
@@ -379,7 +379,7 @@ mod tests {
 
         let branch = ctx.create_branch("disk1/dir/subdir", &["file.txt"]);
 
-        let output = ctx.run_nofs(&[
+        let output = TestContext::run_nofs(&[
             "--paths",
             &branch.parent().unwrap().parent().unwrap().display().to_string(),
             "ls",
@@ -396,7 +396,7 @@ mod tests {
 
         let branch = ctx.create_branch("disk1/dir", &["file.txt"]);
 
-        let output = ctx.run_nofs(&[
+        let output = TestContext::run_nofs(&[
             "--paths",
             &branch.parent().unwrap().display().to_string(),
             "ls",
@@ -414,7 +414,7 @@ mod tests {
         let branch1 = ctx.create_branch("disk1", &[]);
         let branch2 = ctx.create_branch("disk2", &[]);
 
-        let output = ctx.run_nofs(&[
+        let output = TestContext::run_nofs(&[
             "--paths",
             &format!("{},{}", branch1.display(), branch2.display()),
             "info",
@@ -430,7 +430,7 @@ mod tests {
 
         let branch = ctx.create_branch("disk1", &[]);
 
-        let output = ctx.run_nofs(&["--paths", &branch.display().to_string(), "touch", "/newfile.txt"]);
+        let output = TestContext::run_nofs(&["--paths", &branch.display().to_string(), "touch", "/newfile.txt"]);
 
         assert!(output.success(), "Command failed: {}", output.stderr);
         assert!(branch.join("newfile.txt").exists());
@@ -442,7 +442,7 @@ mod tests {
 
         let branch = ctx.create_branch("disk1/to_remove", &[]);
 
-        let output = ctx.run_nofs(&[
+        let output = TestContext::run_nofs(&[
             "--paths",
             &branch.parent().unwrap().display().to_string(),
             "rmdir",

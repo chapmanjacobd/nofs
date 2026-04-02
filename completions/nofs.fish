@@ -40,6 +40,11 @@ complete -c nofs -n "__fish_nofs_needs_command" -f -a "stat" -d 'Show filesystem
 complete -c nofs -n "__fish_nofs_needs_command" -f -a "info" -d 'Show share configuration and status'
 complete -c nofs -n "__fish_nofs_needs_command" -f -a "exists" -d 'Check if a file exists and return its location'
 complete -c nofs -n "__fish_nofs_needs_command" -f -a "cat" -d 'Read file content (from first found branch)'
+complete -c nofs -n "__fish_nofs_needs_command" -f -a "diff" -d 'Show differences between branches'
+complete -c nofs -n "__fish_nofs_needs_command" -f -a "cmp" -d 'Compare files byte-by-byte'
+complete -c nofs -n "__fish_nofs_needs_command" -f -a "df" -d 'Show disk free space (df-like output)'
+complete -c nofs -n "__fish_nofs_needs_command" -f -a "grep" -d 'Search file contents across all branches (grep)'
+complete -c nofs -n "__fish_nofs_needs_command" -f -a "tree" -d 'Show directory tree structure'
 complete -c nofs -n "__fish_nofs_needs_command" -f -a "cp" -d 'Copy files/directories (supports nofs context paths)'
 complete -c nofs -n "__fish_nofs_needs_command" -f -a "mv" -d 'Move files/directories (supports nofs context paths)'
 complete -c nofs -n "__fish_nofs_needs_command" -f -a "rm" -d 'Remove files or directories'
@@ -125,6 +130,59 @@ complete -c nofs -n "__fish_nofs_using_subcommand cat" -s v -l verbose -d 'Verbo
 complete -c nofs -n "__fish_nofs_using_subcommand cat" -l json -d 'Output in JSON format (for scripting/automation)'
 complete -c nofs -n "__fish_nofs_using_subcommand cat" -s h -l help -d 'Print help'
 complete -c nofs -n "__fish_nofs_using_subcommand cat" -s V -l version -d 'Print version'
+complete -c nofs -n "__fish_nofs_using_subcommand diff" -s c -l config -d 'Path to configuration file' -r
+complete -c nofs -n "__fish_nofs_using_subcommand diff" -l paths -d 'Comma-separated list of branch paths (ad-hoc mode) Format: /path1,/path2 or /path1=RW,/path2=RO' -r
+complete -c nofs -n "__fish_nofs_using_subcommand diff" -l policy -d 'Policy to use for branch selection' -r
+complete -c nofs -n "__fish_nofs_using_subcommand diff" -l minfreespace -d 'Minimum free space required on branch (e.g., "4G", "100M")' -r
+complete -c nofs -n "__fish_nofs_using_subcommand diff" -s H -l hash -d 'Use hash comparison for conflict detection (slower but more accurate)'
+complete -c nofs -n "__fish_nofs_using_subcommand diff" -s v -l verbose -d 'Verbose output (show timestamps and hashes)'
+complete -c nofs -n "__fish_nofs_using_subcommand diff" -l json -d 'Output in JSON format (for scripting/automation)'
+complete -c nofs -n "__fish_nofs_using_subcommand diff" -s h -l help -d 'Print help'
+complete -c nofs -n "__fish_nofs_using_subcommand diff" -s V -l version -d 'Print version'
+complete -c nofs -n "__fish_nofs_using_subcommand cmp" -s c -l config -d 'Path to configuration file' -r
+complete -c nofs -n "__fish_nofs_using_subcommand cmp" -l paths -d 'Comma-separated list of branch paths (ad-hoc mode) Format: /path1,/path2 or /path1=RW,/path2=RO' -r
+complete -c nofs -n "__fish_nofs_using_subcommand cmp" -l policy -d 'Policy to use for branch selection' -r
+complete -c nofs -n "__fish_nofs_using_subcommand cmp" -l minfreespace -d 'Minimum free space required on branch (e.g., "4G", "100M")' -r
+complete -c nofs -n "__fish_nofs_using_subcommand cmp" -s v -l verbose -d 'Verbose output (print message if files are identical)'
+complete -c nofs -n "__fish_nofs_using_subcommand cmp" -l json -d 'Output in JSON format (for scripting/automation)'
+complete -c nofs -n "__fish_nofs_using_subcommand cmp" -s h -l help -d 'Print help'
+complete -c nofs -n "__fish_nofs_using_subcommand cmp" -s V -l version -d 'Print version'
+complete -c nofs -n "__fish_nofs_using_subcommand df" -s c -l config -d 'Path to configuration file' -r
+complete -c nofs -n "__fish_nofs_using_subcommand df" -l paths -d 'Comma-separated list of branch paths (ad-hoc mode) Format: /path1,/path2 or /path1=RW,/path2=RO' -r
+complete -c nofs -n "__fish_nofs_using_subcommand df" -l policy -d 'Policy to use for branch selection' -r
+complete -c nofs -n "__fish_nofs_using_subcommand df" -l minfreespace -d 'Minimum free space required on branch (e.g., "4G", "100M")' -r
+complete -c nofs -n "__fish_nofs_using_subcommand df" -s H -l human -d 'Show human-readable sizes (K, M, G)'
+complete -c nofs -n "__fish_nofs_using_subcommand df" -s T -l total -d 'Show total for all branches'
+complete -c nofs -n "__fish_nofs_using_subcommand df" -s v -l verbose -d 'Verbose output (print decision steps to stderr)'
+complete -c nofs -n "__fish_nofs_using_subcommand df" -l json -d 'Output in JSON format (for scripting/automation)'
+complete -c nofs -n "__fish_nofs_using_subcommand df" -s h -l help -d 'Print help'
+complete -c nofs -n "__fish_nofs_using_subcommand df" -s V -l version -d 'Print version'
+complete -c nofs -n "__fish_nofs_using_subcommand grep" -s c -l config -d 'Path to configuration file' -r
+complete -c nofs -n "__fish_nofs_using_subcommand grep" -l paths -d 'Comma-separated list of branch paths (ad-hoc mode) Format: /path1,/path2 or /path1=RW,/path2=RO' -r
+complete -c nofs -n "__fish_nofs_using_subcommand grep" -l policy -d 'Policy to use for branch selection' -r
+complete -c nofs -n "__fish_nofs_using_subcommand grep" -l minfreespace -d 'Minimum free space required on branch (e.g., "4G", "100M")' -r
+complete -c nofs -n "__fish_nofs_using_subcommand grep" -s i -l ignore-case -d 'Case-insensitive search'
+complete -c nofs -n "__fish_nofs_using_subcommand grep" -l invert-match -d 'Invert match (show non-matching lines)'
+complete -c nofs -n "__fish_nofs_using_subcommand grep" -s n -l line-number -d 'Show line numbers'
+complete -c nofs -n "__fish_nofs_using_subcommand grep" -s l -l files-with-matches -d 'Show only filenames with matches'
+complete -c nofs -n "__fish_nofs_using_subcommand grep" -s r -l recursive -d 'Recursive search (for directories)'
+complete -c nofs -n "__fish_nofs_using_subcommand grep" -s v -l verbose -d 'Verbose output (print decision steps to stderr)'
+complete -c nofs -n "__fish_nofs_using_subcommand grep" -l json -d 'Output in JSON format (for scripting/automation)'
+complete -c nofs -n "__fish_nofs_using_subcommand grep" -s h -l help -d 'Print help'
+complete -c nofs -n "__fish_nofs_using_subcommand grep" -s V -l version -d 'Print version'
+complete -c nofs -n "__fish_nofs_using_subcommand tree" -l max-depth -d 'Maximum depth to display' -r
+complete -c nofs -n "__fish_nofs_using_subcommand tree" -s c -l config -d 'Path to configuration file' -r
+complete -c nofs -n "__fish_nofs_using_subcommand tree" -l paths -d 'Comma-separated list of branch paths (ad-hoc mode) Format: /path1,/path2 or /path1=RW,/path2=RO' -r
+complete -c nofs -n "__fish_nofs_using_subcommand tree" -l policy -d 'Policy to use for branch selection' -r
+complete -c nofs -n "__fish_nofs_using_subcommand tree" -l minfreespace -d 'Minimum free space required on branch (e.g., "4G", "100M")' -r
+complete -c nofs -n "__fish_nofs_using_subcommand tree" -s a -l all-branches -d 'Show all branches for each file'
+complete -c nofs -n "__fish_nofs_using_subcommand tree" -s d -l directories -d 'Show directories only'
+complete -c nofs -n "__fish_nofs_using_subcommand tree" -s f -l files -d 'Show files only'
+complete -c nofs -n "__fish_nofs_using_subcommand tree" -s H -l human -d 'Human-readable file sizes'
+complete -c nofs -n "__fish_nofs_using_subcommand tree" -s v -l verbose -d 'Verbose output (print decision steps to stderr)'
+complete -c nofs -n "__fish_nofs_using_subcommand tree" -l json -d 'Output in JSON format (for scripting/automation)'
+complete -c nofs -n "__fish_nofs_using_subcommand tree" -s h -l help -d 'Print help'
+complete -c nofs -n "__fish_nofs_using_subcommand tree" -s V -l version -d 'Print version'
 complete -c nofs -n "__fish_nofs_using_subcommand cp" -l file-over-file -d 'File-over-file conflict strategy' -r
 complete -c nofs -n "__fish_nofs_using_subcommand cp" -l file-over-folder -d 'File-over-folder conflict strategy: skip, rename-src, rename-dest, delete-src, delete-dest, merge' -r
 complete -c nofs -n "__fish_nofs_using_subcommand cp" -l folder-over-file -d 'Folder-over-file conflict strategy: skip, rename-src, rename-dest, delete-src, delete-dest, merge' -r
@@ -228,21 +286,26 @@ complete -c nofs -n "__fish_nofs_using_subcommand manpage" -s v -l verbose -d 'V
 complete -c nofs -n "__fish_nofs_using_subcommand manpage" -l json -d 'Output in JSON format (for scripting/automation)'
 complete -c nofs -n "__fish_nofs_using_subcommand manpage" -s h -l help -d 'Print help (see more with \'--help\')'
 complete -c nofs -n "__fish_nofs_using_subcommand manpage" -s V -l version -d 'Print version'
-complete -c nofs -n "__fish_nofs_using_subcommand help; and not __fish_seen_subcommand_from ls find which create stat info exists cat cp mv rm mkdir rmdir touch du completions manpage help" -f -a "ls" -d 'List directory contents (like ls)'
-complete -c nofs -n "__fish_nofs_using_subcommand help; and not __fish_seen_subcommand_from ls find which create stat info exists cat cp mv rm mkdir rmdir touch du completions manpage help" -f -a "find" -d 'Find files matching a pattern'
-complete -c nofs -n "__fish_nofs_using_subcommand help; and not __fish_seen_subcommand_from ls find which create stat info exists cat cp mv rm mkdir rmdir touch du completions manpage help" -f -a "which" -d 'Find which branch contains a file'
-complete -c nofs -n "__fish_nofs_using_subcommand help; and not __fish_seen_subcommand_from ls find which create stat info exists cat cp mv rm mkdir rmdir touch du completions manpage help" -f -a "create" -d 'Get the best branch path for creating a new file'
-complete -c nofs -n "__fish_nofs_using_subcommand help; and not __fish_seen_subcommand_from ls find which create stat info exists cat cp mv rm mkdir rmdir touch du completions manpage help" -f -a "stat" -d 'Show filesystem statistics'
-complete -c nofs -n "__fish_nofs_using_subcommand help; and not __fish_seen_subcommand_from ls find which create stat info exists cat cp mv rm mkdir rmdir touch du completions manpage help" -f -a "info" -d 'Show share configuration and status'
-complete -c nofs -n "__fish_nofs_using_subcommand help; and not __fish_seen_subcommand_from ls find which create stat info exists cat cp mv rm mkdir rmdir touch du completions manpage help" -f -a "exists" -d 'Check if a file exists and return its location'
-complete -c nofs -n "__fish_nofs_using_subcommand help; and not __fish_seen_subcommand_from ls find which create stat info exists cat cp mv rm mkdir rmdir touch du completions manpage help" -f -a "cat" -d 'Read file content (from first found branch)'
-complete -c nofs -n "__fish_nofs_using_subcommand help; and not __fish_seen_subcommand_from ls find which create stat info exists cat cp mv rm mkdir rmdir touch du completions manpage help" -f -a "cp" -d 'Copy files/directories (supports nofs context paths)'
-complete -c nofs -n "__fish_nofs_using_subcommand help; and not __fish_seen_subcommand_from ls find which create stat info exists cat cp mv rm mkdir rmdir touch du completions manpage help" -f -a "mv" -d 'Move files/directories (supports nofs context paths)'
-complete -c nofs -n "__fish_nofs_using_subcommand help; and not __fish_seen_subcommand_from ls find which create stat info exists cat cp mv rm mkdir rmdir touch du completions manpage help" -f -a "rm" -d 'Remove files or directories'
-complete -c nofs -n "__fish_nofs_using_subcommand help; and not __fish_seen_subcommand_from ls find which create stat info exists cat cp mv rm mkdir rmdir touch du completions manpage help" -f -a "mkdir" -d 'Create directories'
-complete -c nofs -n "__fish_nofs_using_subcommand help; and not __fish_seen_subcommand_from ls find which create stat info exists cat cp mv rm mkdir rmdir touch du completions manpage help" -f -a "rmdir" -d 'Remove empty directories'
-complete -c nofs -n "__fish_nofs_using_subcommand help; and not __fish_seen_subcommand_from ls find which create stat info exists cat cp mv rm mkdir rmdir touch du completions manpage help" -f -a "touch" -d 'Create or update files'
-complete -c nofs -n "__fish_nofs_using_subcommand help; and not __fish_seen_subcommand_from ls find which create stat info exists cat cp mv rm mkdir rmdir touch du completions manpage help" -f -a "du" -d 'Show disk usage (recursive directory size calculation)'
-complete -c nofs -n "__fish_nofs_using_subcommand help; and not __fish_seen_subcommand_from ls find which create stat info exists cat cp mv rm mkdir rmdir touch du completions manpage help" -f -a "completions" -d 'Generate shell completion scripts'
-complete -c nofs -n "__fish_nofs_using_subcommand help; and not __fish_seen_subcommand_from ls find which create stat info exists cat cp mv rm mkdir rmdir touch du completions manpage help" -f -a "manpage" -d 'Generate man pages'
-complete -c nofs -n "__fish_nofs_using_subcommand help; and not __fish_seen_subcommand_from ls find which create stat info exists cat cp mv rm mkdir rmdir touch du completions manpage help" -f -a "help" -d 'Print this message or the help of the given subcommand(s)'
+complete -c nofs -n "__fish_nofs_using_subcommand help; and not __fish_seen_subcommand_from ls find which create stat info exists cat diff cmp df grep tree cp mv rm mkdir rmdir touch du completions manpage help" -f -a "ls" -d 'List directory contents (like ls)'
+complete -c nofs -n "__fish_nofs_using_subcommand help; and not __fish_seen_subcommand_from ls find which create stat info exists cat diff cmp df grep tree cp mv rm mkdir rmdir touch du completions manpage help" -f -a "find" -d 'Find files matching a pattern'
+complete -c nofs -n "__fish_nofs_using_subcommand help; and not __fish_seen_subcommand_from ls find which create stat info exists cat diff cmp df grep tree cp mv rm mkdir rmdir touch du completions manpage help" -f -a "which" -d 'Find which branch contains a file'
+complete -c nofs -n "__fish_nofs_using_subcommand help; and not __fish_seen_subcommand_from ls find which create stat info exists cat diff cmp df grep tree cp mv rm mkdir rmdir touch du completions manpage help" -f -a "create" -d 'Get the best branch path for creating a new file'
+complete -c nofs -n "__fish_nofs_using_subcommand help; and not __fish_seen_subcommand_from ls find which create stat info exists cat diff cmp df grep tree cp mv rm mkdir rmdir touch du completions manpage help" -f -a "stat" -d 'Show filesystem statistics'
+complete -c nofs -n "__fish_nofs_using_subcommand help; and not __fish_seen_subcommand_from ls find which create stat info exists cat diff cmp df grep tree cp mv rm mkdir rmdir touch du completions manpage help" -f -a "info" -d 'Show share configuration and status'
+complete -c nofs -n "__fish_nofs_using_subcommand help; and not __fish_seen_subcommand_from ls find which create stat info exists cat diff cmp df grep tree cp mv rm mkdir rmdir touch du completions manpage help" -f -a "exists" -d 'Check if a file exists and return its location'
+complete -c nofs -n "__fish_nofs_using_subcommand help; and not __fish_seen_subcommand_from ls find which create stat info exists cat diff cmp df grep tree cp mv rm mkdir rmdir touch du completions manpage help" -f -a "cat" -d 'Read file content (from first found branch)'
+complete -c nofs -n "__fish_nofs_using_subcommand help; and not __fish_seen_subcommand_from ls find which create stat info exists cat diff cmp df grep tree cp mv rm mkdir rmdir touch du completions manpage help" -f -a "diff" -d 'Show differences between branches'
+complete -c nofs -n "__fish_nofs_using_subcommand help; and not __fish_seen_subcommand_from ls find which create stat info exists cat diff cmp df grep tree cp mv rm mkdir rmdir touch du completions manpage help" -f -a "cmp" -d 'Compare files byte-by-byte'
+complete -c nofs -n "__fish_nofs_using_subcommand help; and not __fish_seen_subcommand_from ls find which create stat info exists cat diff cmp df grep tree cp mv rm mkdir rmdir touch du completions manpage help" -f -a "df" -d 'Show disk free space (df-like output)'
+complete -c nofs -n "__fish_nofs_using_subcommand help; and not __fish_seen_subcommand_from ls find which create stat info exists cat diff cmp df grep tree cp mv rm mkdir rmdir touch du completions manpage help" -f -a "grep" -d 'Search file contents across all branches (grep)'
+complete -c nofs -n "__fish_nofs_using_subcommand help; and not __fish_seen_subcommand_from ls find which create stat info exists cat diff cmp df grep tree cp mv rm mkdir rmdir touch du completions manpage help" -f -a "tree" -d 'Show directory tree structure'
+complete -c nofs -n "__fish_nofs_using_subcommand help; and not __fish_seen_subcommand_from ls find which create stat info exists cat diff cmp df grep tree cp mv rm mkdir rmdir touch du completions manpage help" -f -a "cp" -d 'Copy files/directories (supports nofs context paths)'
+complete -c nofs -n "__fish_nofs_using_subcommand help; and not __fish_seen_subcommand_from ls find which create stat info exists cat diff cmp df grep tree cp mv rm mkdir rmdir touch du completions manpage help" -f -a "mv" -d 'Move files/directories (supports nofs context paths)'
+complete -c nofs -n "__fish_nofs_using_subcommand help; and not __fish_seen_subcommand_from ls find which create stat info exists cat diff cmp df grep tree cp mv rm mkdir rmdir touch du completions manpage help" -f -a "rm" -d 'Remove files or directories'
+complete -c nofs -n "__fish_nofs_using_subcommand help; and not __fish_seen_subcommand_from ls find which create stat info exists cat diff cmp df grep tree cp mv rm mkdir rmdir touch du completions manpage help" -f -a "mkdir" -d 'Create directories'
+complete -c nofs -n "__fish_nofs_using_subcommand help; and not __fish_seen_subcommand_from ls find which create stat info exists cat diff cmp df grep tree cp mv rm mkdir rmdir touch du completions manpage help" -f -a "rmdir" -d 'Remove empty directories'
+complete -c nofs -n "__fish_nofs_using_subcommand help; and not __fish_seen_subcommand_from ls find which create stat info exists cat diff cmp df grep tree cp mv rm mkdir rmdir touch du completions manpage help" -f -a "touch" -d 'Create or update files'
+complete -c nofs -n "__fish_nofs_using_subcommand help; and not __fish_seen_subcommand_from ls find which create stat info exists cat diff cmp df grep tree cp mv rm mkdir rmdir touch du completions manpage help" -f -a "du" -d 'Show disk usage (recursive directory size calculation)'
+complete -c nofs -n "__fish_nofs_using_subcommand help; and not __fish_seen_subcommand_from ls find which create stat info exists cat diff cmp df grep tree cp mv rm mkdir rmdir touch du completions manpage help" -f -a "completions" -d 'Generate shell completion scripts'
+complete -c nofs -n "__fish_nofs_using_subcommand help; and not __fish_seen_subcommand_from ls find which create stat info exists cat diff cmp df grep tree cp mv rm mkdir rmdir touch du completions manpage help" -f -a "manpage" -d 'Generate man pages'
+complete -c nofs -n "__fish_nofs_using_subcommand help; and not __fish_seen_subcommand_from ls find which create stat info exists cat diff cmp df grep tree cp mv rm mkdir rmdir touch du completions manpage help" -f -a "help" -d 'Print this message or the help of the given subcommand(s)'

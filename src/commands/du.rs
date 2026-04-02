@@ -47,12 +47,7 @@ struct DuBranchData {
 /// # Errors
 ///
 /// Returns an error if there is an IO error during output or path traversal.
-pub fn execute(
-    pool: &Pool,
-    pool_path: &str,
-    options: DuOptions,
-    max_depth: Option<usize>,
-) -> Result<()> {
+pub fn execute(pool: &Pool, pool_path: &str, options: DuOptions, max_depth: Option<usize>) -> Result<()> {
     let stdout = io::stdout();
     let mut handle = stdout.lock();
 

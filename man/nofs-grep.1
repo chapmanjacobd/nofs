@@ -1,0 +1,49 @@
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.TH grep 1  "grep " 
+.SH NAME
+grep \- Search file contents across all branches (grep)
+.SH SYNOPSIS
+\fBgrep\fR [\fB\-i\fR|\fB\-\-ignore\-case\fR] [\fB\-\-invert\-match\fR] [\fB\-n\fR|\fB\-\-line\-number\fR] [\fB\-l\fR|\fB\-\-files\-with\-matches\fR] [\fB\-r\fR|\fB\-\-recursive\fR] [\fB\-h\fR|\fB\-\-help\fR] <\fIPATTERN\fR> <\fIPATHS\fR> 
+.SH DESCRIPTION
+Search file contents across all branches (grep)
+.SH OPTIONS
+.TP
+\fB\-i\fR, \fB\-\-ignore\-case\fR
+Case\-insensitive search
+.TP
+\fB\-\-invert\-match\fR
+Invert match (show non\-matching lines)
+.TP
+\fB\-n\fR, \fB\-\-line\-number\fR
+Show line numbers
+.TP
+\fB\-l\fR, \fB\-\-files\-with\-matches\fR
+Show only filenames with matches
+.TP
+\fB\-r\fR, \fB\-\-recursive\fR
+Recursive search (for directories)
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print help
+.TP
+<\fIPATTERN\fR>
+Pattern to search for
+.TP
+<\fIPATHS\fR>
+Path(s) to search within (format: [context:]path)
+.SH EXTRA
+EXAMPLES:
+    nofs grep media:/ error                # Search for \*(Aqerror\*(Aq in media:/
+    nofs grep \-r media:/ "TODO"            # Recursive search
+    nofs grep \-i media:/ warning           # Case\-insensitive search
+    nofs grep \-l media:/ config            # Show only filenames
+    nofs grep \-v media:/ debug             # Invert match (lines without \*(Aqdebug\*(Aq)
+    nofs grep \-\-json media:/ pattern       # JSON output
+
+OPTIONS:
+    \-i, \-\-ignore\-case       Case\-insensitive search
+    \-v, \-\-invert\-match      Invert match (show non\-matching lines)
+    \-n, \-\-line\-number       Show line numbers
+    \-l, \-\-files\-with\-matches  Show only filenames
+    \-r, \-\-recursive         Search recursively in directories

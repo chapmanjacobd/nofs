@@ -965,11 +965,6 @@ fn destination_exists(destination: &str, share: Option<&Pool>, cache: &Operation
     Ok(resolve_path(destination, share, true, cache)?.path.exists())
 }
 
-#[allow(
-    clippy::too_many_lines,
-    clippy::used_underscore_binding,
-    clippy::only_used_in_recursion
-)]
 /// Process a source path and copy/move to destination
 ///
 /// Recursively handles directories and applies conflict resolution strategies.
@@ -979,6 +974,7 @@ fn destination_exists(destination: &str, share: Option<&Pool>, cache: &Operation
 /// # Errors
 ///
 /// Returns an error if the file/folder cannot be copied or moved.
+// Note: This function is used in indirect recursion (process_directory -> process_source_contents -> process_source)
 fn process_source(source: &Path, dest: &Path, config: &CopyConfig, stats: &Arc<CopyStats>) -> Result<()> {
     let source_is_dir = source.is_dir();
     let dest_exists = dest.exists();
@@ -1369,14 +1365,7 @@ fn handle_file_over_file(source: &Path, dest: &Path, config: &CopyConfig, stats:
         source_created,
         dest_created,
     };
-    match evaluate_rules(
-        strategy,
-        &cmp,
-        config,
-        source,
-        dest,
-        stats,
-    )? {
+    match evaluate_rules(strategy, &cmp, config, source, dest, stats)? {
         RuleResult::Skip | RuleResult::DeleteDest | RuleResult::DeleteSrc => return Ok(()),
         RuleResult::NoMatch => {
             // No rules matched, apply required fallback
@@ -1675,13 +1664,6 @@ fn process_source_contents(source: &Path, dest: &Path, config: &CopyConfig, stat
 ///
 /// Uses atomic file creation to avoid TOCTOU race conditions when multiple
 /// threads are generating unique filenames concurrently.
-#[allow(
-    clippy::option_if_let_else,
-    clippy::indexing_slicing,
-    clippy::arithmetic_side_effects,
-    clippy::redundant_closure_for_method_calls,
-    clippy::doc_markdown
-)]
 fn get_unique_filename(base: &Path) -> PathBuf {
     // Quick check: if base doesn't exist, use it directly
     if !base.exists() {
@@ -1704,13 +1686,17 @@ fn get_unique_filename(base: &Path) -> PathBuf {
         let file_name_bytes = file_name.as_bytes();
 
         // Find extension (last '.' in filename)
+        #[allow(clippy::option_if_let_else)]
         let (stem_bytes, ext_bytes) = if let Some(last_dot) = file_name_bytes.iter().rposition(|&b| b == b'.') {
+            #[allow(clippy::indexing_slicing)]
             if last_dot > 0 {
                 (&file_name_bytes[..last_dot], &file_name_bytes[last_dot..])
             } else {
+                #[allow(clippy::indexing_slicing)]
                 (file_name_bytes, &file_name_bytes[0..0])
             }
         } else {
+            #[allow(clippy::indexing_slicing)]
             (file_name_bytes, &file_name_bytes[0..0])
         };
 
@@ -1718,6 +1704,7 @@ fn get_unique_filename(base: &Path) -> PathBuf {
         let (base_stem, start_idx) = find_suffix_and_index_bytes(stem_bytes);
 
         // Try sequential numbers starting from start_idx
+        #[allow(clippy::arithmetic_side_effects)]
         for i in start_idx.. {
             let mut new_name = Vec::with_capacity(base_stem.len() + ext_bytes.len() + 10);
             new_name.extend_from_slice(base_stem);
@@ -1763,6 +1750,7 @@ fn get_unique_filename(base: &Path) -> PathBuf {
 
         let (base_name, start_idx) = find_suffix_and_index(file_stem);
 
+        #[allow(clippy::option_if_let_else)]
         for i in start_idx.. {
             let new_name = if extension.is_empty() {
                 format!("{base_name}_{i}")
@@ -1790,28 +1778,24 @@ fn get_unique_filename(base: &Path) -> PathBuf {
     }
 }
 
-/// Find the base name and next index from a file stem (as bytes) that may have a _N suffix
+/// Find the base name and next index from a file stem (as bytes) that may have a `_N` suffix
 ///
 /// Handles cases like:
-/// - "file" -> ("file", 1)
-/// - "file_1" -> ("file", 2)
-/// - "file_1_2" -> ("file_1", 3)
-/// - "file_name_999" -> ("file_name", 1000)
+/// - `"file"` -> `("file", 1)`
+/// - `"file_1"` -> `("file", 2)`
+/// - `"file_1_2"` -> `("file_1", 3)`
+/// - `"file_name_999"` -> `("file_name", 1000)`
 #[must_use]
 #[cfg(unix)]
-#[allow(
-    clippy::indexing_slicing,
-    clippy::arithmetic_side_effects,
-    clippy::redundant_closure_for_method_calls,
-    clippy::doc_markdown
-)]
 fn find_suffix_and_index_bytes(stem: &[u8]) -> (&[u8], u32) {
     // Find the last underscore and check if what follows is a number
     if let Some(last_underscore) = stem.iter().rposition(|&b| b == b'_') {
+        #[allow(clippy::indexing_slicing, clippy::arithmetic_side_effects)]
         let suffix = &stem[last_underscore + 1..];
         // Check if suffix is all ASCII digits
         if !suffix.is_empty() && suffix.iter().all(u8::is_ascii_digit) {
             if let Some(num) = std::str::from_utf8(suffix).ok().and_then(|s| s.parse::<u32>().ok()) {
+                #[allow(clippy::arithmetic_side_effects, clippy::indexing_slicing)]
                 return (&stem[..last_underscore], num + 1);
             }
         }
@@ -1820,20 +1804,22 @@ fn find_suffix_and_index_bytes(stem: &[u8]) -> (&[u8], u32) {
     (stem, 1)
 }
 
-/// Find the base name and next index from a file stem (as string) that may have a _N suffix
+/// Find the base name and next index from a file stem (as string) that may have a `_N` suffix
 ///
 /// Handles cases like:
-/// - "file" -> ("file", 1)
-/// - "file_1" -> ("file", 2)
-/// - "file_1_2" -> ("file_1", 3)
-/// - "file_name_999" -> ("file_name", 1000)
+/// - `"file"` -> `("file", 1)`
+/// - `"file_1"` -> `("file", 2)`
+/// - `"file_1_2"` -> `("file_1", 3)`
+/// - `"file_name_999"` -> `("file_name", 1000)`
 #[must_use]
 #[cfg(not(unix))]
 fn find_suffix_and_index(file_stem: &str) -> (&str, u32) {
     // Find the last underscore and check if what follows is a number
     if let Some(last_underscore) = file_stem.rfind('_') {
+        #[allow(clippy::indexing_slicing)]
         let suffix = &file_stem[last_underscore + 1..];
         if let Ok(num) = suffix.parse::<u32>() {
+            #[allow(clippy::indexing_slicing, clippy::arithmetic_side_effects)]
             return (&file_stem[..last_underscore], num + 1);
         }
     }
@@ -1850,11 +1836,6 @@ fn find_suffix_and_index(file_stem: &str) -> (&str, u32) {
 /// Returns a path with a unique folder name that doesn't exist on disk.
 ///
 /// Uses atomic directory creation to avoid TOCTOU race conditions.
-#[allow(
-    clippy::indexing_slicing,
-    clippy::arithmetic_side_effects,
-    clippy::redundant_closure_for_method_calls
-)]
 fn get_unique_folder_name(base: &Path) -> PathBuf {
     if !base.exists() {
         return base.to_path_buf();
@@ -1878,6 +1859,7 @@ fn get_unique_folder_name(base: &Path) -> PathBuf {
         // Try to parse existing _N suffix from folder name
         let (base_name, start_idx) = find_suffix_and_index_bytes(folder_name_bytes);
 
+        #[allow(clippy::arithmetic_side_effects)]
         for i in start_idx.. {
             let mut new_name = Vec::with_capacity(base_name.len() + 10);
             new_name.extend_from_slice(base_name);

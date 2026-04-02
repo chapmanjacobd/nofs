@@ -387,7 +387,7 @@ OPTIONS:
         ignore_case: bool,
 
         /// Invert match (show non-matching lines).
-        #[arg(short = 'v', long)]
+        #[arg(long)]
         invert_match: bool,
 
         /// Show line numbers.
@@ -961,11 +961,26 @@ fn handle_early_commands(cli: &Cli) -> Result<bool> {
             handle_manpage_command(subcommand.as_ref(), outdir)?;
             Ok(true)
         }
-        Commands::Ls { .. } | Commands::Find { .. } | Commands::Which { .. } | Commands::Create { .. } |
-        Commands::Stat { .. } | Commands::Info { .. } | Commands::Exists { .. } | Commands::Cat { .. } |
-        Commands::Diff { .. } | Commands::Cmp { .. } | Commands::Df { .. } | Commands::Grep { .. } |
-        Commands::Tree { .. } | Commands::Cp { .. } | Commands::Mv { .. } | Commands::Rm { .. } |
-        Commands::Mkdir { .. } | Commands::Rmdir { .. } | Commands::Touch { .. } | Commands::Du { .. } => Ok(false),
+        Commands::Ls { .. }
+        | Commands::Find { .. }
+        | Commands::Which { .. }
+        | Commands::Create { .. }
+        | Commands::Stat { .. }
+        | Commands::Info { .. }
+        | Commands::Exists { .. }
+        | Commands::Cat { .. }
+        | Commands::Diff { .. }
+        | Commands::Cmp { .. }
+        | Commands::Df { .. }
+        | Commands::Grep { .. }
+        | Commands::Tree { .. }
+        | Commands::Cp { .. }
+        | Commands::Mv { .. }
+        | Commands::Rm { .. }
+        | Commands::Mkdir { .. }
+        | Commands::Rmdir { .. }
+        | Commands::Touch { .. }
+        | Commands::Du { .. } => Ok(false),
     }
 }
 
@@ -1000,8 +1015,8 @@ fn generate_single_man_page(subcmd_name: &str, outdir_path: &Path) -> Result<()>
     let man = clap_mangen::Man::new(subcmd.clone());
     let filename = format!("nofs-{subcmd_name}.1");
     let filepath = outdir_path.join(&filename);
-    let mut file = fs::File::create(&filepath)
-        .map_err(|e| NofsError::Command(format!("Failed to create {filename}: {e}")))?;
+    let mut file =
+        fs::File::create(&filepath).map_err(|e| NofsError::Command(format!("Failed to create {filename}: {e}")))?;
     man.render(&mut file)
         .map_err(|e| NofsError::Command(format!("Failed to render man page for {subcmd_name}: {e}")))?;
     eprintln!("Generated: {filename}");
@@ -1044,9 +1059,7 @@ fn generate_all_man_pages(outdir_path: &Path) -> Result<()> {
 fn run_main_commands(cli: &Cli, pool_mgr: &pool::PoolManager) -> Result<()> {
     let command = cli.command.clone();
     match command {
-        Commands::Ls { .. } | Commands::Find { .. } | Commands::Which { .. } => {
-            run_query_commands(cli, pool_mgr)
-        }
+        Commands::Ls { .. } | Commands::Find { .. } | Commands::Which { .. } => run_query_commands(cli, pool_mgr),
         Commands::Create { .. } | Commands::Exists { .. } | Commands::Cat { .. } => {
             run_simple_path_commands(cli, pool_mgr)
         }
@@ -1068,9 +1081,9 @@ fn run_main_commands(cli: &Cli, pool_mgr: &pool::PoolManager) -> Result<()> {
 }
 
 /// Run query commands (ls, find, which)
-#[allow(clippy::wildcard_enum_match_arm)]
 fn run_query_commands(cli: &Cli, pool_mgr: &pool::PoolManager) -> Result<()> {
     let command = cli.command.clone();
+    #[allow(clippy::wildcard_enum_match_arm)]
     match command {
         Commands::Ls {
             ls_paths,
@@ -1122,19 +1135,28 @@ fn run_query_commands(cli: &Cli, pool_mgr: &pool::PoolManager) -> Result<()> {
         } => {
             for path in &which_paths {
                 let (pool, pool_path) = pool_mgr.resolve_context_path(path)?;
-                commands::which::execute(pool, pool_path, commands::which::WhichOptions { all, verbose: cli.verbose, conflicts, hash, json: cli.json })?;
+                commands::which::execute(
+                    pool,
+                    pool_path,
+                    commands::which::WhichOptions {
+                        all,
+                        verbose: cli.verbose,
+                        conflicts,
+                        hash,
+                        json: cli.json,
+                    },
+                )?;
             }
         }
-        #[allow(clippy::wildcard_enum_match_arm)]
         _ => {}
     }
     Ok(())
 }
 
 /// Run simple path commands (create, exists, cat)
-#[allow(clippy::wildcard_enum_match_arm)]
 fn run_simple_path_commands(cli: &Cli, pool_mgr: &pool::PoolManager) -> Result<()> {
     let command = cli.command.clone();
+    #[allow(clippy::wildcard_enum_match_arm)]
     match command {
         Commands::Create { create_paths } => {
             for path in &create_paths {
@@ -1154,7 +1176,6 @@ fn run_simple_path_commands(cli: &Cli, pool_mgr: &pool::PoolManager) -> Result<(
                 commands::cat::execute(pool, pool_path, cli.verbose)?;
             }
         }
-        #[allow(clippy::wildcard_enum_match_arm)]
         _ => {}
     }
     Ok(())
@@ -1162,20 +1183,31 @@ fn run_simple_path_commands(cli: &Cli, pool_mgr: &pool::PoolManager) -> Result<(
 
 /// Run stat command
 fn run_stat_command(cli: &Cli, pool_mgr: &pool::PoolManager) -> Result<()> {
-    let Commands::Stat { path, human } = cli.command.clone() else { return Ok(()) };
+    let Commands::Stat { path, human } = cli.command.clone() else {
+        return Ok(());
+    };
     let pool = if let Some(p) = &path {
         let (pool, _) = pool_mgr.resolve_context_path(p)?;
         pool
     } else {
         pool_mgr.default_pool()?
     };
-    commands::stat::execute(pool, commands::stat::StatOptions { human, verbose: cli.verbose, json: cli.json })?;
+    commands::stat::execute(
+        pool,
+        commands::stat::StatOptions {
+            human,
+            verbose: cli.verbose,
+            json: cli.json,
+        },
+    )?;
     Ok(())
 }
 
 /// Run info command
 fn run_info_command(cli: &Cli, pool_mgr: &pool::PoolManager) -> Result<()> {
-    let Commands::Info { context } = cli.command.clone() else { return Ok(()) };
+    let Commands::Info { context } = cli.command.clone() else {
+        return Ok(());
+    };
     if let Some(ctx) = &context {
         let pool = pool_mgr.get_pool(ctx)?;
         commands::info::execute_single(pool, cli.verbose, cli.json)?;
@@ -1186,9 +1218,9 @@ fn run_info_command(cli: &Cli, pool_mgr: &pool::PoolManager) -> Result<()> {
 }
 
 /// Run diff commands (diff, cmp)
-#[allow(clippy::wildcard_enum_match_arm)]
 fn run_diff_commands(cli: &Cli, pool_mgr: &pool::PoolManager) -> Result<()> {
     let command = cli.command.clone();
+    #[allow(clippy::wildcard_enum_match_arm)]
     match command {
         Commands::Diff {
             diff_path,
@@ -1196,7 +1228,15 @@ fn run_diff_commands(cli: &Cli, pool_mgr: &pool::PoolManager) -> Result<()> {
             verbose,
         } => {
             let (pool, pool_path) = pool_mgr.resolve_context_path(&diff_path)?;
-            commands::diff::execute(pool, pool_path, commands::diff::DiffOptions { verbose, hash, json: cli.json })?;
+            commands::diff::execute(
+                pool,
+                pool_path,
+                commands::diff::DiffOptions {
+                    verbose,
+                    hash,
+                    json: cli.json,
+                },
+            )?;
         }
         Commands::Cmp { cmp_path, verbose } => {
             let (pool, pool_path) = pool_mgr.resolve_context_path(&cmp_path)?;
@@ -1211,7 +1251,6 @@ fn run_diff_commands(cli: &Cli, pool_mgr: &pool::PoolManager) -> Result<()> {
                 },
             )?;
         }
-        #[allow(clippy::wildcard_enum_match_arm)]
         _ => {}
     }
     Ok(())
@@ -1219,7 +1258,9 @@ fn run_diff_commands(cli: &Cli, pool_mgr: &pool::PoolManager) -> Result<()> {
 
 /// Run df command
 fn run_df_command(cli: &Cli, pool_mgr: &pool::PoolManager) -> Result<()> {
-    let Commands::Df { context, human, total } = cli.command.clone() else { return Ok(()) };
+    let Commands::Df { context, human, total } = cli.command.clone() else {
+        return Ok(());
+    };
     commands::df::execute(
         pool_mgr,
         context.as_deref(),
@@ -1467,7 +1508,9 @@ fn run_mkdir_command(cli: &Cli, pool_mgr: &pool::PoolManager) -> Result<()> {
 
 /// Run rmdir command
 fn run_rmdir_command(cli: &Cli, pool_mgr: &pool::PoolManager) -> Result<()> {
-    let Commands::Rmdir { rmdir_paths, verbose } = cli.command.clone() else { return Ok(()) };
+    let Commands::Rmdir { rmdir_paths, verbose } = cli.command.clone() else {
+        return Ok(());
+    };
     for path in &rmdir_paths {
         let (pool, pool_path) = pool_mgr.resolve_context_path(path)?;
         commands::rmdir::execute(pool, pool_path, verbose || cli.verbose)?;
@@ -1477,7 +1520,9 @@ fn run_rmdir_command(cli: &Cli, pool_mgr: &pool::PoolManager) -> Result<()> {
 
 /// Run touch command
 fn run_touch_command(cli: &Cli, pool_mgr: &pool::PoolManager) -> Result<()> {
-    let Commands::Touch { touch_paths, verbose } = cli.command.clone() else { return Ok(()) };
+    let Commands::Touch { touch_paths, verbose } = cli.command.clone() else {
+        return Ok(());
+    };
     for path in &touch_paths {
         let (pool, pool_path) = pool_mgr.resolve_context_path(path)?;
         commands::touch::execute(pool, pool_path, verbose || cli.verbose)?;
@@ -1498,7 +1543,17 @@ fn run_du_command(cli: &Cli, pool_mgr: &pool::PoolManager) -> Result<()> {
     };
     for path in &du_paths {
         let (pool, pool_path) = pool_mgr.resolve_context_path(path)?;
-        commands::du::execute(pool, pool_path, commands::du::DuOptions { human, all, json: cli.json, verbose: cli.verbose }, maxdepth)?;
+        commands::du::execute(
+            pool,
+            pool_path,
+            commands::du::DuOptions {
+                human,
+                all,
+                json: cli.json,
+                verbose: cli.verbose,
+            },
+            maxdepth,
+        )?;
     }
     Ok(())
 }

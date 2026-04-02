@@ -50,12 +50,7 @@ pub struct GrepOptions {
 /// # Errors
 ///
 /// Returns an error if there is an IO error during search or output.
-pub fn execute(
-    pool: &Pool,
-    path: &str,
-    pattern: &str,
-    options: &GrepOptions,
-) -> Result<()> {
+pub fn execute(pool: &Pool, path: &str, pattern: &str, options: &GrepOptions) -> Result<()> {
     let pool_path = Path::new(path);
 
     // Create operation cache for this command execution

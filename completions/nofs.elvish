@@ -38,6 +38,11 @@ set edit:completion:arg-completer[nofs] = {|@words|
             cand info 'Show share configuration and status'
             cand exists 'Check if a file exists and return its location'
             cand cat 'Read file content (from first found branch)'
+            cand diff 'Show differences between branches'
+            cand cmp 'Compare files byte-by-byte'
+            cand df 'Show disk free space (df-like output)'
+            cand grep 'Search file contents across all branches (grep)'
+            cand tree 'Show directory tree structure'
             cand cp 'Copy files/directories (supports nofs context paths)'
             cand mv 'Move files/directories (supports nofs context paths)'
             cand rm 'Remove files or directories'
@@ -168,6 +173,100 @@ set edit:completion:arg-completer[nofs] = {|@words|
             cand --paths 'Comma-separated list of branch paths (ad-hoc mode) Format: /path1,/path2 or /path1=RW,/path2=RO'
             cand --policy 'Policy to use for branch selection'
             cand --minfreespace 'Minimum free space required on branch (e.g., "4G", "100M")'
+            cand -v 'Verbose output (print decision steps to stderr)'
+            cand --verbose 'Verbose output (print decision steps to stderr)'
+            cand --json 'Output in JSON format (for scripting/automation)'
+            cand -h 'Print help'
+            cand --help 'Print help'
+            cand -V 'Print version'
+            cand --version 'Print version'
+        }
+        &'nofs;diff'= {
+            cand -c 'Path to configuration file'
+            cand --config 'Path to configuration file'
+            cand --paths 'Comma-separated list of branch paths (ad-hoc mode) Format: /path1,/path2 or /path1=RW,/path2=RO'
+            cand --policy 'Policy to use for branch selection'
+            cand --minfreespace 'Minimum free space required on branch (e.g., "4G", "100M")'
+            cand -H 'Use hash comparison for conflict detection (slower but more accurate)'
+            cand --hash 'Use hash comparison for conflict detection (slower but more accurate)'
+            cand -v 'Verbose output (show timestamps and hashes)'
+            cand --verbose 'Verbose output (show timestamps and hashes)'
+            cand --json 'Output in JSON format (for scripting/automation)'
+            cand -h 'Print help'
+            cand --help 'Print help'
+            cand -V 'Print version'
+            cand --version 'Print version'
+        }
+        &'nofs;cmp'= {
+            cand -c 'Path to configuration file'
+            cand --config 'Path to configuration file'
+            cand --paths 'Comma-separated list of branch paths (ad-hoc mode) Format: /path1,/path2 or /path1=RW,/path2=RO'
+            cand --policy 'Policy to use for branch selection'
+            cand --minfreespace 'Minimum free space required on branch (e.g., "4G", "100M")'
+            cand -v 'Verbose output (print message if files are identical)'
+            cand --verbose 'Verbose output (print message if files are identical)'
+            cand --json 'Output in JSON format (for scripting/automation)'
+            cand -h 'Print help'
+            cand --help 'Print help'
+            cand -V 'Print version'
+            cand --version 'Print version'
+        }
+        &'nofs;df'= {
+            cand -c 'Path to configuration file'
+            cand --config 'Path to configuration file'
+            cand --paths 'Comma-separated list of branch paths (ad-hoc mode) Format: /path1,/path2 or /path1=RW,/path2=RO'
+            cand --policy 'Policy to use for branch selection'
+            cand --minfreespace 'Minimum free space required on branch (e.g., "4G", "100M")'
+            cand -H 'Show human-readable sizes (K, M, G)'
+            cand --human 'Show human-readable sizes (K, M, G)'
+            cand -T 'Show total for all branches'
+            cand --total 'Show total for all branches'
+            cand -v 'Verbose output (print decision steps to stderr)'
+            cand --verbose 'Verbose output (print decision steps to stderr)'
+            cand --json 'Output in JSON format (for scripting/automation)'
+            cand -h 'Print help'
+            cand --help 'Print help'
+            cand -V 'Print version'
+            cand --version 'Print version'
+        }
+        &'nofs;grep'= {
+            cand -c 'Path to configuration file'
+            cand --config 'Path to configuration file'
+            cand --paths 'Comma-separated list of branch paths (ad-hoc mode) Format: /path1,/path2 or /path1=RW,/path2=RO'
+            cand --policy 'Policy to use for branch selection'
+            cand --minfreespace 'Minimum free space required on branch (e.g., "4G", "100M")'
+            cand -i 'Case-insensitive search'
+            cand --ignore-case 'Case-insensitive search'
+            cand --invert-match 'Invert match (show non-matching lines)'
+            cand -n 'Show line numbers'
+            cand --line-number 'Show line numbers'
+            cand -l 'Show only filenames with matches'
+            cand --files-with-matches 'Show only filenames with matches'
+            cand -r 'Recursive search (for directories)'
+            cand --recursive 'Recursive search (for directories)'
+            cand -v 'Verbose output (print decision steps to stderr)'
+            cand --verbose 'Verbose output (print decision steps to stderr)'
+            cand --json 'Output in JSON format (for scripting/automation)'
+            cand -h 'Print help'
+            cand --help 'Print help'
+            cand -V 'Print version'
+            cand --version 'Print version'
+        }
+        &'nofs;tree'= {
+            cand --max-depth 'Maximum depth to display'
+            cand -c 'Path to configuration file'
+            cand --config 'Path to configuration file'
+            cand --paths 'Comma-separated list of branch paths (ad-hoc mode) Format: /path1,/path2 or /path1=RW,/path2=RO'
+            cand --policy 'Policy to use for branch selection'
+            cand --minfreespace 'Minimum free space required on branch (e.g., "4G", "100M")'
+            cand -a 'Show all branches for each file'
+            cand --all-branches 'Show all branches for each file'
+            cand -d 'Show directories only'
+            cand --directories 'Show directories only'
+            cand -f 'Show files only'
+            cand --files 'Show files only'
+            cand -H 'Human-readable file sizes'
+            cand --human 'Human-readable file sizes'
             cand -v 'Verbose output (print decision steps to stderr)'
             cand --verbose 'Verbose output (print decision steps to stderr)'
             cand --json 'Output in JSON format (for scripting/automation)'
@@ -359,6 +458,11 @@ set edit:completion:arg-completer[nofs] = {|@words|
             cand info 'Show share configuration and status'
             cand exists 'Check if a file exists and return its location'
             cand cat 'Read file content (from first found branch)'
+            cand diff 'Show differences between branches'
+            cand cmp 'Compare files byte-by-byte'
+            cand df 'Show disk free space (df-like output)'
+            cand grep 'Search file contents across all branches (grep)'
+            cand tree 'Show directory tree structure'
             cand cp 'Copy files/directories (supports nofs context paths)'
             cand mv 'Move files/directories (supports nofs context paths)'
             cand rm 'Remove files or directories'
@@ -385,6 +489,16 @@ set edit:completion:arg-completer[nofs] = {|@words|
         &'nofs;help;exists'= {
         }
         &'nofs;help;cat'= {
+        }
+        &'nofs;help;diff'= {
+        }
+        &'nofs;help;cmp'= {
+        }
+        &'nofs;help;df'= {
+        }
+        &'nofs;help;grep'= {
+        }
+        &'nofs;help;tree'= {
         }
         &'nofs;help;cp'= {
         }

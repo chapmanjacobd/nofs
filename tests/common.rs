@@ -71,8 +71,7 @@ impl TestContext {
     ///
     /// Panics if the command cannot be executed.
     #[must_use]
-    #[allow(clippy::unused_self)]
-    pub fn run_nofs(&self, args: &[&str]) -> CommandOutput {
+    pub fn run_nofs(args: &[&str]) -> CommandOutput {
         let mut cmd = Command::new(env!("CARGO_BIN_EXE_nofs"));
         for arg in args {
             cmd.arg(arg);

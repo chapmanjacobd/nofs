@@ -29,7 +29,7 @@ search_policy = "ff"
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "info", "media"]);
+        let output = TestContext::run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "info", "media"]);
 
         assert!(output.success(), "Command failed: {}", output.stderr);
         assert!(output.stdout.contains("Share: media"));
@@ -55,7 +55,7 @@ create_policy = "mfs"
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "info", "test"]);
+        let output = TestContext::run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "info", "test"]);
 
         assert!(output.success(), "Command failed: {}", output.stderr);
         assert!(output.stdout.contains("[RW]"));
@@ -81,7 +81,7 @@ create_policy = "mfs"
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "info", "test"]);
+        let output = TestContext::run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "info", "test"]);
 
         assert!(output.success(), "Command failed: {}", output.stderr);
         assert!(output.stdout.contains("[RW]"));
@@ -112,7 +112,7 @@ create_policy = "mfs"
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "info"]);
+        let output = TestContext::run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "info"]);
 
         assert!(output.success(), "Command failed: {}", output.stderr);
         assert!(output.stdout.contains("media:"));
@@ -141,7 +141,7 @@ create_policy = "pfrd"
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "info", "test"]);
+        let output = TestContext::run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "info", "test"]);
 
         assert!(output.success(), "Command failed: {}", output.stderr);
         assert!(output.stdout.contains("Branches:     4"));
@@ -167,7 +167,7 @@ create_policy = "pfrd"
         ctx.write_config(&config);
 
         // Test context:path syntax
-        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "ls", "media:movies"]);
+        let output = TestContext::run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "ls", "media:movies"]);
 
         assert!(output.success(), "Command failed: {}", output.stderr);
         assert!(output.stdout.contains("big_buck_bunny.mkv"));
@@ -193,7 +193,7 @@ create_policy = "mfs"
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "info", "test"]);
+        let output = TestContext::run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "info", "test"]);
 
         assert!(output.success(), "Command failed: {}", output.stderr);
         assert!(output.stdout.contains("Min Free Space: 1000000000 bytes"));
@@ -213,7 +213,7 @@ paths = []
 
         ctx.write_config(config);
 
-        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "info", "test"]);
+        let output = TestContext::run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "info", "test"]);
 
         // Should handle gracefully (either succeed with 0 branches or fail gracefully)
         assert!(output.success() || !output.success());
@@ -231,7 +231,7 @@ paths = ['/nonexistent/path/that/does/not/exist']
 
         ctx.write_config(config);
 
-        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "info", "test"]);
+        let output = TestContext::run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "info", "test"]);
 
         // Should handle gracefully
         assert!(output.success() || !output.success());
@@ -249,7 +249,7 @@ paths = ['/path']
 
         ctx.write_config(config);
 
-        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "info", "test"]);
+        let output = TestContext::run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "info", "test"]);
 
         // Should fail gracefully
         assert!(!output.success());
@@ -267,7 +267,7 @@ key = "value"
 
         ctx.write_config(config);
 
-        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "info"]);
+        let output = TestContext::run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "info"]);
 
         // Should handle gracefully (may show no shares)
         assert!(output.success() || !output.success());
@@ -291,7 +291,7 @@ create_policy = "invalid_policy"
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "create", "test:file.txt"]);
+        let output = TestContext::run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "create", "test:file.txt"]);
 
         // Should fail due to invalid policy
         assert!(!output.success());
@@ -314,7 +314,7 @@ paths = ['{0}/disk1', '{0}/disk1']
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "stat", "-H"]);
+        let output = TestContext::run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "stat", "-H"]);
 
         // Should handle gracefully (may count twice or deduplicate)
         assert!(output.success() || !output.success());
@@ -341,7 +341,7 @@ paths = {}
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "info", "test"]);
+        let output = TestContext::run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "info", "test"]);
 
         assert!(output.success(), "Command failed: {}", output.stderr);
         assert!(output.stdout.contains("Branches:     10"));
@@ -372,7 +372,7 @@ minfreespace = "100M"
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "info", "test"]);
+        let output = TestContext::run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "info", "test"]);
 
         assert!(output.success(), "Command failed: {}", output.stderr);
         assert!(output.stdout.contains("Branches:     4"));
@@ -397,7 +397,7 @@ paths = ['{0}']
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "stat", "-H"]);
+        let output = TestContext::run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "stat", "-H"]);
 
         assert!(output.success(), "Command failed: {}", output.stderr);
     }
@@ -420,7 +420,7 @@ paths = ['{0}']
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "info", "test"]);
+        let output = TestContext::run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "info", "test"]);
 
         assert!(output.success(), "Command failed: {}", output.stderr);
     }
@@ -443,7 +443,7 @@ create_policy = "mfs"
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "create", "test:file.txt"]);
+        let output = TestContext::run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "create", "test:file.txt"]);
 
         assert!(output.success(), "Command failed: {}", output.stderr);
     }
@@ -467,7 +467,7 @@ create_policy = "mfs"
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "create", "test:file.txt"]);
+        let output = TestContext::run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "create", "test:file.txt"]);
 
         // Should fail - no branch has enough space
         assert!(!output.success());
@@ -487,7 +487,7 @@ create_policy = "mfs"
 
         ctx.write_config(config);
 
-        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "info", "test"]);
+        let output = TestContext::run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "info", "test"]);
 
         // Should fail or handle gracefully
         assert!(output.success() || !output.success());
@@ -509,7 +509,7 @@ paths = ['{0}/disk1']
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "info", "test"]);
+        let output = TestContext::run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "info", "test"]);
 
         assert!(output.success(), "Command failed: {}", output.stderr);
         assert!(output.stdout.contains("Branches:     1"));
@@ -535,7 +535,7 @@ create_policy = "mfs"  # policy comment
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "info", "test"]);
+        let output = TestContext::run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "info", "test"]);
 
         assert!(output.success(), "Command failed: {}", output.stderr);
     }

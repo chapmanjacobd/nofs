@@ -1,0 +1,45 @@
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.TH tree 1  "tree " 
+.SH NAME
+tree \- Show directory tree structure
+.SH SYNOPSIS
+\fBtree\fR [\fB\-a\fR|\fB\-\-all\-branches\fR] [\fB\-\-max\-depth\fR] [\fB\-d\fR|\fB\-\-directories\fR] [\fB\-f\fR|\fB\-\-files\fR] [\fB\-H\fR|\fB\-\-human\fR] [\fB\-h\fR|\fB\-\-help\fR] <\fIPATH\fR> 
+.SH DESCRIPTION
+Show directory tree structure
+.SH OPTIONS
+.TP
+\fB\-a\fR, \fB\-\-all\-branches\fR
+Show all branches for each file
+.TP
+\fB\-\-max\-depth\fR \fI<N>\fR
+Maximum depth to display
+.TP
+\fB\-d\fR, \fB\-\-directories\fR
+Show directories only
+.TP
+\fB\-f\fR, \fB\-\-files\fR
+Show files only
+.TP
+\fB\-H\fR, \fB\-\-human\fR
+Human\-readable file sizes
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print help
+.TP
+<\fIPATH\fR>
+Path within the share (format: [context:]path)
+.SH EXTRA
+EXAMPLES:
+    nofs tree media:/                        # Show tree view
+    nofs tree \-a media:/photos               # Show all branches for each file
+    nofs tree \-d media:/                     # Directories only
+    nofs tree \-H media:/                     # Human\-readable file sizes
+    nofs tree \-\-max\-depth 2 media:/          # Limit depth
+
+OPTIONS:
+    \-a, \-\-all\-branches      Show which branches contain each file
+    \-d, \-\-directories       Show directories only
+    \-f, \-\-files             Show files only
+    \-H, \-\-human             Human\-readable file sizes
+    \-\-max\-depth <N>         Maximum depth to display

@@ -41,6 +41,11 @@ Register-ArgumentCompleter -Native -CommandName 'nofs' -ScriptBlock {
             [CompletionResult]::new('info', 'info', [CompletionResultType]::ParameterValue, 'Show share configuration and status')
             [CompletionResult]::new('exists', 'exists', [CompletionResultType]::ParameterValue, 'Check if a file exists and return its location')
             [CompletionResult]::new('cat', 'cat', [CompletionResultType]::ParameterValue, 'Read file content (from first found branch)')
+            [CompletionResult]::new('diff', 'diff', [CompletionResultType]::ParameterValue, 'Show differences between branches')
+            [CompletionResult]::new('cmp', 'cmp', [CompletionResultType]::ParameterValue, 'Compare files byte-by-byte')
+            [CompletionResult]::new('df', 'df', [CompletionResultType]::ParameterValue, 'Show disk free space (df-like output)')
+            [CompletionResult]::new('grep', 'grep', [CompletionResultType]::ParameterValue, 'Search file contents across all branches (grep)')
+            [CompletionResult]::new('tree', 'tree', [CompletionResultType]::ParameterValue, 'Show directory tree structure')
             [CompletionResult]::new('cp', 'cp', [CompletionResultType]::ParameterValue, 'Copy files/directories (supports nofs context paths)')
             [CompletionResult]::new('mv', 'mv', [CompletionResultType]::ParameterValue, 'Move files/directories (supports nofs context paths)')
             [CompletionResult]::new('rm', 'rm', [CompletionResultType]::ParameterValue, 'Remove files or directories')
@@ -179,6 +184,105 @@ Register-ArgumentCompleter -Native -CommandName 'nofs' -ScriptBlock {
             [CompletionResult]::new('--paths', '--paths', [CompletionResultType]::ParameterName, 'Comma-separated list of branch paths (ad-hoc mode) Format: /path1,/path2 or /path1=RW,/path2=RO')
             [CompletionResult]::new('--policy', '--policy', [CompletionResultType]::ParameterName, 'Policy to use for branch selection')
             [CompletionResult]::new('--minfreespace', '--minfreespace', [CompletionResultType]::ParameterName, 'Minimum free space required on branch (e.g., "4G", "100M")')
+            [CompletionResult]::new('-v', '-v', [CompletionResultType]::ParameterName, 'Verbose output (print decision steps to stderr)')
+            [CompletionResult]::new('--verbose', '--verbose', [CompletionResultType]::ParameterName, 'Verbose output (print decision steps to stderr)')
+            [CompletionResult]::new('--json', '--json', [CompletionResultType]::ParameterName, 'Output in JSON format (for scripting/automation)')
+            [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help')
+            [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help')
+            [CompletionResult]::new('-V', '-V ', [CompletionResultType]::ParameterName, 'Print version')
+            [CompletionResult]::new('--version', '--version', [CompletionResultType]::ParameterName, 'Print version')
+            break
+        }
+        'nofs;diff' {
+            [CompletionResult]::new('-c', '-c', [CompletionResultType]::ParameterName, 'Path to configuration file')
+            [CompletionResult]::new('--config', '--config', [CompletionResultType]::ParameterName, 'Path to configuration file')
+            [CompletionResult]::new('--paths', '--paths', [CompletionResultType]::ParameterName, 'Comma-separated list of branch paths (ad-hoc mode) Format: /path1,/path2 or /path1=RW,/path2=RO')
+            [CompletionResult]::new('--policy', '--policy', [CompletionResultType]::ParameterName, 'Policy to use for branch selection')
+            [CompletionResult]::new('--minfreespace', '--minfreespace', [CompletionResultType]::ParameterName, 'Minimum free space required on branch (e.g., "4G", "100M")')
+            [CompletionResult]::new('-H', '-H ', [CompletionResultType]::ParameterName, 'Use hash comparison for conflict detection (slower but more accurate)')
+            [CompletionResult]::new('--hash', '--hash', [CompletionResultType]::ParameterName, 'Use hash comparison for conflict detection (slower but more accurate)')
+            [CompletionResult]::new('-v', '-v', [CompletionResultType]::ParameterName, 'Verbose output (show timestamps and hashes)')
+            [CompletionResult]::new('--verbose', '--verbose', [CompletionResultType]::ParameterName, 'Verbose output (show timestamps and hashes)')
+            [CompletionResult]::new('--json', '--json', [CompletionResultType]::ParameterName, 'Output in JSON format (for scripting/automation)')
+            [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help')
+            [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help')
+            [CompletionResult]::new('-V', '-V ', [CompletionResultType]::ParameterName, 'Print version')
+            [CompletionResult]::new('--version', '--version', [CompletionResultType]::ParameterName, 'Print version')
+            break
+        }
+        'nofs;cmp' {
+            [CompletionResult]::new('-c', '-c', [CompletionResultType]::ParameterName, 'Path to configuration file')
+            [CompletionResult]::new('--config', '--config', [CompletionResultType]::ParameterName, 'Path to configuration file')
+            [CompletionResult]::new('--paths', '--paths', [CompletionResultType]::ParameterName, 'Comma-separated list of branch paths (ad-hoc mode) Format: /path1,/path2 or /path1=RW,/path2=RO')
+            [CompletionResult]::new('--policy', '--policy', [CompletionResultType]::ParameterName, 'Policy to use for branch selection')
+            [CompletionResult]::new('--minfreespace', '--minfreespace', [CompletionResultType]::ParameterName, 'Minimum free space required on branch (e.g., "4G", "100M")')
+            [CompletionResult]::new('-v', '-v', [CompletionResultType]::ParameterName, 'Verbose output (print message if files are identical)')
+            [CompletionResult]::new('--verbose', '--verbose', [CompletionResultType]::ParameterName, 'Verbose output (print message if files are identical)')
+            [CompletionResult]::new('--json', '--json', [CompletionResultType]::ParameterName, 'Output in JSON format (for scripting/automation)')
+            [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help')
+            [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help')
+            [CompletionResult]::new('-V', '-V ', [CompletionResultType]::ParameterName, 'Print version')
+            [CompletionResult]::new('--version', '--version', [CompletionResultType]::ParameterName, 'Print version')
+            break
+        }
+        'nofs;df' {
+            [CompletionResult]::new('-c', '-c', [CompletionResultType]::ParameterName, 'Path to configuration file')
+            [CompletionResult]::new('--config', '--config', [CompletionResultType]::ParameterName, 'Path to configuration file')
+            [CompletionResult]::new('--paths', '--paths', [CompletionResultType]::ParameterName, 'Comma-separated list of branch paths (ad-hoc mode) Format: /path1,/path2 or /path1=RW,/path2=RO')
+            [CompletionResult]::new('--policy', '--policy', [CompletionResultType]::ParameterName, 'Policy to use for branch selection')
+            [CompletionResult]::new('--minfreespace', '--minfreespace', [CompletionResultType]::ParameterName, 'Minimum free space required on branch (e.g., "4G", "100M")')
+            [CompletionResult]::new('-H', '-H ', [CompletionResultType]::ParameterName, 'Show human-readable sizes (K, M, G)')
+            [CompletionResult]::new('--human', '--human', [CompletionResultType]::ParameterName, 'Show human-readable sizes (K, M, G)')
+            [CompletionResult]::new('-T', '-T ', [CompletionResultType]::ParameterName, 'Show total for all branches')
+            [CompletionResult]::new('--total', '--total', [CompletionResultType]::ParameterName, 'Show total for all branches')
+            [CompletionResult]::new('-v', '-v', [CompletionResultType]::ParameterName, 'Verbose output (print decision steps to stderr)')
+            [CompletionResult]::new('--verbose', '--verbose', [CompletionResultType]::ParameterName, 'Verbose output (print decision steps to stderr)')
+            [CompletionResult]::new('--json', '--json', [CompletionResultType]::ParameterName, 'Output in JSON format (for scripting/automation)')
+            [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help')
+            [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help')
+            [CompletionResult]::new('-V', '-V ', [CompletionResultType]::ParameterName, 'Print version')
+            [CompletionResult]::new('--version', '--version', [CompletionResultType]::ParameterName, 'Print version')
+            break
+        }
+        'nofs;grep' {
+            [CompletionResult]::new('-c', '-c', [CompletionResultType]::ParameterName, 'Path to configuration file')
+            [CompletionResult]::new('--config', '--config', [CompletionResultType]::ParameterName, 'Path to configuration file')
+            [CompletionResult]::new('--paths', '--paths', [CompletionResultType]::ParameterName, 'Comma-separated list of branch paths (ad-hoc mode) Format: /path1,/path2 or /path1=RW,/path2=RO')
+            [CompletionResult]::new('--policy', '--policy', [CompletionResultType]::ParameterName, 'Policy to use for branch selection')
+            [CompletionResult]::new('--minfreespace', '--minfreespace', [CompletionResultType]::ParameterName, 'Minimum free space required on branch (e.g., "4G", "100M")')
+            [CompletionResult]::new('-i', '-i', [CompletionResultType]::ParameterName, 'Case-insensitive search')
+            [CompletionResult]::new('--ignore-case', '--ignore-case', [CompletionResultType]::ParameterName, 'Case-insensitive search')
+            [CompletionResult]::new('--invert-match', '--invert-match', [CompletionResultType]::ParameterName, 'Invert match (show non-matching lines)')
+            [CompletionResult]::new('-n', '-n', [CompletionResultType]::ParameterName, 'Show line numbers')
+            [CompletionResult]::new('--line-number', '--line-number', [CompletionResultType]::ParameterName, 'Show line numbers')
+            [CompletionResult]::new('-l', '-l', [CompletionResultType]::ParameterName, 'Show only filenames with matches')
+            [CompletionResult]::new('--files-with-matches', '--files-with-matches', [CompletionResultType]::ParameterName, 'Show only filenames with matches')
+            [CompletionResult]::new('-r', '-r', [CompletionResultType]::ParameterName, 'Recursive search (for directories)')
+            [CompletionResult]::new('--recursive', '--recursive', [CompletionResultType]::ParameterName, 'Recursive search (for directories)')
+            [CompletionResult]::new('-v', '-v', [CompletionResultType]::ParameterName, 'Verbose output (print decision steps to stderr)')
+            [CompletionResult]::new('--verbose', '--verbose', [CompletionResultType]::ParameterName, 'Verbose output (print decision steps to stderr)')
+            [CompletionResult]::new('--json', '--json', [CompletionResultType]::ParameterName, 'Output in JSON format (for scripting/automation)')
+            [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help')
+            [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help')
+            [CompletionResult]::new('-V', '-V ', [CompletionResultType]::ParameterName, 'Print version')
+            [CompletionResult]::new('--version', '--version', [CompletionResultType]::ParameterName, 'Print version')
+            break
+        }
+        'nofs;tree' {
+            [CompletionResult]::new('--max-depth', '--max-depth', [CompletionResultType]::ParameterName, 'Maximum depth to display')
+            [CompletionResult]::new('-c', '-c', [CompletionResultType]::ParameterName, 'Path to configuration file')
+            [CompletionResult]::new('--config', '--config', [CompletionResultType]::ParameterName, 'Path to configuration file')
+            [CompletionResult]::new('--paths', '--paths', [CompletionResultType]::ParameterName, 'Comma-separated list of branch paths (ad-hoc mode) Format: /path1,/path2 or /path1=RW,/path2=RO')
+            [CompletionResult]::new('--policy', '--policy', [CompletionResultType]::ParameterName, 'Policy to use for branch selection')
+            [CompletionResult]::new('--minfreespace', '--minfreespace', [CompletionResultType]::ParameterName, 'Minimum free space required on branch (e.g., "4G", "100M")')
+            [CompletionResult]::new('-a', '-a', [CompletionResultType]::ParameterName, 'Show all branches for each file')
+            [CompletionResult]::new('--all-branches', '--all-branches', [CompletionResultType]::ParameterName, 'Show all branches for each file')
+            [CompletionResult]::new('-d', '-d', [CompletionResultType]::ParameterName, 'Show directories only')
+            [CompletionResult]::new('--directories', '--directories', [CompletionResultType]::ParameterName, 'Show directories only')
+            [CompletionResult]::new('-f', '-f', [CompletionResultType]::ParameterName, 'Show files only')
+            [CompletionResult]::new('--files', '--files', [CompletionResultType]::ParameterName, 'Show files only')
+            [CompletionResult]::new('-H', '-H ', [CompletionResultType]::ParameterName, 'Human-readable file sizes')
+            [CompletionResult]::new('--human', '--human', [CompletionResultType]::ParameterName, 'Human-readable file sizes')
             [CompletionResult]::new('-v', '-v', [CompletionResultType]::ParameterName, 'Verbose output (print decision steps to stderr)')
             [CompletionResult]::new('--verbose', '--verbose', [CompletionResultType]::ParameterName, 'Verbose output (print decision steps to stderr)')
             [CompletionResult]::new('--json', '--json', [CompletionResultType]::ParameterName, 'Output in JSON format (for scripting/automation)')
@@ -380,6 +484,11 @@ Register-ArgumentCompleter -Native -CommandName 'nofs' -ScriptBlock {
             [CompletionResult]::new('info', 'info', [CompletionResultType]::ParameterValue, 'Show share configuration and status')
             [CompletionResult]::new('exists', 'exists', [CompletionResultType]::ParameterValue, 'Check if a file exists and return its location')
             [CompletionResult]::new('cat', 'cat', [CompletionResultType]::ParameterValue, 'Read file content (from first found branch)')
+            [CompletionResult]::new('diff', 'diff', [CompletionResultType]::ParameterValue, 'Show differences between branches')
+            [CompletionResult]::new('cmp', 'cmp', [CompletionResultType]::ParameterValue, 'Compare files byte-by-byte')
+            [CompletionResult]::new('df', 'df', [CompletionResultType]::ParameterValue, 'Show disk free space (df-like output)')
+            [CompletionResult]::new('grep', 'grep', [CompletionResultType]::ParameterValue, 'Search file contents across all branches (grep)')
+            [CompletionResult]::new('tree', 'tree', [CompletionResultType]::ParameterValue, 'Show directory tree structure')
             [CompletionResult]::new('cp', 'cp', [CompletionResultType]::ParameterValue, 'Copy files/directories (supports nofs context paths)')
             [CompletionResult]::new('mv', 'mv', [CompletionResultType]::ParameterValue, 'Move files/directories (supports nofs context paths)')
             [CompletionResult]::new('rm', 'rm', [CompletionResultType]::ParameterValue, 'Remove files or directories')
@@ -414,6 +523,21 @@ Register-ArgumentCompleter -Native -CommandName 'nofs' -ScriptBlock {
             break
         }
         'nofs;help;cat' {
+            break
+        }
+        'nofs;help;diff' {
+            break
+        }
+        'nofs;help;cmp' {
+            break
+        }
+        'nofs;help;df' {
+            break
+        }
+        'nofs;help;grep' {
+            break
+        }
+        'nofs;help;tree' {
             break
         }
         'nofs;help;cp' {

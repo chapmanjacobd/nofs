@@ -113,7 +113,14 @@ impl Policy {
             Policy::EpFf => Policy::Ff,
             Policy::EpRand => Policy::Rand,
             Policy::EpAll => Policy::All,
-            Policy::Pfrd | Policy::Mfs | Policy::Ff | Policy::Rand | Policy::Lfs | Policy::Lus | Policy::Lup | Policy::All => self,
+            Policy::Pfrd
+            | Policy::Mfs
+            | Policy::Ff
+            | Policy::Rand
+            | Policy::Lfs
+            | Policy::Lus
+            | Policy::Lup
+            | Policy::All => self,
         }
     }
 }
@@ -315,9 +322,14 @@ impl<'ctx> CreatePolicy<'ctx> {
             Policy::EpFf | Policy::EpAll => with_path.first().map(|(b, _)| *b).ok_or(NofsError::NoSuitableBranch),
             Policy::EpRand => Self::select_rand_with_space(with_path),
             // These cases shouldn't happen, but handle them gracefully
-            Policy::Pfrd | Policy::Mfs | Policy::Ff | Policy::Rand | Policy::Lfs | Policy::Lus | Policy::Lup | Policy::All => {
-                with_path.first().map(|(b, _)| *b).ok_or(NofsError::NoSuitableBranch)
-            }
+            Policy::Pfrd
+            | Policy::Mfs
+            | Policy::Ff
+            | Policy::Rand
+            | Policy::Lfs
+            | Policy::Lus
+            | Policy::Lup
+            | Policy::All => with_path.first().map(|(b, _)| *b).ok_or(NofsError::NoSuitableBranch),
         }
     }
 
@@ -389,7 +401,12 @@ impl<'ctx> CreatePolicy<'ctx> {
         branches
             .iter()
             // SAFETY: to_int_unchecked is safe here because used_percentage returns a value between 0-100
-            .min_by_key(|b| b.used_percentage().map(|p| unsafe { p.to_int_unchecked::<i64>() }).unwrap_or(i64::MAX))
+            .min_by_key(|b| {
+                b.used_percentage()
+                    // SAFETY: to_int_unchecked is safe here because used_percentage returns a value between 0-100
+                    .map(|p| unsafe { p.to_int_unchecked::<i64>() })
+                    .unwrap_or(i64::MAX)
+            })
             .copied()
             .ok_or(NofsError::NoSuitableBranch)
     }
@@ -452,8 +469,7 @@ impl<'ctx> SearchPolicy<'ctx> {
             }
             Policy::Mfs => {
                 // Single pass: collect matching branches with space info
-                self
-                    .branches
+                self.branches
                     .iter()
                     .filter_map(|b| {
                         if !exists(b) {
@@ -470,25 +486,23 @@ impl<'ctx> SearchPolicy<'ctx> {
                     .map(|(b, _)| b)
                     .ok_or_else(|| NofsError::PathNotFound(relative_path.display().to_string()))
             }
-            Policy::Lfs => {
-                self
-                    .branches
-                    .iter()
-                    .filter_map(|b| {
-                        if !exists(b) {
-                            return None;
-                        }
-                        let space = if let Some(cache) = self.cache {
-                            b.available_space_cached(cache).ok()?
-                        } else {
-                            b.available_space().ok()?
-                        };
-                        Some((b, space))
-                    })
-                    .min_by_key(|(_, space)| *space)
-                    .map(|(b, _)| b)
-                    .ok_or_else(|| NofsError::PathNotFound(relative_path.display().to_string()))
-            }
+            Policy::Lfs => self
+                .branches
+                .iter()
+                .filter_map(|b| {
+                    if !exists(b) {
+                        return None;
+                    }
+                    let space = if let Some(cache) = self.cache {
+                        b.available_space_cached(cache).ok()?
+                    } else {
+                        b.available_space().ok()?
+                    };
+                    Some((b, space))
+                })
+                .min_by_key(|(_, space)| *space)
+                .map(|(b, _)| b)
+                .ok_or_else(|| NofsError::PathNotFound(relative_path.display().to_string())),
             // For search operations, space-based and random policies fall back to "first found"
             // since the file already exists and we just need to locate it.
             //
@@ -531,7 +545,7 @@ use crate::utils::{GB, KB, MB, PB, TB};
 /// # Errors
 ///
 /// Returns an error if the size string cannot be parsed.
-#[allow(clippy::as_conversions, clippy::cast_precision_loss, clippy::cast_possible_truncation, clippy::cast_sign_loss, clippy::float_arithmetic)]
+#[allow(clippy::as_conversions, clippy::cast_precision_loss, clippy::float_arithmetic)]
 pub fn parse_size(s: &str) -> Result<u64> {
     let trimmed = s.trim();
 
@@ -586,6 +600,7 @@ pub fn parse_size(s: &str) -> Result<u64> {
             )));
         }
 
+        #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
         return Ok(result as u64);
     }
 
@@ -621,6 +636,7 @@ pub fn parse_size(s: &str) -> Result<u64> {
         )));
     }
 
+    #[allow(clippy::cast_possible_truncation)]
     Ok(result as u64)
 }
 
@@ -1038,8 +1054,7 @@ mod tests {
     }
 
     #[test]
-    #[allow(clippy::cognitive_complexity)]
-    fn test_parse_size_edge_cases() {
+    fn test_parse_size_zero_and_whitespace() {
         // Zero values
         assert_eq!(parse_size("0").unwrap(), 0);
         assert_eq!(parse_size("0B").unwrap(), 0);
@@ -1050,8 +1065,10 @@ mod tests {
         assert_eq!(parse_size("  1K  ").unwrap(), 1000);
         assert_eq!(parse_size("1MB ").unwrap(), 1_000_000);
         assert_eq!(parse_size(" 1G").unwrap(), 1_000_000_000);
+    }
 
-        // Case insensitivity
+    #[test]
+    fn test_parse_size_case_insensitivity() {
         assert_eq!(parse_size("1k").unwrap(), 1000);
         assert_eq!(parse_size("1kb").unwrap(), 1000);
         assert_eq!(parse_size("1m").unwrap(), 1_000_000);
@@ -1060,7 +1077,10 @@ mod tests {
         assert_eq!(parse_size("1p").unwrap(), 1_000_000_000_000_000);
         assert_eq!(parse_size("1kib").unwrap(), 1024);
         assert_eq!(parse_size("1mib").unwrap(), 1024 * 1024);
+    }
 
+    #[test]
+    fn test_parse_size_decimal_and_large() {
         // Decimal edge cases
         assert_eq!(parse_size("0.5K").unwrap(), 500);
         assert_eq!(parse_size("0.1M").unwrap(), 100_000);
@@ -1069,7 +1089,10 @@ mod tests {
         // Large values
         assert_eq!(parse_size("1000GB").unwrap(), 1_000_000_000_000);
         assert_eq!(parse_size("100TB").unwrap(), 100_000_000_000_000);
+    }
 
+    #[test]
+    fn test_parse_size_invalid_formats() {
         // Invalid formats
         assert!(parse_size("").is_err());
         assert!(parse_size(" ").is_err());

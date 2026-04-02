@@ -61,7 +61,12 @@ pub fn execute(pool: &Pool, options: StatOptions) -> Result<()> {
     if options.json {
         output_json(pool, &cache, options.verbose, total, used, available, use_percent)?;
     } else {
-        let stats = AggregatedStats { total, used, available, use_percent };
+        let stats = AggregatedStats {
+            total,
+            used,
+            available,
+            use_percent,
+        };
         output_text(pool, &cache, options.human, options.verbose, &stats)?;
     }
 
@@ -117,13 +122,7 @@ struct AggregatedStats {
 }
 
 /// Output statistics in text format
-fn output_text(
-    pool: &Pool,
-    cache: &OperationCache,
-    human: bool,
-    verbose: bool,
-    stats: &AggregatedStats,
-) -> Result<()> {
+fn output_text(pool: &Pool, cache: &OperationCache, human: bool, verbose: bool, stats: &AggregatedStats) -> Result<()> {
     let stdout = io::stdout();
     let mut handle = stdout.lock();
 

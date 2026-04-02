@@ -17,7 +17,7 @@ mod tests {
         fs::create_dir_all(&dest_dir).unwrap();
 
         // Copy only .mkv files using ad-hoc mode
-        let output = ctx.run_nofs(&[
+        let output = TestContext::run_nofs(&[
             "--paths",
             &branch.parent().unwrap().display().to_string(),
             "cp",
@@ -44,7 +44,7 @@ mod tests {
         fs::create_dir_all(&dest_dir).unwrap();
 
         // Copy only files smaller than 500 bytes
-        let output = ctx.run_nofs(&[
+        let output = TestContext::run_nofs(&[
             "--paths",
             &branch.parent().unwrap().display().to_string(),
             "cp",
@@ -73,7 +73,7 @@ mod tests {
         fs::create_dir_all(&dest_dir).unwrap();
 
         // Copy only files larger than 500 bytes
-        let output = ctx.run_nofs(&[
+        let output = TestContext::run_nofs(&[
             "--paths",
             &branch.parent().unwrap().display().to_string(),
             "cp",
@@ -103,7 +103,7 @@ mod tests {
         fs::create_dir_all(&dest_dir).unwrap();
 
         // Copy only files between 200B and 800B
-        let output = ctx.run_nofs(&[
+        let output = TestContext::run_nofs(&[
             "--paths",
             &branch.parent().unwrap().display().to_string(),
             "cp",
@@ -133,7 +133,7 @@ mod tests {
         fs::create_dir_all(&dest_dir).unwrap();
 
         // Limit to 2 files
-        let output = ctx.run_nofs(&[
+        let output = TestContext::run_nofs(&[
             "--paths",
             &branch.parent().unwrap().display().to_string(),
             "cp",
@@ -169,7 +169,7 @@ mod tests {
         fs::create_dir_all(&dest_dir).unwrap();
 
         // Limit total size to 500 bytes
-        let output = ctx.run_nofs(&[
+        let output = TestContext::run_nofs(&[
             "--paths",
             &branch.parent().unwrap().display().to_string(),
             "cp",

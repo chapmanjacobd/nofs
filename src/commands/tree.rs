@@ -37,7 +37,8 @@ pub struct TreeNode {
 }
 
 /// Check if a boolean is false (for serde `skip_serializing_if`)
-#[allow(clippy::trivially_copy_pass_by_ref)]
+// Note: serde requires this signature for skip_serializing_if
+#[expect(clippy::trivially_copy_pass_by_ref)]
 const fn is_false(b: &bool) -> bool {
     !*b
 }
@@ -93,13 +94,7 @@ pub fn execute(pool: &Pool, path: &str, options: TreeOptions) -> Result<()> {
             continue;
         }
 
-        build_tree_from_dir(
-            &branch_path,
-            &branch_name,
-            &mut tree,
-            options,
-            0,
-        )?;
+        build_tree_from_dir(&branch_path, &branch_name, &mut tree, options, 0)?;
     }
 
     // Convert to TreeNode structure
@@ -112,7 +107,10 @@ pub fn execute(pool: &Pool, path: &str, options: TreeOptions) -> Result<()> {
         };
         println!("{}", serde_json::to_string_pretty(&output)?);
     } else {
-        let output_options = TreeOutputOptions { all_branches: options.all_branches, human_size: options.human_size };
+        let output_options = TreeOutputOptions {
+            all_branches: options.all_branches,
+            human_size: options.human_size,
+        };
         output_tree(&root, "", true, &output_options)?;
     }
 
@@ -313,7 +311,6 @@ struct TreeOutputOptions {
 }
 
 /// Output tree in text format
-#[allow(clippy::format_push_string)]
 fn output_tree(node: &TreeNode, prefix: &str, is_last: bool, options: &TreeOutputOptions) -> Result<()> {
     let stdout = io::stdout();
     let mut handle = stdout.lock();
@@ -324,18 +321,20 @@ fn output_tree(node: &TreeNode, prefix: &str, is_last: bool, options: &TreeOutpu
 
     if node.is_file {
         if let Some(size) = node.size {
-            if options.human_size {
-                line.push_str(&format!(" ({})", format_size(size)));
+            let size_str = if options.human_size {
+                format!(" ({})", format_size(size))
             } else {
-                line.push_str(&format!(" ({size} bytes)"));
-            }
+                format!(" ({size} bytes)")
+            };
+            line.push_str(&size_str);
         }
     } else {
         line.push('/');
     }
 
     if options.all_branches && !node.branches.is_empty() {
-        line.push_str(&format!(" [{} branch(es)]", node.branches.len()));
+        let branch_str = format!(" [{} branch(es)]", node.branches.len());
+        line.push_str(&branch_str);
     }
 
     writeln!(handle, "{line}")?;

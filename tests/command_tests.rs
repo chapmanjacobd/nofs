@@ -25,7 +25,7 @@ paths = ['{0}/disk1', '{0}/disk2']
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "ls", "test:dir"]);
+        let output = TestContext::run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "ls", "test:dir"]);
 
         assert!(output.success(), "Command failed: {}", output.stderr);
         assert!(output.stdout.contains("file1.txt"));
@@ -50,7 +50,7 @@ paths = ['{0}/disk1']
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "ls", "-l", "test:dir"]);
+        let output = TestContext::run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "ls", "-l", "test:dir"]);
 
         assert!(output.success(), "Command failed: {}", output.stderr);
         // Long format should show file size
@@ -74,14 +74,14 @@ paths = ['{0}/disk1']
         ctx.write_config(&config);
 
         // Without -a, hidden files should not appear
-        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "ls", "test:dir"]);
+        let output = TestContext::run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "ls", "test:dir"]);
 
         assert!(output.success());
         assert!(output.stdout.contains("visible.txt"));
         assert!(!output.stdout.contains(".hidden"));
 
         // With -a, hidden files should appear
-        let output2 = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "ls", "-a", "test:dir"]);
+        let output2 = TestContext::run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "ls", "-a", "test:dir"]);
 
         assert!(output2.success());
         assert!(output2.stdout.contains(".hidden"));
@@ -104,7 +104,7 @@ paths = ['{0}/disk1', '{0}/disk2']
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&[
+        let output = TestContext::run_nofs(&[
             "--config",
             ctx.config_path.to_str().unwrap(),
             "where",
@@ -136,7 +136,7 @@ paths = ['{0}/disk1']
         ctx.write_config(&config);
 
         // Access file using single-letter share name "d"
-        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "where", "d:file.txt"]);
+        let output = TestContext::run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "where", "d:file.txt"]);
 
         assert!(output.success(), "Command failed: {}", output.stderr);
         // Should find the file in the "d" share
@@ -162,7 +162,7 @@ paths = ['{0}/disk1', '{0}/disk2']
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&[
+        let output = TestContext::run_nofs(&[
             "--config",
             ctx.config_path.to_str().unwrap(),
             "where",
@@ -193,7 +193,7 @@ paths = ['{0}/disk1', '{0}/disk2']
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&[
+        let output = TestContext::run_nofs(&[
             "--config",
             ctx.config_path.to_str().unwrap(),
             "find",
@@ -225,7 +225,7 @@ paths = ['{0}/disk1']
         ctx.write_config(&config);
 
         // Find directories
-        let output = ctx.run_nofs(&[
+        let output = TestContext::run_nofs(&[
             "--config",
             ctx.config_path.to_str().unwrap(),
             "find",
@@ -238,7 +238,7 @@ paths = ['{0}/disk1']
         assert!(output.stdout.contains("subdir"));
 
         // Find files
-        let output2 = ctx.run_nofs(&[
+        let output2 = TestContext::run_nofs(&[
             "--config",
             ctx.config_path.to_str().unwrap(),
             "find",
@@ -269,7 +269,7 @@ create_policy = "mfs"
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&[
+        let output = TestContext::run_nofs(&[
             "--config",
             ctx.config_path.to_str().unwrap(),
             "create",
@@ -299,7 +299,7 @@ paths = ['{0}/disk1']
         ctx.write_config(&config);
 
         // File exists
-        let output = ctx.run_nofs(&[
+        let output = TestContext::run_nofs(&[
             "--config",
             ctx.config_path.to_str().unwrap(),
             "exists",
@@ -310,7 +310,7 @@ paths = ['{0}/disk1']
         assert!(output.stdout.contains("present.txt"));
 
         // File doesn't exist
-        let output2 = ctx.run_nofs(&[
+        let output2 = TestContext::run_nofs(&[
             "--config",
             ctx.config_path.to_str().unwrap(),
             "exists",
@@ -337,7 +337,7 @@ paths = ['{0}/disk1', '{0}/disk2']
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "stat", "-H"]);
+        let output = TestContext::run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "stat", "-H"]);
 
         assert!(output.success(), "Command failed: {}", output.stderr);
         assert!(output.stdout.contains("Total:"));
@@ -364,7 +364,7 @@ paths = ['{0}/disk1', '{0}/disk2']
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "du", "test:dir"]);
+        let output = TestContext::run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "du", "test:dir"]);
 
         assert!(output.success(), "Command failed: {}", output.stderr);
         // Should show disk usage for the directory
@@ -390,7 +390,7 @@ paths = ['{0}/disk1']
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "du", "-H", "test:dir"]);
+        let output = TestContext::run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "du", "-H", "test:dir"]);
 
         assert!(output.success(), "Command failed: {}", output.stderr);
         // Human-readable output should contain size units
@@ -419,7 +419,7 @@ paths = ['{0}/disk1']
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "du", "-a", "test:dir"]);
+        let output = TestContext::run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "du", "-a", "test:dir"]);
 
         assert!(output.success(), "Command failed: {}", output.stderr);
         // Should show subdirectory
@@ -442,7 +442,7 @@ paths = ['{0}/disk1']
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&[
+        let output = TestContext::run_nofs(&[
             "--config",
             ctx.config_path.to_str().unwrap(),
             "du",
@@ -473,7 +473,7 @@ paths = ['{0}/disk1']
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&[
+        let output = TestContext::run_nofs(&[
             "--config",
             ctx.config_path.to_str().unwrap(),
             "du",
@@ -505,7 +505,7 @@ paths = ['{0}/disk1', '{0}/disk2']
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "du", "-H", "test:dir"]);
+        let output = TestContext::run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "du", "-H", "test:dir"]);
 
         assert!(output.success(), "Command failed: {}", output.stderr);
         // Should show both branch paths
@@ -534,7 +534,7 @@ paths = ['{0}/disk1']
         ctx.write_config(&config);
 
         // Test with leading slash (should be treated as share root, not filesystem root)
-        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "du", "-H", "test:/"]);
+        let output = TestContext::run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "du", "-H", "test:/"]);
 
         assert!(output.success(), "Command failed: {}", output.stderr);
         // Should show disk1 path, not filesystem root
@@ -563,7 +563,7 @@ paths = ['{0}/disk1']
         ctx.write_config(&config);
 
         // Test with leading slash (should be treated as share root)
-        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "ls", "test:/"]);
+        let output = TestContext::run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "ls", "test:/"]);
 
         assert!(output.success(), "Command failed: {}", output.stderr);
         // Should show contents of disk1, not filesystem root
@@ -580,7 +580,7 @@ paths = ['{0}/disk1']
         let branch_path = ctx.create_branch("disk1", &["file1.txt", "file2.txt"]);
 
         // Test with ad-hoc mode and leading slash
-        let output = ctx.run_nofs(&["--paths", &branch_path.display().to_string(), "ls", "/"]);
+        let output = TestContext::run_nofs(&["--paths", &branch_path.display().to_string(), "ls", "/"]);
 
         assert!(output.success(), "Command failed: {}", output.stderr);
         // Should show contents of disk1, not filesystem root
@@ -597,7 +597,7 @@ paths = ['{0}/disk1']
         let branch_path = ctx.create_branch("disk1", &["file1.txt"]);
 
         // Test with ad-hoc mode and leading slash
-        let output = ctx.run_nofs(&["--paths", &branch_path.display().to_string(), "du", "-H", "/"]);
+        let output = TestContext::run_nofs(&["--paths", &branch_path.display().to_string(), "du", "-H", "/"]);
 
         assert!(output.success(), "Command failed: {}", output.stderr);
         // Should show disk1 path, not filesystem root
@@ -626,7 +626,7 @@ paths = ['{0}/disk1']
         ctx.write_config(&config);
 
         // Test with leading slash and subdirectory
-        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "ls", "test:/dir/subdir"]);
+        let output = TestContext::run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "ls", "test:/dir/subdir"]);
 
         assert!(output.success(), "Command failed: {}", output.stderr);
         // Should show contents of subdir, not filesystem root
@@ -652,7 +652,7 @@ paths = ['{0}/disk1']
         ctx.write_config(&config);
 
         // Test with leading slash and subdirectory
-        let output = ctx.run_nofs(&[
+        let output = TestContext::run_nofs(&[
             "--config",
             ctx.config_path.to_str().unwrap(),
             "du",
@@ -676,7 +676,7 @@ paths = ['{0}/disk1']
         let branch_path = ctx.create_branch("disk1/dir/subdir", &["file1.txt"]);
 
         // Test with ad-hoc mode and leading slash with subdirectory
-        let output = ctx.run_nofs(&[
+        let output = TestContext::run_nofs(&[
             "--paths",
             &branch_path.parent().unwrap().parent().unwrap().display().to_string(),
             "ls",
@@ -706,7 +706,7 @@ create_policy = "pfrd"
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "info", "test"]);
+        let output = TestContext::run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "info", "test"]);
 
         assert!(output.success(), "Command failed: {}", output.stderr);
         assert!(output.stdout.contains("Share: test"));
@@ -730,7 +730,7 @@ paths = ['{0}/disk1']
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&[
+        let output = TestContext::run_nofs(&[
             "--config",
             ctx.config_path.to_str().unwrap(),
             "cat",
@@ -760,7 +760,7 @@ paths = ['{0}/disk1', '{0}/disk2', '{0}/disk3']
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "ls", "test:dir"]);
+        let output = TestContext::run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "ls", "test:dir"]);
 
         assert!(output.success(), "Command failed: {}", output.stderr);
         // Should only show "shared.txt" once despite being in 3 branches
@@ -788,7 +788,7 @@ paths = ['{0}/disk1']
         let dest_dir = ctx.root.join("dest");
         fs::create_dir_all(&dest_dir).expect("Failed to create dest dir");
 
-        let output = ctx.run_nofs(&[
+        let output = TestContext::run_nofs(&[
             "--config",
             ctx.config_path.to_str().unwrap(),
             "cp",
@@ -830,7 +830,7 @@ paths = ['{0}/disk1']
         let source_file = ctx.root.join("source.txt");
         fs::write(&source_file, "test content").expect("Failed to create source file");
 
-        let output = ctx.run_nofs(&[
+        let output = TestContext::run_nofs(&[
             "--config",
             ctx.config_path.to_str().unwrap(),
             "cp",
@@ -869,7 +869,7 @@ paths = ['{0}/disk1']
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&[
+        let output = TestContext::run_nofs(&[
             "--config",
             ctx.config_path.to_str().unwrap(),
             "cp",
@@ -910,7 +910,7 @@ paths = ['{0}/disk1']
         let dest_dir = ctx.root.join("dest");
         fs::create_dir_all(&dest_dir).expect("Failed to create dest dir");
 
-        let output = ctx.run_nofs(&[
+        let output = TestContext::run_nofs(&[
             "--config",
             ctx.config_path.to_str().unwrap(),
             "cp",
@@ -953,7 +953,7 @@ paths = ['{0}/disk1']
         let dest_dir = ctx.root.join("dest");
         fs::create_dir_all(&dest_dir).expect("Failed to create dest dir");
 
-        let output = ctx.run_nofs(&[
+        let output = TestContext::run_nofs(&[
             "--config",
             ctx.config_path.to_str().unwrap(),
             "mv",
@@ -1000,7 +1000,7 @@ paths = ['{0}/branch1', '{0}/branch2']
 
         // Move file.txt to renamed.txt within the same share (file-to-file)
         // Should stay on branch1 (where the source file exists)
-        let output = ctx.run_nofs(&[
+        let output = TestContext::run_nofs(&[
             "--config",
             ctx.config_path.to_str().unwrap(),
             "-v",
@@ -1048,7 +1048,7 @@ paths = ['{0}/disk1', '{0}/disk2']
 
         // Move file.txt to dest/ directory (file-to-directory)
         // Should stay on disk1 (same branch as source)
-        let output = ctx.run_nofs(&[
+        let output = TestContext::run_nofs(&[
             "--config",
             ctx.config_path.to_str().unwrap(),
             "-v",
@@ -1101,7 +1101,7 @@ paths = ['{0}/branch1', '{0}/branch2']
 
         // Copy file.txt to copied.txt within the same share (file-to-file)
         // Should stay on branch1 (where the source file exists)
-        let output = ctx.run_nofs(&[
+        let output = TestContext::run_nofs(&[
             "--config",
             ctx.config_path.to_str().unwrap(),
             "-v",
@@ -1149,7 +1149,7 @@ paths = ['{0}/disk1', '{0}/disk2']
 
         // Copy file.txt to dest/ directory (file-to-directory)
         // Should stay on disk1 (same branch as source)
-        let output = ctx.run_nofs(&[
+        let output = TestContext::run_nofs(&[
             "--config",
             ctx.config_path.to_str().unwrap(),
             "-v",
@@ -1198,7 +1198,7 @@ paths = ['{0}/disk1']
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "mkdir", "test:newdir"]);
+        let output = TestContext::run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "mkdir", "test:newdir"]);
 
         assert!(output.success(), "Command failed: {}", output.stderr);
 
@@ -1223,7 +1223,7 @@ paths = ['{0}/disk1']
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&[
+        let output = TestContext::run_nofs(&[
             "--config",
             ctx.config_path.to_str().unwrap(),
             "mkdir",
@@ -1254,7 +1254,7 @@ paths = ['{0}/disk1']
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "rmdir", "test:emptydir"]);
+        let output = TestContext::run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "rmdir", "test:emptydir"]);
 
         assert!(output.success(), "Command failed: {}", output.stderr);
 
@@ -1278,7 +1278,7 @@ paths = ['{0}/disk1']
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&[
+        let output = TestContext::run_nofs(&[
             "--config",
             ctx.config_path.to_str().unwrap(),
             "rmdir",
@@ -1308,7 +1308,7 @@ paths = ['{0}/disk1']
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&[
+        let output = TestContext::run_nofs(&[
             "--config",
             ctx.config_path.to_str().unwrap(),
             "touch",
@@ -1338,7 +1338,7 @@ paths = ['{0}/disk1']
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&[
+        let output = TestContext::run_nofs(&[
             "--config",
             ctx.config_path.to_str().unwrap(),
             "touch",
@@ -1367,7 +1367,7 @@ paths = ['{0}/disk1']
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "rm", "test:file.txt"]);
+        let output = TestContext::run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "rm", "test:file.txt"]);
 
         assert!(output.success(), "Command failed: {}", output.stderr);
 
@@ -1391,7 +1391,7 @@ paths = ['{0}/disk1']
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "rm", "test:dir"]);
+        let output = TestContext::run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "rm", "test:dir"]);
 
         assert!(output.success(), "Command failed: {}", output.stderr);
 
@@ -1415,7 +1415,7 @@ paths = ['{0}/disk1']
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "rm", "-r", "test:dir"]);
+        let output = TestContext::run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "rm", "-r", "test:dir"]);
 
         assert!(output.success(), "Command failed: {}", output.stderr);
 
@@ -1439,7 +1439,7 @@ paths = ['{0}/disk1']
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&[
+        let output = TestContext::run_nofs(&[
             "--config",
             ctx.config_path.to_str().unwrap(),
             "rm",
@@ -1475,7 +1475,7 @@ paths = ['{0}/disk1', '{0}/disk2']
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&[
+        let output = TestContext::run_nofs(&[
             "--config",
             ctx.config_path.to_str().unwrap(),
             "ls",
@@ -1517,7 +1517,7 @@ paths = ['{0}/disk1', '{0}/disk2']
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&[
+        let output = TestContext::run_nofs(&[
             "--config",
             ctx.config_path.to_str().unwrap(),
             "ls",
@@ -1562,7 +1562,7 @@ paths = ['{0}/disk1', '{0}/disk2']
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&[
+        let output = TestContext::run_nofs(&[
             "--config",
             ctx.config_path.to_str().unwrap(),
             "ls",
@@ -1599,7 +1599,7 @@ paths = ['{0}/disk1', '{0}/disk2']
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&[
+        let output = TestContext::run_nofs(&[
             "--config",
             ctx.config_path.to_str().unwrap(),
             "ls",
@@ -1637,7 +1637,7 @@ paths = ['{0}/disk1', '{0}/disk2']
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&[
+        let output = TestContext::run_nofs(&[
             "--config",
             ctx.config_path.to_str().unwrap(),
             "which",
@@ -1675,7 +1675,7 @@ paths = ['{0}/disk1', '{0}/disk2']
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&[
+        let output = TestContext::run_nofs(&[
             "--config",
             ctx.config_path.to_str().unwrap(),
             "which",
@@ -1721,7 +1721,7 @@ paths = ['{0}/disk1', '{0}/disk2']
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&[
+        let output = TestContext::run_nofs(&[
             "--config",
             ctx.config_path.to_str().unwrap(),
             "which",
@@ -1761,7 +1761,7 @@ paths = ['{0}/disk1']
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "ls", "test:dir"]);
+        let output = TestContext::run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "ls", "test:dir"]);
 
         assert!(output.success(), "Command failed: {}", output.stderr);
         assert!(output.stdout.contains("file with spaces.txt"));
@@ -1786,7 +1786,7 @@ paths = ['{0}/disk1']
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "ls", "test:empty"]);
+        let output = TestContext::run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "ls", "test:empty"]);
 
         assert!(output.success(), "Command failed: {}", output.stderr);
         // Empty directory should produce no output (or just whitespace)
@@ -1809,7 +1809,7 @@ paths = ['{0}/disk1']
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "ls", "test:nonexistent"]);
+        let output = TestContext::run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "ls", "test:nonexistent"]);
 
         assert!(!output.success(), "Should fail for nonexistent directory");
     }
@@ -1830,7 +1830,7 @@ paths = ['{0}/disk1']
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&[
+        let output = TestContext::run_nofs(&[
             "--config",
             ctx.config_path.to_str().unwrap(),
             "find",
@@ -1859,7 +1859,7 @@ paths = ['{0}/disk1']
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&[
+        let output = TestContext::run_nofs(&[
             "--config",
             ctx.config_path.to_str().unwrap(),
             "find",
@@ -1889,7 +1889,7 @@ paths = ['{0}/disk1']
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "mkdir", "test:existing"]);
+        let output = TestContext::run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "mkdir", "test:existing"]);
 
         // Should succeed or fail gracefully
         assert!(output.success() || !output.success());
@@ -1911,7 +1911,7 @@ paths = ['{0}/disk1']
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&[
+        let output = TestContext::run_nofs(&[
             "--config",
             ctx.config_path.to_str().unwrap(),
             "rmdir",
@@ -1941,7 +1941,7 @@ paths = ['{0}/disk1']
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&[
+        let output = TestContext::run_nofs(&[
             "--config",
             ctx.config_path.to_str().unwrap(),
             "touch",
@@ -1967,7 +1967,7 @@ paths = ['{0}/disk1']
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&[
+        let output = TestContext::run_nofs(&[
             "--config",
             ctx.config_path.to_str().unwrap(),
             "cat",
@@ -1993,7 +1993,7 @@ paths = ['{0}/disk1']
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "exists", "test:dir/"]);
+        let output = TestContext::run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "exists", "test:dir/"]);
 
         assert!(output.success(), "Should exist with trailing slash");
     }
@@ -2014,7 +2014,7 @@ paths = ['{0}/disk1']
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "stat", "-H"]);
+        let output = TestContext::run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "stat", "-H"]);
 
         assert!(output.success(), "Command failed: {}", output.stderr);
         assert!(output.stdout.contains("disk1"));
@@ -2036,7 +2036,7 @@ paths = ['{0}/disk1']
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "info", "nonexistent"]);
+        let output = TestContext::run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "info", "nonexistent"]);
 
         assert!(!output.success(), "Should fail for nonexistent share");
     }
@@ -2057,7 +2057,7 @@ paths = ['{0}/disk1']
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&[
+        let output = TestContext::run_nofs(&[
             "--config",
             ctx.config_path.to_str().unwrap(),
             "create",
@@ -2086,7 +2086,7 @@ paths = ['{0}/disk1', '{0}/disk2']
         ctx.write_config(&config);
 
         // Without -a
-        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "ls", "test:dir"]);
+        let output = TestContext::run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "ls", "test:dir"]);
 
         assert!(output.success());
         assert!(output.stdout.contains("visible.txt"));
@@ -2095,7 +2095,7 @@ paths = ['{0}/disk1', '{0}/disk2']
         assert!(!output.stdout.contains(".hidden2"));
 
         // With -a
-        let output2 = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "ls", "-a", "test:dir"]);
+        let output2 = TestContext::run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "ls", "-a", "test:dir"]);
 
         assert!(output2.success());
         assert!(output2.stdout.contains(".hidden1"));
@@ -2118,7 +2118,7 @@ paths = ['{0}/disk1']
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&[
+        let output = TestContext::run_nofs(&[
             "--config",
             ctx.config_path.to_str().unwrap(),
             "find",
@@ -2148,7 +2148,7 @@ paths = ['{0}/disk1']
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&[
+        let output = TestContext::run_nofs(&[
             "--config",
             ctx.config_path.to_str().unwrap(),
             "mv",
@@ -2180,7 +2180,7 @@ paths = ['{0}/disk1']
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&[
+        let output = TestContext::run_nofs(&[
             "--config",
             ctx.config_path.to_str().unwrap(),
             "rm",
@@ -2217,7 +2217,7 @@ paths = ['{0}/disk1']
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "ls", "test:dir"]);
+        let output = TestContext::run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "ls", "test:dir"]);
 
         assert!(output.success(), "Command failed: {}", output.stderr);
         // Unicode filenames should be displayed
@@ -2246,7 +2246,7 @@ paths = ['{0}/disk1', '{0}/disk2']
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "diff", "test:dir"]);
+        let output = TestContext::run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "diff", "test:dir"]);
 
         assert!(output.success(), "Command failed: {}", output.stderr);
         assert!(output.stdout.contains("no conflicts"));
@@ -2274,7 +2274,7 @@ paths = ['{0}/disk1', '{0}/disk2']
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "diff", "test:"]);
+        let output = TestContext::run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "diff", "test:"]);
 
         assert!(output.success(), "Command failed: {}", output.stderr);
         assert!(output.stdout.contains("conflict"));
@@ -2298,7 +2298,7 @@ paths = ['{0}/disk1', '{0}/disk2']
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "diff", "test:same.txt"]);
+        let output = TestContext::run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "diff", "test:same.txt"]);
 
         assert!(output.success(), "Command failed: {}", output.stderr);
         assert!(output.stdout.contains("no conflicts"));
@@ -2322,7 +2322,7 @@ paths = ['{0}/disk1', '{0}/disk2']
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "diff", "test:diff.txt"]);
+        let output = TestContext::run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "diff", "test:diff.txt"]);
 
         assert!(output.success(), "Command failed: {}", output.stderr);
         assert!(output.stdout.contains("conflict"));
@@ -2350,7 +2350,7 @@ paths = ['{0}/disk1', '{0}/disk2']
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "diff", "--json", "test:"]);
+        let output = TestContext::run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "diff", "--json", "test:"]);
 
         assert!(output.success(), "Command failed: {}", output.stderr);
         // JSON output should contain conflict_count
@@ -2380,7 +2380,7 @@ paths = ['{0}/disk1', '{0}/disk2']
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "diff", "-v", "test:"]);
+        let output = TestContext::run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "diff", "-v", "test:"]);
 
         assert!(output.success(), "Command failed: {}", output.stderr);
         assert!(output.stdout.contains("bytes"));
@@ -2404,7 +2404,7 @@ paths = ['{0}/disk1', '{0}/disk2']
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "diff", "-H", "test:"]);
+        let output = TestContext::run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "diff", "-H", "test:"]);
 
         assert!(output.success(), "Command failed: {}", output.stderr);
         assert!(output.stdout.contains("conflict"));
@@ -2424,7 +2424,7 @@ paths = ['{0}/disk1', '{0}/disk2']
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&[
+        let output = TestContext::run_nofs(&[
             "--config",
             ctx.config_path.to_str().unwrap(),
             "diff",

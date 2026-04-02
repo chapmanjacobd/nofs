@@ -187,6 +187,116 @@ _arguments "${_arguments_options[@]}" : \
 '*::cat_paths -- Path(s) within the share (format\: \[context\:\]path):_default' \
 && ret=0
 ;;
+(diff)
+_arguments "${_arguments_options[@]}" : \
+'-c+[Path to configuration file]:CONFIG:_default' \
+'--config=[Path to configuration file]:CONFIG:_default' \
+'--paths=[Comma-separated list of branch paths (ad-hoc mode) Format\: /path1,/path2 or /path1=RW,/path2=RO]:PATHS:_default' \
+'--policy=[Policy to use for branch selection]:POLICY:_default' \
+'--minfreespace=[Minimum free space required on branch (e.g., "4G", "100M")]:MINFREESPACE:_default' \
+'-H[Use hash comparison for conflict detection (slower but more accurate)]' \
+'--hash[Use hash comparison for conflict detection (slower but more accurate)]' \
+'-v[Verbose output (show timestamps and hashes)]' \
+'--verbose[Verbose output (show timestamps and hashes)]' \
+'--json[Output in JSON format (for scripting/automation)]' \
+'-h[Print help]' \
+'--help[Print help]' \
+'-V[Print version]' \
+'--version[Print version]' \
+':diff_path -- Path within the share (format\: \[context\:\]path):_default' \
+&& ret=0
+;;
+(cmp)
+_arguments "${_arguments_options[@]}" : \
+'-c+[Path to configuration file]:CONFIG:_default' \
+'--config=[Path to configuration file]:CONFIG:_default' \
+'--paths=[Comma-separated list of branch paths (ad-hoc mode) Format\: /path1,/path2 or /path1=RW,/path2=RO]:PATHS:_default' \
+'--policy=[Policy to use for branch selection]:POLICY:_default' \
+'--minfreespace=[Minimum free space required on branch (e.g., "4G", "100M")]:MINFREESPACE:_default' \
+'-v[Verbose output (print message if files are identical)]' \
+'--verbose[Verbose output (print message if files are identical)]' \
+'--json[Output in JSON format (for scripting/automation)]' \
+'-h[Print help]' \
+'--help[Print help]' \
+'-V[Print version]' \
+'--version[Print version]' \
+':cmp_path -- Path within the share (format\: \[context\:\]path):_default' \
+&& ret=0
+;;
+(df)
+_arguments "${_arguments_options[@]}" : \
+'-c+[Path to configuration file]:CONFIG:_default' \
+'--config=[Path to configuration file]:CONFIG:_default' \
+'--paths=[Comma-separated list of branch paths (ad-hoc mode) Format\: /path1,/path2 or /path1=RW,/path2=RO]:PATHS:_default' \
+'--policy=[Policy to use for branch selection]:POLICY:_default' \
+'--minfreespace=[Minimum free space required on branch (e.g., "4G", "100M")]:MINFREESPACE:_default' \
+'-H[Show human-readable sizes (K, M, G)]' \
+'--human[Show human-readable sizes (K, M, G)]' \
+'-T[Show total for all branches]' \
+'--total[Show total for all branches]' \
+'-v[Verbose output (print decision steps to stderr)]' \
+'--verbose[Verbose output (print decision steps to stderr)]' \
+'--json[Output in JSON format (for scripting/automation)]' \
+'-h[Print help]' \
+'--help[Print help]' \
+'-V[Print version]' \
+'--version[Print version]' \
+'::context -- Context/share name (optional, shows all if not specified):_default' \
+&& ret=0
+;;
+(grep)
+_arguments "${_arguments_options[@]}" : \
+'-c+[Path to configuration file]:CONFIG:_default' \
+'--config=[Path to configuration file]:CONFIG:_default' \
+'--paths=[Comma-separated list of branch paths (ad-hoc mode) Format\: /path1,/path2 or /path1=RW,/path2=RO]:PATHS:_default' \
+'--policy=[Policy to use for branch selection]:POLICY:_default' \
+'--minfreespace=[Minimum free space required on branch (e.g., "4G", "100M")]:MINFREESPACE:_default' \
+'-i[Case-insensitive search]' \
+'--ignore-case[Case-insensitive search]' \
+'--invert-match[Invert match (show non-matching lines)]' \
+'-n[Show line numbers]' \
+'--line-number[Show line numbers]' \
+'-l[Show only filenames with matches]' \
+'--files-with-matches[Show only filenames with matches]' \
+'-r[Recursive search (for directories)]' \
+'--recursive[Recursive search (for directories)]' \
+'-v[Verbose output (print decision steps to stderr)]' \
+'--verbose[Verbose output (print decision steps to stderr)]' \
+'--json[Output in JSON format (for scripting/automation)]' \
+'-h[Print help]' \
+'--help[Print help]' \
+'-V[Print version]' \
+'--version[Print version]' \
+':pattern -- Pattern to search for:_default' \
+'*::grep_paths -- Path(s) to search within (format\: \[context\:\]path):_default' \
+&& ret=0
+;;
+(tree)
+_arguments "${_arguments_options[@]}" : \
+'--max-depth=[Maximum depth to display]:N:_default' \
+'-c+[Path to configuration file]:CONFIG:_default' \
+'--config=[Path to configuration file]:CONFIG:_default' \
+'--paths=[Comma-separated list of branch paths (ad-hoc mode) Format\: /path1,/path2 or /path1=RW,/path2=RO]:PATHS:_default' \
+'--policy=[Policy to use for branch selection]:POLICY:_default' \
+'--minfreespace=[Minimum free space required on branch (e.g., "4G", "100M")]:MINFREESPACE:_default' \
+'-a[Show all branches for each file]' \
+'--all-branches[Show all branches for each file]' \
+'-d[Show directories only]' \
+'--directories[Show directories only]' \
+'-f[Show files only]' \
+'--files[Show files only]' \
+'-H[Human-readable file sizes]' \
+'--human[Human-readable file sizes]' \
+'-v[Verbose output (print decision steps to stderr)]' \
+'--verbose[Verbose output (print decision steps to stderr)]' \
+'--json[Output in JSON format (for scripting/automation)]' \
+'-h[Print help]' \
+'--help[Print help]' \
+'-V[Print version]' \
+'--version[Print version]' \
+':tree_path -- Path within the share (format\: \[context\:\]path):_default' \
+&& ret=0
+;;
 (cp)
 _arguments "${_arguments_options[@]}" : \
 '--file-over-file=[File-over-file conflict strategy]:STRATEGY:_default' \
@@ -431,6 +541,26 @@ _arguments "${_arguments_options[@]}" : \
 _arguments "${_arguments_options[@]}" : \
 && ret=0
 ;;
+(diff)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(cmp)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(df)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(grep)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(tree)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
 (cp)
 _arguments "${_arguments_options[@]}" : \
 && ret=0
@@ -491,6 +621,11 @@ _nofs_commands() {
 'info:Show share configuration and status' \
 'exists:Check if a file exists and return its location' \
 'cat:Read file content (from first found branch)' \
+'diff:Show differences between branches' \
+'cmp:Compare files byte-by-byte' \
+'df:Show disk free space (df-like output)' \
+'grep:Search file contents across all branches (grep)' \
+'tree:Show directory tree structure' \
 'cp:Copy files/directories (supports nofs context paths)' \
 'mv:Move files/directories (supports nofs context paths)' \
 'rm:Remove files or directories' \
@@ -509,6 +644,11 @@ _nofs__cat_commands() {
     local commands; commands=()
     _describe -t commands 'nofs cat commands' commands "$@"
 }
+(( $+functions[_nofs__cmp_commands] )) ||
+_nofs__cmp_commands() {
+    local commands; commands=()
+    _describe -t commands 'nofs cmp commands' commands "$@"
+}
 (( $+functions[_nofs__completions_commands] )) ||
 _nofs__completions_commands() {
     local commands; commands=()
@@ -523,6 +663,16 @@ _nofs__cp_commands() {
 _nofs__create_commands() {
     local commands; commands=()
     _describe -t commands 'nofs create commands' commands "$@"
+}
+(( $+functions[_nofs__df_commands] )) ||
+_nofs__df_commands() {
+    local commands; commands=()
+    _describe -t commands 'nofs df commands' commands "$@"
+}
+(( $+functions[_nofs__diff_commands] )) ||
+_nofs__diff_commands() {
+    local commands; commands=()
+    _describe -t commands 'nofs diff commands' commands "$@"
 }
 (( $+functions[_nofs__du_commands] )) ||
 _nofs__du_commands() {
@@ -539,6 +689,11 @@ _nofs__find_commands() {
     local commands; commands=()
     _describe -t commands 'nofs find commands' commands "$@"
 }
+(( $+functions[_nofs__grep_commands] )) ||
+_nofs__grep_commands() {
+    local commands; commands=()
+    _describe -t commands 'nofs grep commands' commands "$@"
+}
 (( $+functions[_nofs__help_commands] )) ||
 _nofs__help_commands() {
     local commands; commands=(
@@ -550,6 +705,11 @@ _nofs__help_commands() {
 'info:Show share configuration and status' \
 'exists:Check if a file exists and return its location' \
 'cat:Read file content (from first found branch)' \
+'diff:Show differences between branches' \
+'cmp:Compare files byte-by-byte' \
+'df:Show disk free space (df-like output)' \
+'grep:Search file contents across all branches (grep)' \
+'tree:Show directory tree structure' \
 'cp:Copy files/directories (supports nofs context paths)' \
 'mv:Move files/directories (supports nofs context paths)' \
 'rm:Remove files or directories' \
@@ -568,6 +728,11 @@ _nofs__help__cat_commands() {
     local commands; commands=()
     _describe -t commands 'nofs help cat commands' commands "$@"
 }
+(( $+functions[_nofs__help__cmp_commands] )) ||
+_nofs__help__cmp_commands() {
+    local commands; commands=()
+    _describe -t commands 'nofs help cmp commands' commands "$@"
+}
 (( $+functions[_nofs__help__completions_commands] )) ||
 _nofs__help__completions_commands() {
     local commands; commands=()
@@ -583,6 +748,16 @@ _nofs__help__create_commands() {
     local commands; commands=()
     _describe -t commands 'nofs help create commands' commands "$@"
 }
+(( $+functions[_nofs__help__df_commands] )) ||
+_nofs__help__df_commands() {
+    local commands; commands=()
+    _describe -t commands 'nofs help df commands' commands "$@"
+}
+(( $+functions[_nofs__help__diff_commands] )) ||
+_nofs__help__diff_commands() {
+    local commands; commands=()
+    _describe -t commands 'nofs help diff commands' commands "$@"
+}
 (( $+functions[_nofs__help__du_commands] )) ||
 _nofs__help__du_commands() {
     local commands; commands=()
@@ -597,6 +772,11 @@ _nofs__help__exists_commands() {
 _nofs__help__find_commands() {
     local commands; commands=()
     _describe -t commands 'nofs help find commands' commands "$@"
+}
+(( $+functions[_nofs__help__grep_commands] )) ||
+_nofs__help__grep_commands() {
+    local commands; commands=()
+    _describe -t commands 'nofs help grep commands' commands "$@"
 }
 (( $+functions[_nofs__help__help_commands] )) ||
 _nofs__help__help_commands() {
@@ -648,6 +828,11 @@ _nofs__help__touch_commands() {
     local commands; commands=()
     _describe -t commands 'nofs help touch commands' commands "$@"
 }
+(( $+functions[_nofs__help__tree_commands] )) ||
+_nofs__help__tree_commands() {
+    local commands; commands=()
+    _describe -t commands 'nofs help tree commands' commands "$@"
+}
 (( $+functions[_nofs__help__which_commands] )) ||
 _nofs__help__which_commands() {
     local commands; commands=()
@@ -697,6 +882,11 @@ _nofs__stat_commands() {
 _nofs__touch_commands() {
     local commands; commands=()
     _describe -t commands 'nofs touch commands' commands "$@"
+}
+(( $+functions[_nofs__tree_commands] )) ||
+_nofs__tree_commands() {
+    local commands; commands=()
+    _describe -t commands 'nofs tree commands' commands "$@"
 }
 (( $+functions[_nofs__which_commands] )) ||
 _nofs__which_commands() {
