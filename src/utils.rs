@@ -81,7 +81,6 @@ impl ParsedPath<'_> {
 /// assert!(parsed.matches_share("d")); // matches share "d"
 /// ```
 #[must_use]
-#[allow(clippy::arithmetic_side_effects)]
 pub fn parse_path_with_context(input: &str) -> ParsedPath<'_> {
     // Find the first colon
     let Some(colon_idx) = input.find(':') else {

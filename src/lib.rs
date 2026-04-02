@@ -3,6 +3,15 @@
 //! Provides mergerfs-like functionality without FUSE.
 //! All operations happen via subcommands with optional TOML configuration.
 
+// Centralized lint suppressions for non-test code
+// These are needed throughout the codebase and are centralized here
+// to avoid scattering allow attributes across multiple files
+#![allow(
+    // Documentation lints - not all functions need full documentation
+    clippy::missing_panics_doc,
+    clippy::missing_errors_doc,
+)]
+
 pub mod branch;
 pub mod cache;
 pub mod commands;

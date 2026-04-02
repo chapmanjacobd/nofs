@@ -33,16 +33,12 @@ pub struct Difference {
     pub file2_value: String,
 }
 
-/// Execute the cmp command
+/// Execute the cmp command to compare files across branches
 ///
 /// # Errors
 ///
-/// Returns an error if there is an IO error during comparison or output.
-///
-/// # Panics
-///
-/// This function should not panic as it checks the length before accessing elements.
-#[allow(clippy::fn_params_excessive_bools, clippy::unwrap_used, clippy::get_unwrap)]
+/// Returns an error if the files cannot be compared or if there are not enough files.
+#[allow(clippy::fn_params_excessive_bools)]
 pub fn execute(
     pool: &Pool,
     path: &str,
@@ -94,8 +90,12 @@ pub fn execute(
         )));
     }
 
-    let (_branch1, path1) = files_to_compare.first().unwrap();
-    let (_branch2, path2) = files_to_compare.get(1).unwrap();
+    let (_branch1, path1) = files_to_compare
+        .first()
+        .ok_or_else(|| NofsError::Command("no files to compare".to_string()))?;
+    let (_branch2, path2) = files_to_compare
+        .get(1)
+        .ok_or_else(|| NofsError::Command("need at least 2 files to compare".to_string()))?;
 
     // Compare files
     let comparison = compare_files(path1, path2)?;

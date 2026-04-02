@@ -224,6 +224,7 @@ fn format_size(size: u64) -> String {
     const GB: u64 = MB * 1024;
     const TB: u64 = GB * 1024;
 
+    #[allow(clippy::float_arithmetic, clippy::cast_precision_loss, clippy::as_conversions)]
     if size >= TB {
         format!("{:.1}T", size as f64 / TB as f64)
     } else if size >= GB {
@@ -238,6 +239,7 @@ fn format_size(size: u64) -> String {
 }
 
 /// Truncate string to max length with ellipsis
+#[allow(clippy::arithmetic_side_effects)]
 fn truncate_str(s: &str, max_len: usize) -> String {
     if s.len() <= max_len {
         s.to_string()

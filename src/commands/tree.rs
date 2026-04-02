@@ -36,6 +36,7 @@ pub struct TreeNode {
     pub branches: Vec<String>,
 }
 
+#[allow(clippy::trivially_copy_pass_by_ref)]
 fn is_false(b: &bool) -> bool {
     !b
 }
@@ -45,7 +46,7 @@ fn is_false(b: &bool) -> bool {
 /// # Errors
 ///
 /// Returns an error if there is an IO error during traversal or output.
-#[allow(clippy::fn_params_excessive_bools)]
+#[allow(clippy::fn_params_excessive_bools, clippy::too_many_arguments, clippy::missing_docs_in_private_items, clippy::exhaustive_structs)]
 pub fn execute(
     pool: &Pool,
     path: &str,
@@ -156,9 +157,8 @@ fn build_tree_from_dir(
         }
         NofsError::Command(format!("cannot read '{}': {}", dir_path.display(), e))
     })? {
-        let entry = match entry {
-            Ok(e) => e,
-            Err(_) => continue,
+        let Ok(entry) = entry else {
+            continue;
         };
 
         let entry_path = entry.path();

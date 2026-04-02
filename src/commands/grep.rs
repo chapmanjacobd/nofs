@@ -127,6 +127,7 @@ pub fn execute(
 }
 
 /// Search a single file for pattern matches
+#[allow(clippy::arithmetic_side_effects)]
 fn search_file(
     file_path: &Path,
     branch_name: &str,
@@ -166,6 +167,7 @@ fn search_file(
 }
 
 /// Search a directory recursively for pattern matches
+#[allow(clippy::let_and_return, clippy::shadow_unrelated)]
 fn search_directory(
     dir_path: &Path,
     branch_name: &str,
@@ -175,15 +177,14 @@ fn search_directory(
     files_matched: &mut std::collections::HashSet<String>,
     verbose: bool,
 ) -> Result<()> {
-    for entry in fs::read_dir(dir_path).map_err(|e| {
+    for dir_entry in fs::read_dir(dir_path).map_err(|e| {
         if verbose {
             eprintln!("nofs: warning: cannot read directory '{}': {}", dir_path.display(), e);
         }
         NofsError::Command(format!("cannot read directory '{}': {}", dir_path.display(), e))
     })? {
-        let entry = match entry {
-            Ok(e) => e,
-            Err(_) => continue,
+        let Ok(entry) = dir_entry else {
+            continue;
         };
 
         let entry_path = entry.path();
@@ -197,9 +198,8 @@ fn search_directory(
             continue;
         }
 
-        let metadata = match entry_path.metadata() {
-            Ok(m) => m,
-            Err(_) => continue,
+        let Ok(metadata) = entry_path.metadata() else {
+            continue;
         };
 
         if metadata.is_dir() {

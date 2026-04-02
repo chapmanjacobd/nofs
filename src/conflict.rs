@@ -43,7 +43,6 @@ pub struct BranchConflict {
 /// # Errors
 ///
 /// Returns an error if there is an IO error reading files.
-#[allow(clippy::missing_panics_doc)]
 pub fn detect_conflicts(branches: &[&Branch], relative_path: &Path, use_hash: bool) -> Result<Vec<FileConflict>> {
     let mut conflicts = Vec::new();
 
@@ -217,7 +216,6 @@ fn files_differ(branch_files: &[BranchConflict], use_hash: bool) -> bool {
 /// # Errors
 ///
 /// Returns an error if the file cannot be read.
-#[allow(clippy::missing_panics_doc)]
 pub fn compute_file_hash(path: &Path) -> Result<String> {
     utils::compute_file_hash(path)
 }
@@ -227,7 +225,6 @@ pub fn compute_file_hash(path: &Path) -> Result<String> {
 /// # Errors
 ///
 /// Returns an error if there is an IO error reading files or if a worker thread panics.
-#[allow(clippy::missing_panics_doc)]
 pub fn detect_single_file_conflict(
     branches: &[&Branch],
     relative_path: &Path,
