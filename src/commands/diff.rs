@@ -39,13 +39,7 @@ pub struct DiffFileOutput {
 ///
 /// Returns an error if there is an IO error during output or file access.
 #[allow(clippy::too_many_arguments, clippy::fn_params_excessive_bools)]
-pub fn execute(
-    pool: &Pool,
-    path: &str,
-    verbose: bool,
-    hash: bool,
-    json: bool,
-) -> Result<()> {
+pub fn execute(pool: &Pool, path: &str, verbose: bool, hash: bool, json: bool) -> Result<()> {
     let pool_path = Path::new(path);
 
     // Create operation cache for this command execution
@@ -61,10 +55,13 @@ pub fn execute(
     }
 
     // Check if this is a file or directory by checking the first branch
-    let is_file = branches.iter().find_map(|b| {
-        let full_path = b.path.join(pool_path);
-        full_path.exists().then(|| full_path.is_file())
-    }).unwrap_or(false);
+    let is_file = branches
+        .iter()
+        .find_map(|b| {
+            let full_path = b.path.join(pool_path);
+            full_path.exists().then(|| full_path.is_file())
+        })
+        .unwrap_or(false);
 
     if is_file {
         // Single file diff
@@ -182,11 +179,7 @@ fn diff_directory(
         if conflicts.is_empty() {
             writeln!(handle, "no conflicts found in {path}")?;
         } else {
-            writeln!(
-                handle,
-                "found {} conflicting file(s) in {path}:\n",
-                conflicts.len()
-            )?;
+            writeln!(handle, "found {} conflicting file(s) in {path}:\n", conflicts.len())?;
 
             for conflict in &conflicts {
                 writeln!(handle, "{}:", conflict.name)?;
@@ -229,5 +222,8 @@ fn format_timestamp(secs: u64) -> String {
     let year = 1970 + (days / 365) as u64;
     let day_of_year = days % 365;
 
-    format!("{:04}-{:02}-{:02} {:02}:{:02}:{:02} UTC", year, 1, day_of_year as u32, hours, minutes, seconds)
+    format!(
+        "{:04}-{:02}-{:02} {:02}:{:02}:{:02} UTC",
+        year, 1, day_of_year as u32, hours, minutes, seconds
+    )
 }

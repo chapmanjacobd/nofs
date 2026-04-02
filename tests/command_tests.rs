@@ -2424,7 +2424,12 @@ paths = ['{0}/disk1', '{0}/disk2']
 
         ctx.write_config(&config);
 
-        let output = ctx.run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "diff", "test:nonexistent"]);
+        let output = ctx.run_nofs(&[
+            "--config",
+            ctx.config_path.to_str().unwrap(),
+            "diff",
+            "test:nonexistent",
+        ]);
 
         // Should return error
         assert!(!output.success());

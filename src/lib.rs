@@ -303,6 +303,137 @@ OPTIONS:
         verbose: bool,
     },
 
+    /// Compare files byte-by-byte.
+    #[command(after_help = "\
+EXAMPLES:
+    nofs cmp media:/config.toml            # Compare file across first two branches
+    nofs cmp -v media:/data.bin            # Verbose output if identical
+
+OUTPUT:
+    Compares the same file across two branches.
+    By default, compares first two branches containing the file.
+    Exit code 0 if files are identical, 1 if they differ.")]
+    Cmp {
+        /// Path within the share (format: [context:]path).
+        #[arg(required = true, value_name = "PATH")]
+        cmp_path: String,
+
+        /// Verbose output (print message if files are identical).
+        #[arg(short, long)]
+        verbose: bool,
+    },
+
+    /// Show disk free space (df-like output).
+    #[command(after_help = "\
+EXAMPLES:
+    nofs df                                # Show all branches
+    nofs df media                          # Show branches for media share
+    nofs df -H                             # Human-readable sizes
+    nofs df -T                             # Include total
+
+OUTPUT:
+    Shows disk space usage for each branch in a standard df-like format.")]
+    Df {
+        /// Context/share name (optional, shows all if not specified).
+        #[arg(value_name = "CONTEXT")]
+        context: Option<String>,
+
+        /// Show human-readable sizes (K, M, G).
+        #[arg(short = 'H', long)]
+        human: bool,
+
+        /// Show total for all branches.
+        #[arg(short = 'T', long)]
+        total: bool,
+    },
+
+    /// Search file contents across all branches (grep).
+    #[command(after_help = "\
+EXAMPLES:
+    nofs grep media:/ error                # Search for 'error' in media:/
+    nofs grep -r media:/ \"TODO\"            # Recursive search
+    nofs grep -i media:/ warning           # Case-insensitive search
+    nofs grep -l media:/ config            # Show only filenames
+    nofs grep -v media:/ debug             # Invert match (lines without 'debug')
+    nofs grep --json media:/ pattern       # JSON output
+
+OPTIONS:
+    -i, --ignore-case       Case-insensitive search
+    -v, --invert-match      Invert match (show non-matching lines)
+    -n, --line-number       Show line numbers
+    -l, --files-with-matches  Show only filenames
+    -r, --recursive         Search recursively in directories")]
+    Grep {
+        /// Pattern to search for.
+        #[arg(required = true, value_name = "PATTERN")]
+        pattern: String,
+
+        /// Path(s) to search within (format: [context:]path).
+        #[arg(required = true, value_name = "PATHS")]
+        grep_paths: Vec<String>,
+
+        /// Case-insensitive search.
+        #[arg(short = 'i', long)]
+        ignore_case: bool,
+
+        /// Invert match (show non-matching lines).
+        #[arg(short = 'v', long)]
+        invert_match: bool,
+
+        /// Show line numbers.
+        #[arg(short = 'n', long)]
+        line_number: bool,
+
+        /// Show only filenames with matches.
+        #[arg(short = 'l', long)]
+        files_with_matches: bool,
+
+        /// Recursive search (for directories).
+        #[arg(short = 'r', long)]
+        recursive: bool,
+    },
+
+    /// Show directory tree structure.
+    #[command(after_help = "\
+EXAMPLES:
+    nofs tree media:/                        # Show tree view
+    nofs tree -a media:/photos               # Show all branches for each file
+    nofs tree -d media:/                     # Directories only
+    nofs tree -H media:/                     # Human-readable file sizes
+    nofs tree --max-depth 2 media:/          # Limit depth
+
+OPTIONS:
+    -a, --all-branches      Show which branches contain each file
+    -d, --directories       Show directories only
+    -f, --files             Show files only
+    -H, --human             Human-readable file sizes
+    --max-depth <N>         Maximum depth to display")]
+    Tree {
+        /// Path within the share (format: [context:]path).
+        #[arg(required = true, value_name = "PATH")]
+        tree_path: String,
+
+        /// Show all branches for each file.
+        #[arg(short = 'a', long)]
+        all_branches: bool,
+
+        /// Maximum depth to display.
+        #[arg(long, value_name = "N")]
+        max_depth: Option<usize>,
+
+        /// Show directories only.
+        #[arg(short = 'd', long)]
+        directories: bool,
+
+        /// Show files only.
+        #[arg(short = 'f', long)]
+        files: bool,
+
+        /// Human-readable file sizes.
+        #[arg(short = 'H', long)]
+        human: bool,
+    },
+
     /// Copy files/directories (supports nofs context paths).
     #[command(after_help = "\
 CONFLICT RESOLUTION OPTIONS:
@@ -865,7 +996,11 @@ pub fn run() -> Result<()> {
         | Commands::Info { .. }
         | Commands::Exists { .. }
         | Commands::Cat { .. }
+        | Commands::Cmp { .. }
+        | Commands::Df { .. }
         | Commands::Diff { .. }
+        | Commands::Grep { .. }
+        | Commands::Tree { .. }
         | Commands::Cp { .. }
         | Commands::Mv { .. }
         | Commands::Rm { .. }
@@ -971,6 +1106,59 @@ pub fn run() -> Result<()> {
         } => {
             let (pool, pool_path) = pool_mgr.resolve_context_path(&diff_path)?;
             commands::diff::execute(pool, pool_path, verbose, hash, cli.json)?;
+        }
+        Commands::Cmp { cmp_path, verbose } => {
+            let (pool, pool_path) = pool_mgr.resolve_context_path(&cmp_path)?;
+            commands::cmp::execute(pool, pool_path, None, None, verbose, cli.json)?;
+        }
+        Commands::Df { context, human, total } => {
+            commands::df::execute(&pool_mgr, context.as_deref(), human, total, cli.verbose, cli.json)?;
+        }
+        Commands::Grep {
+            pattern,
+            grep_paths,
+            ignore_case,
+            invert_match,
+            line_number,
+            files_with_matches,
+            recursive,
+        } => {
+            for path in &grep_paths {
+                let (pool, pool_path) = pool_mgr.resolve_context_path(path)?;
+                commands::grep::execute(
+                    pool,
+                    pool_path,
+                    &pattern,
+                    ignore_case,
+                    invert_match,
+                    line_number,
+                    files_with_matches,
+                    recursive,
+                    cli.verbose,
+                    cli.json,
+                )?;
+            }
+        }
+        Commands::Tree {
+            tree_path,
+            all_branches,
+            max_depth,
+            directories,
+            files,
+            human,
+        } => {
+            let (pool, pool_path) = pool_mgr.resolve_context_path(&tree_path)?;
+            commands::tree::execute(
+                pool,
+                pool_path,
+                all_branches,
+                max_depth,
+                directories,
+                files,
+                human,
+                cli.verbose,
+                cli.json,
+            )?;
         }
         Commands::Cp {
             cp_paths,
