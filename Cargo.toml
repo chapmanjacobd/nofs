@@ -207,6 +207,9 @@ needless_raw_string_hashes = "deny"
 # Require documentation for unsafe blocks
 undocumented_unsafe_blocks = "deny"
 
+# Cognitive complexity
+cognitive_complexity = "deny"
+
 # Warn on unwrap/expect/panic (prefer proper error handling)
 unwrap_used = "deny"
 unwrap_in_result = "deny"
