@@ -70,6 +70,8 @@ complete -c nofs -n "__fish_nofs_using_subcommand ls" -s V -l version -d 'Print 
 complete -c nofs -n "__fish_nofs_using_subcommand find" -l name -d 'Filename pattern (glob syntax: *.txt, **/logs/*)' -r
 complete -c nofs -n "__fish_nofs_using_subcommand find" -l type -d 'File type: \'f\' for files, \'d\' for directories' -r
 complete -c nofs -n "__fish_nofs_using_subcommand find" -l maxdepth -d 'Maximum directory traversal depth (0 = starting directory only)' -r
+complete -c nofs -n "__fish_nofs_using_subcommand find" -l min-siblings -d 'Minimum number of siblings (entries in the same directory) to include' -r
+complete -c nofs -n "__fish_nofs_using_subcommand find" -l max-siblings -d 'Maximum number of siblings (entries in the same directory) to include. Folders with more entries than this will be skipped during traversal' -r
 complete -c nofs -n "__fish_nofs_using_subcommand find" -s c -l config -d 'Path to configuration file' -r
 complete -c nofs -n "__fish_nofs_using_subcommand find" -l paths -d 'Comma-separated list of branch paths (ad-hoc mode) Format: /path1,/path2 or /path1=RW,/path2=RO' -r
 complete -c nofs -n "__fish_nofs_using_subcommand find" -l policy -d 'Policy to use for branch selection' -r

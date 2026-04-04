@@ -1874,6 +1874,101 @@ paths = ['{0}/disk1']
     }
 
     #[test]
+    fn find_max_siblings() {
+        let ctx = TestContext::new("cmd_find_max_siblings");
+
+        // small_dir has 2 files
+        let _ = ctx.create_branch("disk1/small_dir", &["f1.txt", "f2.txt"]);
+        // large_dir has 4 files
+        let _ = ctx.create_branch("disk1/large_dir", &["f1.txt", "f2.txt", "f3.txt", "f4.txt"]);
+
+        let config = format!(
+            r"
+[share.test]
+paths = ['{0}/disk1']
+",
+            ctx.root.display()
+        );
+
+        ctx.write_config(&config);
+
+        // Find with max-siblings 2 should skip large_dir (4 files)
+        let output = TestContext::run_nofs(&[
+            "--config",
+            ctx.config_path.to_str().unwrap(),
+            "find",
+            "test:.",
+            "--max-siblings",
+            "2",
+        ]);
+
+        assert!(output.success(), "Command failed: {}", output.stderr);
+        assert!(output.stdout.contains("small_dir"));
+        assert!(output.stdout.contains("small_dir/f1.txt"));
+        assert!(!output.stdout.contains("large_dir/f1.txt"));
+    }
+
+    #[test]
+    fn find_min_siblings() {
+        let ctx = TestContext::new("cmd_find_min_siblings");
+
+        // disk1 needs at least 3 entries to not be skipped itself when min-siblings=3
+        let _ = ctx.create_branch("disk1/small_dir", &["f1.txt", "f2.txt"]);
+        let _ = ctx.create_branch("disk1/large_dir", &["f1.txt", "f2.txt", "f3.txt", "f4.txt"]);
+        let _ = ctx.create_branch("disk1/other_dir", &["f1.txt"]);
+
+        let config = format!(
+            r"
+[share.test]
+paths = ['{0}/disk1']
+",
+            ctx.root.display()
+        );
+
+        ctx.write_config(&config);
+
+        // Find with min-siblings 3 should skip small_dir (2 files) and other_dir (1 file)
+        // disk1 has 3 entries (small_dir, large_dir, other_dir), so it won't be skipped.
+        let output = TestContext::run_nofs(&[
+            "--config",
+            ctx.config_path.to_str().unwrap(),
+            "find",
+            "test:.",
+            "--min-siblings",
+            "3",
+        ]);
+
+        assert!(output.success(), "Command failed: {}", output.stderr);
+        assert!(output.stdout.contains("large_dir"));
+        assert!(output.stdout.contains("large_dir/f1.txt"));
+        assert!(!output.stdout.contains("small_dir/f1.txt"));
+        assert!(!output.stdout.contains("other_dir/f1.txt"));
+    }
+
+    #[test]
+    fn find_streaming_default() {
+        let ctx = TestContext::new("cmd_find_streaming");
+
+        let _ = ctx.create_branch("disk1", &["file1.txt", "file2.txt"]);
+
+        let config = format!(
+            r"
+[share.test]
+paths = ['{0}/disk1']
+",
+            ctx.root.display()
+        );
+
+        ctx.write_config(&config);
+
+        let output = TestContext::run_nofs(&["--config", ctx.config_path.to_str().unwrap(), "find", "test:."]);
+
+        assert!(output.success(), "Command failed: {}", output.stderr);
+        assert!(output.stdout.contains("file1.txt"));
+        assert!(output.stdout.contains("file2.txt"));
+    }
+
+    #[test]
     fn mkdir_existing_directory() {
         let ctx = TestContext::new("cmd_mkdir_existing");
 

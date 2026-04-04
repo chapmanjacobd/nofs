@@ -569,7 +569,7 @@ _nofs() {
             return 0
             ;;
         nofs__find)
-            opts="-c -v -h -V --name --type --maxdepth --config --paths --policy --minfreespace --verbose --json --help --version <PATHS>..."
+            opts="-c -v -h -V --name --type --maxdepth --min-siblings --max-siblings --config --paths --policy --minfreespace --verbose --json --help --version <PATHS>..."
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -584,6 +584,14 @@ _nofs() {
                     return 0
                     ;;
                 --maxdepth)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --min-siblings)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --max-siblings)
                     COMPREPLY=($(compgen -f "${cur}"))
                     return 0
                     ;;

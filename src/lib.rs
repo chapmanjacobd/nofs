@@ -142,6 +142,15 @@ OPTIONS:
         /// Maximum directory traversal depth (0 = starting directory only).
         #[arg(long, value_name = "N")]
         maxdepth: Option<usize>,
+
+        /// Minimum number of siblings (entries in the same directory) to include.
+        #[arg(long, value_name = "N")]
+        min_siblings: Option<usize>,
+
+        /// Maximum number of siblings (entries in the same directory) to include.
+        /// Folders with more entries than this will be skipped during traversal.
+        #[arg(long, value_name = "N")]
+        max_siblings: Option<usize>,
     },
 
     /// Find which branch contains a file.
@@ -1113,17 +1122,23 @@ fn run_query_commands(cli: &Cli, pool_mgr: &pool::PoolManager) -> Result<()> {
             name,
             type_,
             maxdepth,
+            min_siblings,
+            max_siblings,
         } => {
             for path in &find_paths {
                 let (pool, pool_path) = pool_mgr.resolve_context_path(path)?;
                 commands::find::execute(
                     pool,
                     pool_path,
-                    name.as_deref(),
-                    type_.as_deref(),
-                    maxdepth,
-                    cli.verbose,
-                    cli.json,
+                    &commands::find::FindOptions {
+                        name_pattern: name.as_deref(),
+                        type_filter: type_.as_deref(),
+                        maxdepth,
+                        min_siblings,
+                        max_siblings,
+                        verbose: cli.verbose,
+                        json: cli.json,
+                    },
                 )?;
             }
         }

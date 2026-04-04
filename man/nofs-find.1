@@ -4,7 +4,7 @@
 .SH NAME
 find \- Find files matching a pattern
 .SH SYNOPSIS
-\fBfind\fR [\fB\-\-name\fR] [\fB\-\-type\fR] [\fB\-\-maxdepth\fR] [\fB\-h\fR|\fB\-\-help\fR] <\fIPATHS\fR> 
+\fBfind\fR [\fB\-\-name\fR] [\fB\-\-type\fR] [\fB\-\-maxdepth\fR] [\fB\-\-min\-siblings\fR] [\fB\-\-max\-siblings\fR] [\fB\-h\fR|\fB\-\-help\fR] <\fIPATHS\fR> 
 .SH DESCRIPTION
 Find files matching a pattern
 .SH OPTIONS
@@ -17,6 +17,12 @@ File type: \*(Aqf\*(Aq for files, \*(Aqd\*(Aq for directories
 .TP
 \fB\-\-maxdepth\fR \fI<N>\fR
 Maximum directory traversal depth (0 = starting directory only)
+.TP
+\fB\-\-min\-siblings\fR \fI<N>\fR
+Minimum number of siblings (entries in the same directory) to include
+.TP
+\fB\-\-max\-siblings\fR \fI<N>\fR
+Maximum number of siblings (entries in the same directory) to include. Folders with more entries than this will be skipped during traversal
 .TP
 \fB\-h\fR, \fB\-\-help\fR
 Print help

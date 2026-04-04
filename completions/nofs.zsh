@@ -64,6 +64,8 @@ _arguments "${_arguments_options[@]}" : \
 '--name=[Filename pattern (glob syntax\: *.txt, **/logs/*)]:PATTERN:_default' \
 '--type=[File type\: '\''f'\'' for files, '\''d'\'' for directories]:TYPE:_default' \
 '--maxdepth=[Maximum directory traversal depth (0 = starting directory only)]:N:_default' \
+'--min-siblings=[Minimum number of siblings (entries in the same directory) to include]:N:_default' \
+'--max-siblings=[Maximum number of siblings (entries in the same directory) to include. Folders with more entries than this will be skipped during traversal]:N:_default' \
 '-c+[Path to configuration file]:CONFIG:_default' \
 '--config=[Path to configuration file]:CONFIG:_default' \
 '--paths=[Comma-separated list of branch paths (ad-hoc mode) Format\: /path1,/path2 or /path1=RW,/path2=RO]:PATHS:_default' \

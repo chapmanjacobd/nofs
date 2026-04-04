@@ -9,20 +9,25 @@ use std::io::{self, Write};
 use std::path::Path;
 use walkdir::WalkDir;
 
+/// Options for the find command
+#[derive(Debug, Clone, Copy)]
+#[non_exhaustive]
+pub struct FindOptions<'a> {
+    pub name_pattern: Option<&'a str>,
+    pub type_filter: Option<&'a str>,
+    pub maxdepth: Option<usize>,
+    pub min_siblings: Option<usize>,
+    pub max_siblings: Option<usize>,
+    pub verbose: bool,
+    pub json: bool,
+}
+
 /// Execute the find command
 ///
 /// # Errors
 ///
 /// Returns an error if there is an IO error during output or if the path is not found.
-pub fn execute(
-    pool: &Pool,
-    path: &str,
-    name_pattern: Option<&str>,
-    type_filter: Option<&str>,
-    maxdepth: Option<usize>,
-    verbose: bool,
-    json: bool,
-) -> Result<()> {
+pub fn execute(pool: &Pool, path: &str, options: &FindOptions<'_>) -> Result<()> {
     let pool_path = Path::new(path);
 
     // Create operation cache for this command execution
@@ -37,7 +42,7 @@ pub fn execute(
         )));
     }
 
-    if verbose {
+    if options.verbose {
         let stderr = io::stderr();
         let mut h = stderr.lock();
         writeln!(h, "found in:")?;
@@ -51,9 +56,13 @@ pub fn execute(
     std::thread::scope(|s| {
         for branch_ref in branches {
             let branch = (*branch_ref).clone();
-            let n_pattern = name_pattern.map(String::from);
-            let t_filter = type_filter.map(String::from);
+            let n_pattern = options.name_pattern.map(String::from);
+            let t_filter = options.type_filter.map(String::from);
             let set_ref = &found_paths_set;
+            let json = options.json;
+            let maxdepth = options.maxdepth;
+            let min_siblings = options.min_siblings;
+            let max_siblings = options.max_siblings;
 
             s.spawn(move || {
                 let branch_path = branch.path.join(pool_path);
@@ -64,8 +73,24 @@ pub fn execute(
                     walker = walker.max_depth(depth);
                 }
 
-                for entry_result in walker {
+                let mut it = walker.into_iter();
+                while let Some(entry_result) = it.next() {
                     let Ok(entry) = entry_result else { continue };
+
+                    // Apply sibling count filtering at the directory level
+                    if entry.file_type().is_dir() && (min_siblings.is_some() || max_siblings.is_some()) {
+                        if let Ok(rd) = std::fs::read_dir(entry.path()) {
+                            let count = rd.count();
+
+                            let too_many = max_siblings.is_some_and(|max| count > max);
+                            let too_few = min_siblings.is_some_and(|min| count < min);
+
+                            if too_many || too_few {
+                                it.skip_current_dir();
+                                continue;
+                            }
+                        }
+                    }
 
                     let entry_path = entry.path();
 
@@ -107,30 +132,30 @@ pub fn execute(
 
                     // Get path relative to pool mount point
                     let pool_relative = relative.to_path_buf();
+                    let path_str = pool_relative.display().to_string();
 
                     // Add to results (DashSet handles duplicates)
-                    set_ref.insert(pool_relative.display().to_string());
+                    if set_ref.insert(path_str.clone()) && !json {
+                        println!("{path_str}");
+                        let _ = io::stdout().flush();
+                    }
                 }
             });
         }
     });
 
+    if !options.json {
+        return Ok(());
+    }
+
     let mut found_paths: Vec<String> = found_paths_set.into_iter().collect();
     found_paths.sort();
 
-    if json {
-        let output = FindOutput {
-            path: path.to_string(),
-            files: found_paths,
-        };
-        println!("{}", serde_json::to_string_pretty(&output)?);
-    } else {
-        let stdout = io::stdout();
-        let mut handle = stdout.lock();
-        for path_str in &found_paths {
-            writeln!(handle, "{path_str}")?;
-        }
-    }
+    let output = FindOutput {
+        path: path.to_string(),
+        files: found_paths,
+    };
+    println!("{}", serde_json::to_string_pretty(&output)?);
 
     Ok(())
 }

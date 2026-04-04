@@ -83,6 +83,8 @@ Register-ArgumentCompleter -Native -CommandName 'nofs' -ScriptBlock {
             [CompletionResult]::new('--name', '--name', [CompletionResultType]::ParameterName, 'Filename pattern (glob syntax: *.txt, **/logs/*)')
             [CompletionResult]::new('--type', '--type', [CompletionResultType]::ParameterName, 'File type: ''f'' for files, ''d'' for directories')
             [CompletionResult]::new('--maxdepth', '--maxdepth', [CompletionResultType]::ParameterName, 'Maximum directory traversal depth (0 = starting directory only)')
+            [CompletionResult]::new('--min-siblings', '--min-siblings', [CompletionResultType]::ParameterName, 'Minimum number of siblings (entries in the same directory) to include')
+            [CompletionResult]::new('--max-siblings', '--max-siblings', [CompletionResultType]::ParameterName, 'Maximum number of siblings (entries in the same directory) to include. Folders with more entries than this will be skipped during traversal')
             [CompletionResult]::new('-c', '-c', [CompletionResultType]::ParameterName, 'Path to configuration file')
             [CompletionResult]::new('--config', '--config', [CompletionResultType]::ParameterName, 'Path to configuration file')
             [CompletionResult]::new('--paths', '--paths', [CompletionResultType]::ParameterName, 'Comma-separated list of branch paths (ad-hoc mode) Format: /path1,/path2 or /path1=RW,/path2=RO')
